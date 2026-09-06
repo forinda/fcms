@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+# Personal machine overrides. `.env.test` itself is COMMITTED — it is the
+# suite's shared, reviewable environment — but `*.local` never is.
+*.local
+coverage/
+.DS_Store
+*.tsbuildinfo
+.kickjs/
