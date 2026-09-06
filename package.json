@@ -11,25 +11,26 @@
   "dependencies": {
     "@forinda/kickjs": "^8.3.1",
     "@forinda/kickjs-schema": "^0.1.4",
+    "@forinda/kickjs-swagger": "^7.2.1",
     "dotenv": "^17.3.1",
+    "express": "^5.1.0",
     "reflect-metadata": "^0.2.2",
-    "zod": "^4.3.6",
-    "express": "^5.1.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@forinda/kickjs-cli": "^8.1.5",
     "@forinda/kickjs-testing": "^8.0.0",
     "@forinda/kickjs-vite": "^8.0.0",
-    "@types/supertest": "^7.2.1",
     "@swc/core": "^1.15.21",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.0",
+    "@types/supertest": "^7.2.1",
+    "oxfmt": "^0.65.0",
+    "oxlint": "^1.80.0",
+    "supertest": "^7.2.2",
+    "typescript": "^7.0.2",
     "unplugin-swc": "^1.5.9",
     "vite": "^8.0.3",
-    "supertest": "^7.2.2",
-    "vitest": "^4.1.2",
-    "typescript": "^7.0.2",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0"
+    "vitest": "^4.1.2"
   }
 }
