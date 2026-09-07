@@ -8,6 +8,7 @@
 import { defineModule } from "@forinda/kickjs";
 
 import { AdminController } from "./admin.controller";
+import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 
 // Eagerly import every file in the module so decorators run and register in
@@ -29,6 +30,10 @@ export const AdminModule = defineModule({
         // Auth first: its `/login` must not be shadowed by the content
         // controller's `/:type` parameter route.
         { path: "/admin", controller: AdminController },
+        // Before the content controller: its `/content/:type` would otherwise
+        // swallow nothing here, but the canvas's `/pages/:key` is the more
+        // specific route and reads better first.
+        { path: "/admin", controller: CanvasController },
         { path: "/admin", controller: ContentController },
       ];
     },

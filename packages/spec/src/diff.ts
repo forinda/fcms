@@ -198,7 +198,8 @@ function diffContent(before: SiteSpec, after: SiteSpec, counts: EntryCounts): Sp
  * Identity is the block type plus its first human-readable attribute, which is
  * what actually distinguishes two sections to a reader.
  */
-function blockOutline(page: Page): string[] {
+function blockOutline(page: Page, options: { labels?: boolean } = {}): string[] {
+  const withLabels = options.labels !== false;
   const out: string[] = [];
   const label = (attrs: Record<string, unknown> | undefined): string => {
     for (const key of ["text", "heading", "label", "title"]) {
@@ -216,13 +217,20 @@ function blockOutline(page: Page): string[] {
     }[],
   ) => {
     for (const b of blocks) {
-      out.push(`${b.type}${label(b.attrs)}`);
+      out.push(withLabels ? `${b.type}${label(b.attrs)}` : b.type);
       if (Array.isArray(b.children)) walk(b.children as never);
       if (Array.isArray(b.item)) walk(b.item as never);
     }
   };
   walk(page.blocks as never);
   return out;
+}
+
+/** A block identity as a reader would say it: its words, or its type. */
+function text(id: string | undefined): string {
+  if (!id) return "nothing";
+  const words = id.split(":").slice(1).join(":");
+  return words === "" ? id : `"${words}"`;
 }
 
 function diffPages(before: SiteSpec, after: SiteSpec): SpecChange[] {
@@ -278,7 +286,38 @@ function diffPages(before: SiteSpec, after: SiteSpec): SpecChange[] {
 
     const bo = blockOutline(before_);
     const ao = blockOutline(after_);
-    if (bo.join() !== ao.join()) {
+
+    // Same blocks in the same places, different words in them. Identity
+    // includes a block's text so that two identically-shaped sections are
+    // distinguishable, which means *editing* that text looks like removing one
+    // block and adding another — and the destructive gate then refuses the most
+    // ordinary edit there is. The tree tells the two apart: a rewording leaves
+    // the structure identical.
+    const structureUnchanged =
+      blockOutline(before_, { labels: false }).join() ===
+      blockOutline(after_, { labels: false }).join();
+
+    // A reorder keeps every label and moves them; a rewording changes the
+    // labels themselves. Both leave the structure identical, so the multiset is
+    // what separates them — without this, swapping two sections read as an edit
+    // to both of their headings.
+    const sameLabels = [...bo].sort().join() === [...ao].sort().join();
+
+    if (bo.join() !== ao.join() && structureUnchanged && !sameLabels) {
+      const edits = ao
+        .map((id, i) => [bo[i], id] as const)
+        .filter(([was, now]) => was !== now)
+        .map(([was, now]) => `${text(was)} → ${text(now)}`);
+
+      out.push(
+        additive(
+          `/pages/${key}/blocks`,
+          edits.length === 1
+            ? `Changes the wording on the ${after_.title} page: ${edits[0]}.`
+            : `Changes the wording on the ${after_.title} page in ${edits.length} places.`,
+        ),
+      );
+    } else if (bo.join() !== ao.join()) {
       const readable = (id: string) => id.split(":").slice(1).join(":") || id;
       const added = ao.filter((t) => !bo.includes(t)).map(readable);
       const removed = bo.filter((t) => !ao.includes(t)).map(readable);

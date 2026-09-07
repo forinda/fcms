@@ -199,6 +199,35 @@ describe("automations are described as rules, not as data", () => {
   });
 });
 
+describe("editing the words on a page", () => {
+  it("is additive, not a removal", () => {
+    // Identity includes a block's text so two identically-shaped sections stay
+    // distinguishable — which made *editing* that text look like removing one
+    // block and adding another. The destructive gate then refused the most
+    // ordinary edit there is, and the canvas could not change a heading.
+    const after = edit((d) => {
+      const pages = d["pages"] as { blocks: { attrs?: Record<string, unknown> }[] }[];
+      pages[0]!.blocks[0]!.attrs = { ...pages[0]!.blocks[0]!.attrs, text: "Great hair" };
+    });
+
+    const [change, ...rest] = diffSpecs(base, after, counts);
+    expect(rest).toEqual([]);
+    expect(change!.classification).toBe("additive");
+    expect(change!.summary).toMatch(/wording/i);
+    // And it says which words, because "wording changed" is not reviewable.
+    expect(change!.summary).toContain("Great hair");
+  });
+
+  it("still calls removing a section destructive", () => {
+    const after = edit((d) => {
+      const pages = d["pages"] as { blocks: unknown[] }[];
+      pages[0]!.blocks.pop();
+    });
+
+    expect(diffSpecs(base, after, counts)[0]!.classification).toBe("destructive");
+  });
+});
+
 describe("no change", () => {
   it("reports nothing when nothing changed", () => {
     expect(diffSpecs(base, base, counts)).toEqual([]);
