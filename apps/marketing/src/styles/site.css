@@ -180,6 +180,8 @@ hr {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  /* A wordmark that wraps is two words, and neither of them is the name. */
+  white-space: nowrap;
 }
 .wordmark .mark {
   width: 1.35rem;
@@ -203,6 +205,29 @@ hr {
   font-size: 0.94rem;
   padding: 0.35rem 0;
   border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+/* A phone at 390px keeps the bar on one row by tightening it, rather than
+   wrapping "What it does" over three lines. */
+@media (max-width: 34rem) {
+  .site-header .bar {
+    gap: 0.75rem;
+    padding: 0.7rem 1rem;
+  }
+  .site-header nav {
+    gap: 0.85rem;
+  }
+  .site-header nav a {
+    font-size: 0.85rem;
+  }
+  .wordmark {
+    font-size: 0.9rem;
+  }
+  .cta.small {
+    padding: 0.35rem 0.7rem;
+    font-size: 0.82rem;
+  }
 }
 .site-header nav a:hover {
   color: var(--ink);
@@ -491,6 +516,22 @@ tbody tr:last-child td {
 .site-footer a:hover {
   color: var(--brand);
 }
+/* Narrow screens: a table scrolls itself rather than the page, and a long path
+   in a code span wraps rather than deciding how wide the document is. */
+@media (max-width: 40rem) {
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+  /* break-word, not anywhere: anywhere shrinks a cell's min-content width to
+     one character, which squeezes a table column until `fcms validate` breaks
+     mid-word. break-word keeps the word whole and lets the table scroll. */
+  :not(pre) > code {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+}
+
 .site-footer .about {
   color: var(--muted);
   font-size: 0.92rem;
@@ -507,20 +548,46 @@ tbody tr:last-child td {
   grid-template-columns: 15rem minmax(0, 1fr) 13rem;
   align-items: start;
 }
+/**
+ * On a phone the page comes first and the index goes last.
+ *
+ * A sidebar above the content means scrolling past every other page to reach
+ * the one you opened — which is exactly what the desktop layout puts in a
+ * column so it costs nothing. Ordering is the whole fix: no disclosure widget,
+ * no JavaScript, and the links are still there for whoever wants them.
+ */
 @media (max-width: 60rem) {
   .docs {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
   .docs .toc {
     display: none;
   }
+  .docs .body {
+    order: 1;
+    padding-top: 1.5rem;
+    /* A flex item will not shrink below its content, so a wide table or a long
+       path in a code span pushes the whole page sideways without this. */
+    min-width: 0;
+    max-width: 100%;
+  }
   .docs .sidebar {
+    order: 2;
     position: static;
     max-height: none;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 1rem;
+    padding: 1.5rem 0 0;
+    border-top: 1px solid var(--line);
+  }
+  .docs .sidebar::before {
+    content: "All pages";
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    margin-bottom: 0.8rem;
   }
 }
 
