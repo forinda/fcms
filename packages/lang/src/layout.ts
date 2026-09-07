@@ -15,7 +15,7 @@
  * into its canonical file. That trade is what keeps round-tripping honest
  * rather than approximate.
  */
-import { LineCounter, parseAllDocuments } from 'yaml'
+import { LineCounter, isNode, parseAllDocuments } from 'yaml'
 import type { SiteSpec } from '@forinda-cms/spec'
 
 import type { Diagnostic } from './errors.js'
@@ -67,16 +67,22 @@ export function joinFiles(files: SpecFiles): { ok: true; spec: SiteSpec } | { ok
       .sort()
       .map((p) => ({ path: p, text: files[p]! }))
 
-  // Parsed as YAML only — each fragment is a piece of a spec, so it cannot be
+  // Parsed as YAML only — a fragment is a piece of a spec, so it cannot be
   // validated against the whole-document schema until it is assembled.
   const fragments: Record<string, unknown[]> = { content: [], pages: [], logic: [] }
+  /** Section index → the file it came from, so a diagnostic can be sent home. */
+  const origin: Record<string, { file: string; text: string }[]> = { content: [], pages: [], logic: [] }
   const diagnostics: Diagnostic[] = []
 
   for (const section of ['content', 'pages', 'logic'] as const) {
     for (const { path, text } of collect(section)) {
       const parsed = parseFragment(text, path)
-      if (parsed.ok) fragments[section]!.push(parsed.value)
-      else diagnostics.push(...parsed.diagnostics)
+      if (parsed.ok) {
+        fragments[section]!.push(parsed.value)
+        origin[section]!.push({ file: path, text })
+      } else {
+        diagnostics.push(...parsed.diagnostics)
+      }
     }
   }
 
@@ -92,7 +98,51 @@ export function joinFiles(files: SpecFiles): { ok: true; spec: SiteSpec } | { ok
   }
 
   const whole = parseSpec(printSpec(merged))
-  return whole.ok ? { ok: true, spec: whole.spec } : { ok: false, diagnostics: whole.diagnostics }
+  if (whole.ok) return { ok: true, spec: whole.spec }
+
+  // Send each diagnostic back to the file the author actually edits.
+  //
+  // Without this the position is measured against the *re-printed merged
+  // document* — a line number that points at nothing on disk, which is worse
+  // than no line number at all because it looks authoritative.
+  return { ok: false, diagnostics: whole.diagnostics.map((d) => relocate(d, origin, site)) }
+}
+
+/**
+ * Rewrite `/content/0/fields/3/name` as `content/service.yaml` at the position
+ * of `/fields/3/name` inside that file.
+ */
+function relocate(
+  d: Diagnostic,
+  origin: Record<string, { file: string; text: string }[]>,
+  siteText: string,
+): Diagnostic {
+  const segments = d.path.split('/').filter(Boolean)
+  const section = segments[0]
+  const index = Number(segments[1])
+
+  const source =
+    section && section in origin && Number.isInteger(index)
+      ? origin[section]![index]
+      : { file: SITE_FILE, text: siteText }
+
+  if (!source) return d
+
+  const inner = section && section in origin && Number.isInteger(index) ? segments.slice(2) : segments
+  const lineCounter = new LineCounter()
+  const doc = parseAllDocuments(source.text, { ...STRICT_PARSE_OPTIONS, lineCounter })[0]
+  if (!doc) return { ...d, file: source.file }
+
+  // Walk up until a node exists, exactly as `parse.ts` does for a missing key.
+  for (let end = inner.length; end >= 0; end--) {
+    const path = inner.slice(0, end).map((sgmt) => (/^\d+$/.test(sgmt) ? Number(sgmt) : sgmt))
+    const node = end === 0 ? doc.contents : doc.getIn(path, true)
+    const offset = isNode(node) ? node.range?.[0] : undefined
+    if (offset !== undefined) {
+      return { ...d, file: source.file, path: `/${inner.join('/')}`, ...lineCounter.linePos(offset) }
+    }
+  }
+  return { ...d, file: source.file }
 }
 
 /**

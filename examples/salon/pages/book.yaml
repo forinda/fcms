@@ -1,0 +1,64 @@
+key: book
+path: /book
+title: Book an appointment
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg }, width: narrow }
+    children:
+      - type: heading
+        attrs: { text: Book an appointment, level: 1 }
+flows:
+  - key: booking
+    steps:
+      - key: service
+        label: Choose a service
+        blocks:
+          - type: list
+            style: { cols: { base: 1, md: 2 }, gap: md }
+            data:
+              from: service
+              where:
+                - { field: active, op: eq, value: true }
+              limit: 20
+            item:
+              - type: card
+                style: { padding: md, border: hairline, radius: md }
+                attrs: { heading: "{{ item.name }}", body: "{{ item.price | currency }}" }
+
+      - key: stylist
+        label: Choose a stylist
+        requires: [service]
+        blocks:
+          - type: list
+            style: { cols: { base: 2, md: 4 }, gap: md }
+            data:
+              from: staff
+              where:
+                - { field: active, op: eq, value: true }
+              limit: 8
+            item:
+              - type: card
+                attrs: { heading: "{{ item.name }}", body: "{{ item.role }}" }
+
+      - key: time
+        label: Pick a time
+        requires: [stylist]
+        blocks:
+          - type: text
+            attrs: { text: Available slots appear here once availability is wired up. }
+
+      - key: details
+        label: Your details
+        requires: [time]
+        blocks:
+          - type: form
+            attrs: { for: booking, submitLabel: Confirm booking }
+            children:
+              - type: field
+                attrs: { name: customerName, label: Your name, type: text, required: true }
+              - type: field
+                attrs: { name: customerPhone, label: Phone number, type: tel, required: true }
+
+    onComplete:
+      - { action: booking-create }
+      - { action: sms-send, params: { template: booking-confirmed } }

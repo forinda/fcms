@@ -18,6 +18,24 @@ export const Key = z
   .max(64)
   .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, 'lowercase kebab-case, starting with a letter')
 
+/**
+ * A field name — **not** a `Key`.
+ *
+ * Keys become filenames and URL segments, so kebab-case is right for them. Field
+ * names become *property paths*: `{{ entry.customerName }}`, `sort.field`,
+ * `where[].field`. A kebab name cannot appear in one — `entry.customer-name`
+ * reads as a subtraction — so field names are camelCase and must match the path
+ * grammar in `condition.ts`.
+ *
+ * Found by hand-authoring the first real spec (ADR 0007 test 1), which is the
+ * kind of thing only writing a real business's spec surfaces.
+ */
+export const FieldName = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z][a-zA-Z0-9]*$/, 'camelCase, starting with a lowercase letter')
+
 /** A URL path. Always absolute, no trailing slash (except the root itself). */
 export const Path = z
   .string()

@@ -9,7 +9,7 @@
  */
 import { z } from 'zod'
 
-import { Key, Label, TemplateString } from './primitives.js'
+import { FieldName, Key, Label, TemplateString } from './primitives.js'
 
 /**
  * A `state` field (ADR 0009 §4) — declared transitions, so "guide transitions"
@@ -51,7 +51,7 @@ const scalarField = <T extends string>(type: T) =>
     .strict()
 
 export const Field = z.intersection(
-  z.object({ name: Key, label: Label }),
+  z.object({ name: FieldName, label: Label }),
   z.union([
     scalarField('text').extend({ max: z.number().int().positive().optional() }),
     scalarField('richtext'),
@@ -83,7 +83,7 @@ export const JsonLdMapping = z
       'Person', 'Organization', 'Recipe', 'JobPosting', 'FAQPage', 'Review',
     ]),
     /** schema.org property → field name on this type. */
-    properties: z.record(z.string(), Key),
+    properties: z.record(z.string(), FieldName),
   })
   .strict()
 
@@ -94,7 +94,7 @@ export const ContentType = z
     /** Plural label — the admin needs it and guessing English plurals is a bug factory. */
     labelPlural: Label.optional(),
     /** Which field renders as the row's title in listings and references. */
-    titleField: Key.optional(),
+    titleField: FieldName.optional(),
     fields: z.array(Field).min(1),
     /** URL shape for entries of this type, e.g. `/services/{{ entry.slug }}` (doc 08). */
     permalink: TemplateString.optional(),

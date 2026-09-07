@@ -1,0 +1,4 @@
+- { slug: amina, name: Amina, role: Senior stylist, active: true }
+- { slug: joy, name: Joy, role: Colour specialist, active: true }
+- { slug: kevin, name: Kevin, role: Barber, active: true }
+- { slug: past, name: Former stylist, role: Stylist, active: false }

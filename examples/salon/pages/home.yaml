@@ -1,0 +1,55 @@
+key: home
+path: /
+title: Riverside Salon
+seo:
+  description: Book a cut, colour or treatment with the Riverside team in Nairobi.
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg }, background: token:color.surface }
+    children:
+      - type: heading
+        attrs: { text: Good hair, booked in a minute., level: 1 }
+        style: { fontSize: xl, textAlign: center, textColor: token:color.text }
+      - type: text
+        attrs: { text: Riverside Salon, Kilimani. Open Tuesday to Sunday. }
+        style: { textAlign: center }
+      - type: button
+        attrs: { label: Book now, to: /book, variant: primary }
+        style: { align: center }
+
+  - type: section
+    style: { padding: { y: xl, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: What we do, level: 2 }
+      - type: list
+        style: { cols: { base: 1, md: 3 }, gap: lg }
+        data:
+          from: service
+          where:
+            - { field: active, op: eq, value: true }
+          sort: { field: price, dir: asc }
+          limit: 12
+        item:
+          - type: card
+            style: { padding: md, border: hairline, radius: md }
+            attrs:
+              heading: "{{ item.name }}"
+              body: "{{ item.blurb }}"
+              to: "/services/{{ item.slug }}"
+
+  - type: section
+    style: { padding: { y: xl, x: lg }, background: token:color.surface }
+    children:
+      - type: heading
+        attrs: { text: The team, level: 2 }
+      - type: list
+        style: { cols: { base: 2, md: 4 }, gap: md }
+        data:
+          from: staff
+          where:
+            - { field: active, op: eq, value: true }
+          limit: 8
+        item:
+          - type: card
+            attrs: { heading: "{{ item.name }}", body: "{{ item.role }}" }

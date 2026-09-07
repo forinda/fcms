@@ -1,0 +1,8 @@
+key: confirm-booking
+label: Text the customer when a booking is confirmed
+trigger: { on: entry.transitioned, type: booking, to: confirmed }
+steps:
+  - action: sms-send
+    params:
+      to: "{{ entry.customerPhone }}"
+      body: "Hi {{ entry.customerName }}, your appointment on {{ entry.startsAt | datetime }} is confirmed. Riverside Salon."

@@ -8,7 +8,7 @@
 import { z } from 'zod'
 
 import { Condition } from './condition.js'
-import { Key } from './primitives.js'
+import { FieldName, Key } from './primitives.js'
 
 /**
  * Hard ceiling on `limit`.
@@ -19,7 +19,7 @@ import { Key } from './primitives.js'
  */
 export const MAX_LIMIT = 100
 
-export const Sort = z.object({ field: Key, dir: z.enum(['asc', 'desc']).default('asc') }).strict()
+export const Sort = z.object({ field: FieldName, dir: z.enum(['asc', 'desc']).default('asc') }).strict()
 
 export const Query = z
   .object({

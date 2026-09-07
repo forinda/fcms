@@ -1,0 +1,20 @@
+key: booking
+label: Booking
+labelPlural: Bookings
+titleField: reference
+publishable: false
+fields:
+  - { name: reference, label: Reference, type: text, required: true, unique: true }
+  - { name: service, label: Service, type: reference, to: service, required: true }
+  - { name: stylist, label: Stylist, type: reference, to: staff }
+  - { name: startsAt, label: Starts at, type: datetime, required: true, filterable: true }
+  - { name: customerName, label: Customer name, type: text, required: true }
+  - { name: customerPhone, label: Phone, type: phone, required: true }
+  - name: status
+    label: Status
+    type: state
+    initial: pending
+    values: [pending, confirmed, completed, cancelled, no-show]
+    transitions:
+      - { from: pending, to: [confirmed, cancelled] }
+      - { from: confirmed, to: [completed, cancelled, no-show] }

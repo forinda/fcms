@@ -1,0 +1,18 @@
+key: service
+label: Service
+labelPlural: Services
+titleField: name
+permalink: "/services/{{ entry.slug }}"
+jsonld:
+  type: Service
+  properties:
+    name: name
+    description: blurb
+fields:
+  - { name: slug, label: Slug, type: text, required: true, unique: true, filterable: true }
+  - { name: name, label: Name, type: text, required: true }
+  - { name: blurb, label: Short description, type: text }
+  - { name: price, label: Price (KES), type: number, required: true }
+  - { name: minutes, label: Duration in minutes, type: number, required: true }
+  - { name: deposit, label: Deposit (KES), type: number, help: Zero means no deposit is taken }
+  - { name: active, label: Bookable, type: boolean, filterable: true }

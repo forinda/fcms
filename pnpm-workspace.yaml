@@ -5,6 +5,14 @@
 packages:
   - 'packages/*'
 
+# Build-script allowlist (doc 09 §1 — supply-chain hardening).
+# Add a package here ONLY after reviewing what its install script does, and say
+# what it does. An unexplained entry is the same as no allowlist.
 allowBuilds:
-  '@scarf/scarf': true
+  # Analytics/telemetry postinstall. Opt-out; we do not want it.
+  '@scarf/scarf': false
+  # Native binary download for the SWC compiler. Required by kickjs.
   '@swc/core': true
+  # Native binary download for the esbuild bundler. Required by tsx, which runs
+  # the CLI in development.
+  esbuild: true

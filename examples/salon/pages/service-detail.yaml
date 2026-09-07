@@ -1,0 +1,19 @@
+key: service-detail
+path: /services
+title: Service
+collection: service
+seo:
+  title: "{{ entry.name }} — Riverside Salon"
+  description: "{{ entry.blurb }}"
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg }, width: narrow }
+    children:
+      - type: heading
+        attrs: { text: "{{ entry.name }}", level: 1 }
+      - type: text
+        attrs: { text: "{{ entry.blurb }}" }
+      - type: text
+        attrs: { text: "{{ entry.price | currency }} · {{ entry.minutes }} minutes" }
+      - type: button
+        attrs: { label: Book this, to: /book, variant: primary }
