@@ -16,7 +16,7 @@
  * rather than approximate.
  */
 import { LineCounter, isNode, parseAllDocuments } from "yaml";
-import type { SiteSpec } from "@forinda-cms/spec";
+import { siteFileOf, type SiteSpec } from "@forinda-cms/spec";
 
 import type { Diagnostic } from "./errors.js";
 import { parseSpec } from "./parse.js";
@@ -31,16 +31,10 @@ export interface SpecFiles {
 
 /** Split a spec into its canonical files. The inverse of `joinFiles`. */
 export function splitFiles(spec: SiteSpec): SpecFiles {
-  const files: Record<string, string> = {
-    [SITE_FILE]: printSpec({
-      specVersion: spec.specVersion,
-      name: spec.name,
-      theme: spec.theme,
-      ...(spec.css ? { css: spec.css } : {}),
-      access: spec.access,
-      wiring: spec.wiring,
-    }),
-  };
+  // Parsed through `SiteFile` rather than assembled by hand. Hand-picking is
+  // what dropped `layout` and `note` when ADR 0014 added them — `fmt` deleted a
+  // site's header and footer and nothing complained. Omission cannot forget.
+  const files: Record<string, string> = { [SITE_FILE]: printSpec(siteFileOf(spec)) };
   for (const type of spec.content) files[`content/${type.key}.yaml`] = printSpec(type);
   for (const page of spec.pages) files[`pages/${page.key}.yaml`] = printSpec(page);
   for (const flow of spec.logic) files[`logic/${flow.key}.yaml`] = printSpec(flow);

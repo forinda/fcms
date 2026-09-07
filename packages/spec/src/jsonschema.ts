@@ -13,7 +13,10 @@
  */
 import { z } from "zod";
 
-import { SiteSpec } from "./site.js";
+import { ContentType } from "./content.js";
+import { Workflow } from "./logic.js";
+import { Page } from "./pages.js";
+import { SiteFile, SiteSpec } from "./site.js";
 
 /**
  * `io: 'input'` matters. Several fields carry `.default()`, so the *output* type
@@ -27,4 +30,32 @@ export function siteSpecJsonSchema(): Record<string, unknown> {
     unrepresentable: "any",
     $refStrategy: "none",
   } as Parameters<typeof z.toJSONSchema>[1]) as Record<string, unknown>;
+}
+
+/**
+ * One schema per file the canonical layout writes (ADR 0006).
+ *
+ * The whole-document schema is the wrong thing to point an editor at for most
+ * files — `site.yaml` carries no `content`, so validating it against `SiteSpec`
+ * reports the collections as missing and the editor confidently contradicts the
+ * parser. That is the "a stale schema is worse than none" failure, one step
+ * removed: not stale, just aimed at the wrong document.
+ *
+ * `spec` covers a single-file spec, which `parseSpec` still accepts.
+ */
+export function fragmentJsonSchemas(): Record<string, Record<string, unknown>> {
+  const emit = (schema: z.ZodType) =>
+    z.toJSONSchema(schema, {
+      io: "input",
+      unrepresentable: "any",
+      $refStrategy: "none",
+    } as Parameters<typeof z.toJSONSchema>[1]) as Record<string, unknown>;
+
+  return {
+    spec: emit(SiteSpec),
+    site: emit(SiteFile),
+    "content-type": emit(ContentType),
+    page: emit(Page),
+    workflow: emit(Workflow),
+  };
 }

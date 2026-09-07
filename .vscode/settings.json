@@ -1,15 +1,19 @@
 {
-  // Makes ADR 0006's editor-support claim real. The YAML language server reads
-  // the generated schema and gives autocomplete, inline validation and hover
-  // docs — which is most of the editor cost doc 11 flagged for having human
-  // authors, without writing an LSP.
+  // ADR 0006's editor-support claim, made real. The YAML language server reads
+  // the generated schemas and gives autocomplete, inline validation and hover
+  // docs — most of the editor cost doc 11 flagged for having human authors,
+  // without writing an LSP.
   //
-  // The canonical layout splits a spec across several files (ADR 0006), so each
-  // pattern points at the matching sub-schema rather than the whole document.
+  // One schema per file the canonical layout writes. Pointing every file at the
+  // whole-document schema would report the collections as missing on site.yaml
+  // and have the editor confidently contradict the parser.
   "yaml.schemas": {
-    "./schema/site.schema.json": ["**/site.yaml"]
+    "./schema/site.schema.json": ["**/site.yaml"],
+    "./schema/content-type.schema.json": ["**/content/*.yaml"],
+    "./schema/page.schema.json": ["**/pages/*.yaml"],
+    "./schema/workflow.schema.json": ["**/logic/*.yaml"]
   },
+  // `fcms fmt` is the canonical formatter (ADR 0006) — a second one would fight it.
   "yaml.format.enable": false,
-  "yaml.validate": true,
-  "files.associations": { "*.yaml": "yaml" }
+  "yaml.validate": true
 }

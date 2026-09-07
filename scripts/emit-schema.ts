@@ -13,44 +13,70 @@
  * is generated from — a stale schema file is worse than none, because an editor
  * would confidently accept a spec the parser rejects.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { siteSpecJsonSchema } from '@forinda-cms/spec'
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { fragmentJsonSchemas } from "@forinda-cms/spec";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const OUT = join(ROOT, 'schema/site.schema.json')
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OUT_DIR = join(ROOT, "schema");
 
-const schema = {
-  $schema: 'http://json-schema.org/draft-07/schema#',
-  $id: 'https://forinda-cms.dev/schema/site.schema.json',
-  title: 'forinda-cms site spec',
-  description:
-    'The whole spec document. Point an editor at this with a ' +
-    '`# yaml-language-server: $schema=` comment; note that the canonical file layout ' +
-    'splits a spec across site.yaml, content/, pages/ and logic/, so a single file ' +
-    'validates against the matching sub-schema rather than this one.',
-  ...siteSpecJsonSchema(),
+/**
+ * One schema per file the canonical layout writes.
+ *
+ * The first version emitted only the whole-document schema and pointed editors
+ * at it for `site.yaml` — which carries no `content`, so the editor reported the
+ * collections as missing and contradicted the parser. That is the "a stale
+ * schema is worse than none" failure one step removed: not stale, just aimed at
+ * the wrong document.
+ */
+const TITLES: Record<string, string> = {
+  spec: "forinda-cms spec (single file)",
+  site: "forinda-cms site.yaml",
+  "content-type": "forinda-cms content type",
+  page: "forinda-cms page",
+  workflow: "forinda-cms workflow",
+};
+
+const check = process.argv.includes("--check");
+let stale = false;
+
+for (const [name, schema] of Object.entries(fragmentJsonSchemas())) {
+  const out = join(OUT_DIR, `${name}.schema.json`);
+  const text = `${JSON.stringify(
+    {
+      $schema: "http://json-schema.org/draft-07/schema#",
+      $id: `https://forinda-cms.dev/schema/${name}.schema.json`,
+      title: TITLES[name] ?? name,
+      ...schema,
+    },
+    null,
+    2,
+  )}\n`;
+
+  if (check) {
+    let current: string | undefined;
+    try {
+      current = readFileSync(out, "utf8");
+    } catch {
+      current = undefined;
+    }
+    if (current !== text) {
+      console.error(`schema/${name}.schema.json is out of date`);
+      stale = true;
+    }
+  } else {
+    // Git does not track an empty directory, so a fresh clone has no `schema/`.
+    mkdirSync(OUT_DIR, { recursive: true });
+    writeFileSync(out, text, "utf8");
+    console.log(`wrote schema/${name}.schema.json (${text.length} bytes)`);
+  }
 }
 
-const text = `${JSON.stringify(schema, null, 2)}\n`
-const check = process.argv.includes('--check')
-
 if (check) {
-  let current: string | undefined
-  try {
-    current = readFileSync(OUT, 'utf8')
-  } catch {
-    current = undefined
+  if (stale) {
+    console.error("run `pnpm schema`");
+    process.exit(1);
   }
-  if (current !== text) {
-    console.error('schema/site.schema.json is out of date — run `pnpm schema`.')
-    process.exit(1)
-  }
-  console.log('schema is current')
-} else {
-  // Git does not track an empty directory, so a fresh clone has no `schema/`.
-  mkdirSync(dirname(OUT), { recursive: true })
-  writeFileSync(OUT, text, 'utf8')
-  console.log(`wrote ${OUT} (${text.length} bytes)`)
+  console.log("schemas are current");
 }

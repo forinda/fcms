@@ -15,6 +15,16 @@ import { formatSource, printSpec } from "./print.js";
 const SITE = `
 specVersion: 1
 name: Test Salon
+note: Fixture for the language tests. Exercises every site-level section on
+  purpose — a round-trip test is only as strong as its fixture, and this one
+  silently passed while \`fmt\` was deleting layouts.
+layout:
+  header:
+    - type: nav
+      attrs: { links: [{ label: Home, to: / }] }
+  footer:
+    - type: footer
+      attrs: { text: "© Test Salon" }
 theme:
   colors: { brand: "#1a7f5a", surface: "#f5f5f4" }
   fonts: { body: Inter }
@@ -180,6 +190,35 @@ describe("the derived file layout", () => {
       "pages/home.yaml",
       "site.yaml",
     ]);
+  });
+
+  /**
+   * The test that would have caught `fmt` deleting a site's header.
+   *
+   * Written as "nothing is lost", not "these fields survive" — a test listing
+   * fields would have been updated alongside the splitter and passed while the
+   * bug shipped. The point is that it fails for a field nobody has thought
+   * about yet.
+   *
+   * That only works if the fixture carries every site-level section. The first
+   * version of this test passed against the broken splitter because `SITE` had
+   * no `layout` to lose, which is the same class of mistake one level up.
+   */
+  it("loses nothing on the way out and back", () => {
+    const joined = joinFiles(splitFiles(spec));
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+    expect(joined.spec).toEqual(spec);
+  });
+
+  it("carries site-level sections other than content, pages and logic", () => {
+    // `layout` and `note` were added by ADR 0014 and silently dropped by a
+    // hand-written field list. Assert on the file itself, so a regression shows
+    // up where it happens rather than three steps downstream.
+    const withLayout = { ...spec, layout: { header: [{ type: "nav" as const }] } };
+    const site = splitFiles(withLayout as typeof spec)["site.yaml"]!;
+    expect(site).toContain("layout");
+    expect(site).toContain("nav");
   });
 
   it("rejoins into the same spec", () => {

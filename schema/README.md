@@ -1,7 +1,15 @@
 # Generated schema
 
-`site.schema.json` is generated from `packages/spec` by `pnpm schema`. **Do not
-edit it** — `pnpm schema:check` fails CI if it drifts from the Zod definitions.
+These are generated from `packages/spec` by `pnpm schema`. **Do not edit them** —
+`pnpm schema:check` fails CI if they drift from the Zod definitions.
+
+| File | Validates |
+|---|---|
+| `site.schema.json` | `site.yaml` — theme, layout, access, wiring |
+| `content-type.schema.json` | `content/*.yaml` |
+| `page.schema.json` | `pages/*.yaml` |
+| `workflow.schema.json` | `logic/*.yaml` |
+| `spec.schema.json` | a whole spec in one file, which `parseSpec` still accepts |
 
 ## Why it exists
 
@@ -29,13 +37,17 @@ specVersion: 1
 name: Riverside Salon
 ```
 
-## The caveat
+## One schema per file, and why
 
-This is the schema for a **whole spec document**. The canonical file layout
-splits one across `site.yaml`, `content/`, `pages/` and `logic/` (ADR 0006), so
-a single content-type file does not validate against it — it is a fragment.
+The first version emitted only the whole-document schema and pointed editors at
+it for `site.yaml`. That file carries no `content`, so the editor reported the
+collections as missing and **confidently contradicted the parser** — the "a stale
+schema is worse than none" failure one step removed: not stale, just aimed at the
+wrong document.
 
-Per-fragment schemas are the obvious next step and are not built yet; the
-authoritative check remains `fcms validate`, which assembles the files first and
-then validates the whole, because cross-file references can only be checked once
-everything is present.
+## What these still cannot check
+
+Cross-file references. A page querying a content type is only checkable once both
+files are present, so `fcms validate` stays authoritative — it assembles the
+layout first and then validates the whole. An editor will happily accept
+`from: treatment` when no such type exists anywhere.
