@@ -13,6 +13,7 @@
 import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
 import type { EntryRow } from "@forinda-cms/db";
 
+import { providerFor } from "@/shared/messaging";
 import { runScript, timeoutOf } from "./sandbox";
 
 export interface ActionContext {
@@ -244,12 +245,23 @@ const webhookPost: Action = {
  * spec, a patch, a run record or a model (ADR 0001).
  */
 function secretHeaders(integration: Integration): Record<string, string> {
-  const headers: Record<string, string> = {};
+  return secretsOf(integration);
+}
+
+/**
+ * `secret:NAME` resolved from the environment, here and nowhere else.
+ *
+ * The value never reaches a spec, a patch, a run record or a model (ADR 0001) —
+ * which is why every caller takes the integration and gets the values back,
+ * rather than passing values around.
+ */
+function secretsOf(integration: Integration): Record<string, string> {
+  const out: Record<string, string> = {};
   for (const [name, ref] of Object.entries(integration.secrets ?? {})) {
     const value = process.env[ref.replace(/^secret:/, "")];
-    if (value) headers[name] = value;
+    if (value) out[name] = value;
   }
-  return headers;
+  return out;
 }
 
 /**
@@ -366,9 +378,77 @@ const scriptRun: Action = {
   },
 };
 
+/**
+ * Text or email one person (ADR 0032).
+ *
+ * One recipient, resolved from a template. A step cannot take a list: sending
+ * to many people is a different feature with different questions — consent,
+ * unsubscribe, rate, cost — and none of them are answered by letting `to` hold
+ * an array.
+ */
+function messaging(kind: "sms" | "email"): Action {
+  const subject: ActionParam[] =
+    kind === "email"
+      ? [{ name: "subject", label: "Subject", kind: "template", required: true }]
+      : [];
+
+  return {
+    summary:
+      kind === "sms"
+        ? "Text one person, through an SMS account you have declared."
+        : "Email one person, through an email account you have declared.",
+    params: [
+      { name: "through", label: "Send with", kind: "integration", of: kind, required: true },
+      {
+        name: "to",
+        label: "To",
+        kind: "template",
+        required: true,
+        default: kind === "sms" ? "{{ entry.customerPhone }}" : "{{ entry.guestEmail }}",
+        help: "One recipient. A step that could take a list is a spam cannon.",
+      },
+      ...subject,
+      { name: "body", label: "Message", kind: "template", required: true, default: "Hello" },
+    ],
+    async run({ spec, params, dryRun }): Promise<ActionResult> {
+      const integration = spec.wiring.find((i) => i.key === String(params["through"] ?? ""));
+      if (!integration || integration.kind !== kind) {
+        throw new Error(`no ${kind} account called "${String(params["through"])}"`);
+      }
+      if (integration.enabled === false)
+        return { note: `skipped: ${integration.key} is turned off` };
+
+      const to = String(params["to"] ?? "").trim();
+      const body = String(params["body"] ?? "").trim();
+      if (!to) throw new Error("there is nobody to send to — the recipient came out empty");
+      if (!body) throw new Error("the message came out empty");
+
+      const provider = providerFor(integration.config ?? {});
+      if (dryRun) {
+        return { note: `would have sent to ${to} through ${integration.key}` };
+      }
+
+      const sent = await provider.send({
+        to,
+        body,
+        subject: kind === "email" ? String(params["subject"] ?? "") : undefined,
+        config: integration.config ?? {},
+        secrets: secretsOf(integration),
+      });
+
+      return {
+        note: sent.note,
+        value: { to, reference: sent.reference ?? null, delivered: sent.preview !== true },
+      };
+    },
+  };
+}
+
 export const ACTION_REGISTRY: Record<string, Action> = {
   "entry.transition": transition,
   "webhook.post": webhookPost,
   "http.request": httpRequest,
   "script.run": scriptRun,
+  "sms.send": messaging("sms"),
+  "email.send": messaging("email"),
 };

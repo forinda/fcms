@@ -461,6 +461,36 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
         }
       }
 
+      if (step.action === "sms.send" || step.action === "email.send") {
+        const wants = step.action === "sms.send" ? "sms" : "email";
+        const to = step.params?.["to"];
+        const through = step.params?.["through"];
+        const integration = typeof through === "string" ? integrations.get(through) : undefined;
+
+        if (typeof through !== "string") {
+          issues.push({
+            path: `${at}/params/through`,
+            message: `needs \`through\`, naming an ${wants} integration`,
+          });
+        } else if (!integration) {
+          issues.push({
+            path: `${at}/params/through`,
+            message: `unknown integration "${through}"`,
+          });
+        } else if (integration.kind !== wants) {
+          issues.push({
+            path: `${at}/params/through`,
+            message: `"${through}" is a ${integration.kind} integration, which cannot send ${wants}`,
+          });
+        }
+
+        // One recipient per step (ADR 0032 §3): an automation that texts every
+        // row is a spam cannon an owner builds by accident, once.
+        if (typeof to !== "string" || to.trim() === "") {
+          issues.push({ path: `${at}/params/to`, message: "needs `to` — one recipient" });
+        }
+      }
+
       if (step.action === "script.run") {
         const code = step.params?.["code"];
         if (typeof code !== "string" || code.trim() === "") {

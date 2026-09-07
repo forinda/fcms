@@ -45,6 +45,10 @@ export const ACTIONS = [
    * platform.
    */
   "script.run",
+  /** Text somebody, through an `sms` integration (ADR 0032). */
+  "sms.send",
+  /** Email somebody, through an `email` integration. */
+  "email.send",
 ] as const;
 
 export type ActionName = (typeof ACTIONS)[number];
