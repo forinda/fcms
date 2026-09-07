@@ -297,6 +297,21 @@ export const ContentType = z
     label: Label,
     /** Plural label — the admin needs it and guessing English plurals is a bug factory. */
     labelPlural: Label.optional(),
+    /**
+     * Who may create rows of this type from the public site (ADR 0020 §3).
+     *
+     *   - absent   — nobody; the admin, the CLI and MCP only. The default,
+     *                because a type that accepts public writes should say so.
+     *   - visitors — a signed-in visitor. Reviews.
+     *   - anyone   — no account needed. Enquiries and contact forms.
+     *
+     * Declared here rather than inferred from a form, so turning a type into a
+     * public write target is a spec change that appears in the diff and can be
+     * refused by the destructive gate — not a side effect of adding a block to
+     * a page.
+     */
+    submissions: z.enum(["visitors", "anyone"]).optional(),
+
     /** Which field renders as the row's title in listings and references. */
     titleField: FieldName.optional(),
     fields: z.array(Field).min(1),

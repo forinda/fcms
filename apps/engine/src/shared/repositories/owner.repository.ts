@@ -169,6 +169,9 @@ export class OwnerRepository {
       .from(loginAttempts)
       .where(
         and(
+          // Sign-in attempts only. Public form submissions share this table and
+          // must not count here, or filling a contact form locks the owner out.
+          eq(loginAttempts.kind, "login"),
           gt(loginAttempts.at, since),
           ipAddress
             ? or(
@@ -182,7 +185,9 @@ export class OwnerRepository {
   }
 
   async recordFailure(email: string, ipAddress: string | null): Promise<void> {
-    await this.db.insert(loginAttempts).values({ email: email.toLowerCase(), ipAddress });
+    await this.db
+      .insert(loginAttempts)
+      .values({ kind: "login", email: email.toLowerCase(), ipAddress });
   }
 
   /** Cleared on success, so a legitimate owner is never punished for typos. */
@@ -190,9 +195,15 @@ export class OwnerRepository {
     await this.db
       .delete(loginAttempts)
       .where(
-        ipAddress
-          ? or(eq(loginAttempts.email, email.toLowerCase()), eq(loginAttempts.ipAddress, ipAddress))
-          : eq(loginAttempts.email, email.toLowerCase()),
+        and(
+          eq(loginAttempts.kind, "login"),
+          ipAddress
+            ? or(
+                eq(loginAttempts.email, email.toLowerCase()),
+                eq(loginAttempts.ipAddress, ipAddress),
+              )
+            : eq(loginAttempts.email, email.toLowerCase()),
+        ),
       );
   }
 }

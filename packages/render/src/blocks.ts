@@ -574,7 +574,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     // ── Forms ───────────────────────────────────────────────────────────────
     define({
       name: "form",
-      summary: "A form over a content type. Renders fields; does not submit in the spike.",
+      summary: "A form over a content type. Submits to the site when the type allows it.",
       attrs: ["for", "submitLabel"],
       /**
        * With no children, the inputs are generated from the content type's
@@ -585,7 +585,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
        * salon fixture had to repeat every field by hand, and nothing kept the
        * two in step.
        */
-      render: ({ className, attrs, children, hasChildren, contentType }) => {
+      render: ({ className, attrs, children, hasChildren, contentType, request }) => {
         const generated =
           !hasChildren && contentType
             ? fragment(
@@ -602,11 +602,24 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
                   ),
               )
             : null;
+        // Posts to the submission route when the *type* allows it (ADR 0020
+        // §3). A form over a type that accepts nothing still renders — it is
+        // how an author builds one before opening it — and the route refuses.
+        const target = str(attrs["for"]);
+
         return el(
           "form",
-          { class: `fx-form ${className}`, method: "post", "data-for": str(attrs["for"]) },
-          hasChildren ? children : generated,
-          el("button", { type: "submit" }, str(attrs["submitLabel"], "Submit")),
+          {
+            class: `fx-form ${className}`,
+            method: "post",
+            action: target ? `/submit/${target}` : "",
+            "data-for": target,
+          },
+          fragment(
+            hasChildren ? children : generated,
+            el("input", { type: "hidden", name: "from", value: request?.path ?? "/" }),
+            el("button", { type: "submit" }, str(attrs["submitLabel"], "Submit")),
+          ),
         );
       },
     }),

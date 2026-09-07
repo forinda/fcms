@@ -29,6 +29,13 @@
       "when": 1788797113225,
       "tag": "0003_visitors",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788798841460,
+      "tag": "0004_attempt_kinds",
+      "breakpoints": true
     }
   ]
 }

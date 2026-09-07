@@ -82,12 +82,25 @@ export const loginAttempts = pgTable(
   "login_attempts",
   {
     id: pk(),
+    /**
+     * What was being attempted.
+     *
+     * `login` and `submit` share this table because both answer "how often has
+     * this address done this lately" — but they must not share a *counter*:
+     * without this column, filling a public contact form twenty times
+     * rate-limited the owner's own sign-in from the same address, turning spam
+     * into a denial of service against the one person who could clear it.
+     */
+    kind: text().notNull().default("login"),
     /** Lowercased email as submitted — not a foreign key, since it may be nobody. */
     email: text().notNull(),
     ipAddress: text(),
     at: createdAt(),
   },
-  (t) => [index("login_attempts_email_at").on(t.email, t.at), index("login_attempts_at").on(t.at)],
+  (t) => [
+    index("login_attempts_kind_email_at").on(t.kind, t.email, t.at),
+    index("login_attempts_at").on(t.at),
+  ],
 );
 
 export type LoginAttemptRow = typeof loginAttempts.$inferSelect;
