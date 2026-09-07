@@ -10,7 +10,7 @@ import type { Classification, PatchOp } from "@forinda-cms/spec";
 
 import type { Db, Executor } from "../client.js";
 import type { Scope } from "../scope.js";
-import { specPatches, type SpecPatchRow } from "../schema.js";
+import { specPatches, type SpecPatchRow } from "../schema/index.js";
 
 export interface RecordPatch {
   readonly ops: PatchOp[];

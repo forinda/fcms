@@ -13,7 +13,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import { closeAllPools, createDb } from "./client.js";
 import { indexName, planMigration, runMigration } from "./planner.js";
-import { entries, organizations, siteSpecs, sites, specPatches } from "./schema.js";
+import { entries, organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
 import { Site } from "./site.js";
 
 const SITE = "site_planner";

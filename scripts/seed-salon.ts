@@ -78,7 +78,6 @@ for (const name of readdirSync(join(root, "data")).filter((f) => f.endsWith(".ya
     await db
       .insert(entries)
       .values({
-        id: `${typeKey}:${slug}`,
         siteId: SITE,
         orgId: ORG,
         typeKey,
@@ -86,7 +85,11 @@ for (const name of readdirSync(join(root, "data")).filter((f) => f.endsWith(".ya
         data: row,
         status: "published",
       })
-      .onConflictDoNothing();
+      // Targeted at the real unique constraint. A bare `onConflictDoNothing()`
+      // worked only while the id was derived from the slug; with a generated
+      // ULID every re-seed would insert a duplicate row that no constraint on
+      // `id` could catch.
+      .onConflictDoNothing({ target: [entries.siteId, entries.typeKey, entries.slug] });
   }
   console.log(`  ${typeKey}: ${rows.length} entries`);
 }

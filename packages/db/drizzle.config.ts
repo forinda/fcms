@@ -10,7 +10,7 @@ import { defineConfig } from "drizzle-kit";
  * database-per-site later with the provisioning code already proven.
  */
 export default defineConfig({
-  schema: "./src/schema.ts",
+  schema: "./src/schema/index.ts",
   out: "./migrations",
   dialect: "postgresql",
   casing: "snake_case",

@@ -36,6 +36,21 @@ const envSchema = fromZod(
     /** Absolute base for canonicals and the sitemap (doc 08). */
     PUBLIC_URL: z.string().optional(),
 
+    /**
+     * The first owner, created once on first boot and then ignored.
+     *
+     * Leaving these unset is a valid install — it just has nobody who can sign
+     * in until an owner is created another way.
+     */
+    OWNER_EMAIL: z.string().email().optional(),
+    OWNER_PASSWORD: z.string().min(12).optional(),
+
+    /**
+     * Set for a site served over HTTPS. The session cookie is marked `Secure`
+     * when true, which is what stops it travelling over plain HTTP.
+     */
+    SECURE_COOKIES: z.coerce.boolean().default(false),
+
     /** Shown on the starter page a fresh install boots into. */
     SITE_NAME: z.string().optional(),
     SITE_TIMEZONE: z.string().default("UTC"),
