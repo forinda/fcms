@@ -1,12 +1,10 @@
 /**
  * The canvas: a tree, the real page, and a generated inspector.
  *
- * ADR 0017 §2 — the middle pane is an iframe of the actual rendered page, same
- * renderer and same CSS, so there is no fidelity gap to manage. §5 — every
- * action here is a form that posts and re-renders, and the JavaScript at the
- * bottom only adds selection and highlighting on top of that. A canvas whose
- * only input is a mouse drag excludes keyboard and touch users from the
- * product's headline feature.
+ * ADR 0017 §2 — the middle pane is an iframe of the actual rendered page, so
+ * there is no fidelity gap to manage. §5 — every action is a form that posts
+ * and re-renders; the script adds selection, dragging, inline editing and the
+ * viewport sizes on top of that, and its absence costs none of the function.
  */
 import type { Block, Page, SiteSpec } from "@forinda-cms/spec";
 import type { BlockType } from "@forinda-cms/render";
@@ -23,6 +21,20 @@ export interface CanvasOptions {
   readonly error?: string | undefined;
 }
 
+/**
+ * The widths people design for.
+ *
+ * Named rather than numbered — an owner asks "does it work on a phone", not
+ * "does it work at 390px" — and they match the breakpoints the style props
+ * actually use, so what the canvas shows is what `hideOn` and a responsive
+ * `padding` will do.
+ */
+const VIEWPORTS = [
+  { id: "desktop", label: "Desktop", width: 0 },
+  { id: "tablet", label: "Tablet", width: 820 },
+  { id: "mobile", label: "Mobile", width: 390 },
+] as const;
+
 /** One row per block, indented by depth — the structure, as structure. */
 function tree(
   blocks: readonly Block[],
@@ -34,15 +46,13 @@ function tree(
     .map((block, index) => {
       const here = [...path, index];
       const id = here.join("-");
-      const known = registry[block.type];
       const children = block.children ?? block.item ?? [];
-
-      const label = summarise(block, known);
-      const repeats = block.data ? '<span class="pill">repeats</span>' : "";
+      const label = summarise(block, registry[block.type]);
 
       return `<li>
-  <div class="node${id === selected ? " selected" : ""}">
-    <a href="?block=${esc(id)}">${esc(label)}</a>${repeats}
+  <div class="node${id === selected ? " selected" : ""}" draggable="true"
+       data-block="${esc(id)}" data-index="${index}">
+    <a href="?block=${esc(id)}">${esc(label)}</a>${block.data ? '<span class="pill">repeats</span>' : ""}
     <span class="node-actions">
       <button form="act" name="op" value="up:${esc(id)}" title="Move up">↑</button>
       <button form="act" name="op" value="down:${esc(id)}" title="Move down">↓</button>
@@ -52,7 +62,11 @@ function tree(
       <button form="act" name="op" value="del:${esc(id)}" title="Delete" class="destructive">✕</button>
     </span>
   </div>
-  ${children.length > 0 ? `<ul>${tree(children, registry, selected, block.data ? [...here, 0] : here)}</ul>` : ""}
+  ${
+    children.length > 0
+      ? `<ul>${tree(children, registry, selected, block.data ? [...here, 0] : here)}</ul>`
+      : ""
+  }
 </li>`;
     })
     .join("\n");
@@ -61,15 +75,15 @@ function tree(
 /**
  * What a block is, in the owner's words.
  *
- * The block's own text where it has some, its type otherwise — a tree of
- * fifteen rows all reading "text" is a tree nobody can navigate.
+ * Its own text where it has some, its type otherwise — a tree of fifteen rows
+ * all reading "text" is a tree nobody can navigate.
  */
 function summarise(block: Block, type: BlockType | undefined): string {
   const attrs = (block.attrs ?? {}) as Record<string, unknown>;
   for (const key of ["text", "label", "title", "heading"]) {
     const value = attrs[key];
     if (typeof value === "string" && value.trim() !== "") {
-      return value.length > 40 ? `${value.slice(0, 40)}…` : value;
+      return value.length > 36 ? `${value.slice(0, 36)}…` : value;
     }
   }
   return type ? type.name : `${block.type} (unknown)`;
@@ -80,15 +94,20 @@ export function canvas(options: CanvasOptions): string {
   const selectedId = selected ? selected.join("-") : "";
 
   const palette = Object.values(registry)
-    .filter((type) => !type.name.startsWith("field"))
     .map(
       (type) =>
         `<option value="${esc(type.name)}">${esc(type.name)} — ${esc(type.summary)}</option>`,
     )
     .join("");
 
+  const sizes = VIEWPORTS.map(
+    (viewport) =>
+      `<button type="button" class="size${viewport.id === "desktop" ? " on" : ""}"
+         data-width="${viewport.width}">${viewport.label}</button>`,
+  ).join("");
+
   return `${error ? `<p class="error">${esc(error)}</p>` : ""}
-<div class="canvas">
+<div class="canvas" data-page="${esc(page.key)}">
   <aside class="tree">
     <h2>${esc(page.title)}</h2>
     <p class="help">${esc(page.path)}</p>
@@ -96,6 +115,7 @@ export function canvas(options: CanvasOptions): string {
 
     <form method="post" id="act" class="add">
       <input type="hidden" name="block" value="${esc(selectedId)}">
+      <input type="hidden" name="to" value="">
       <label for="add-type">Add a block</label>
       <div class="row">
         <select id="add-type" name="type">${palette}</select>
@@ -105,8 +125,27 @@ export function canvas(options: CanvasOptions): string {
     </form>
   </aside>
 
-  <div class="preview">
-    <iframe src="${esc(previewUrl)}" title="${esc(page.title)}" id="page"></iframe>
+  <div class="stage">
+    <div class="viewport-bar">
+      <span class="sizes">${sizes}</span>
+      <span class="stage-actions">
+        ${
+          page.draft
+            ? `<span class="pill">draft — not public</span>
+               <button form="act" name="op" value="publish" class="publish">Publish page</button>`
+            : `<span class="pill live">live</span>
+               <button form="act" name="op" value="unpublish" class="link">Unpublish</button>
+               <a href="${esc(page.path)}" target="_blank" rel="noopener" class="muted">Open ↗</a>`
+        }
+      </span>
+    </div>
+    <div class="preview" id="frame-wrap">
+      <iframe src="${esc(previewUrl)}" title="${esc(page.title)}" id="page"></iframe>
+    </div>
+    <p class="help">
+      Click a section to select it. Double-click text to edit it here. Every change is
+      saved as you make it${page.draft ? " — this page stays private until you publish it" : ""}.
+    </p>
   </div>
 
   <aside class="panel">
@@ -115,34 +154,233 @@ export function canvas(options: CanvasOptions): string {
 </div>
 
 <script>
-// Selection only. Everything above works with this file absent (ADR 0017 §5);
-// this makes clicking the page select the block, which is what people try first.
-(() => {
-  const frame = document.getElementById("page");
-  if (!frame) return;
+${SCRIPT}
+</script>`;
+}
 
-  frame.addEventListener("load", () => {
+/**
+ * The enhancement layer.
+ *
+ * Everything above works with this deleted (ADR 0017 §5): the tree's buttons
+ * are form submits and the inspector is a form. This adds the three things a
+ * person expects from an editor and cannot get from a form — click what you
+ * see, drag to reorder, type on the page — plus the viewport sizes, which
+ * matter because the style props are responsive and a design decision made at
+ * one width is a guess at the others.
+ */
+const SCRIPT = String.raw`
+(() => {
+  const canvas = document.querySelector('.canvas');
+  const frame = document.getElementById('page');
+  const act = document.getElementById('act');
+  if (!canvas || !frame || !act) return;
+
+  const pageKey = canvas.dataset.page;
+  const selected = new URLSearchParams(location.search).get('block');
+
+  const select = (id) => { location.search = '?block=' + id; };
+  const submit = (op, extra = {}) => {
+    for (const [name, value] of Object.entries(extra)) {
+      const field = act.elements.namedItem(name);
+      if (field) field.value = String(value);
+    }
+    const op_ = document.createElement('input');
+    op_.type = 'hidden'; op_.name = 'op'; op_.value = op;
+    act.appendChild(op_);
+    act.submit();
+  };
+
+  // ---- viewport sizes -----------------------------------------------------
+  const wrap = document.getElementById('frame-wrap');
+  for (const button of canvas.querySelectorAll('.size')) {
+    button.addEventListener('click', () => {
+      const width = Number(button.dataset.width);
+      wrap.style.maxWidth = width ? width + 'px' : '';
+      wrap.style.margin = width ? '0 auto' : '';
+      for (const other of canvas.querySelectorAll('.size')) other.classList.toggle('on', other === button);
+    });
+  }
+
+  // ---- dragging the tree --------------------------------------------------
+  let dragging = null;
+  for (const node of canvas.querySelectorAll('.node')) {
+    node.addEventListener('dragstart', (event) => {
+      dragging = node;
+      event.dataTransfer.effectAllowed = 'move';
+    });
+    node.addEventListener('dragover', (event) => {
+      if (!dragging || dragging === node) return;
+      // Same parent only: a drag across levels is a nest, and nesting by
+      // accident is worse than a button that says so.
+      if (parentOf(dragging) !== parentOf(node)) return;
+      event.preventDefault();
+      node.classList.add('drop');
+    });
+    node.addEventListener('dragleave', () => node.classList.remove('drop'));
+    node.addEventListener('drop', (event) => {
+      event.preventDefault();
+      node.classList.remove('drop');
+      if (!dragging || dragging === node) return;
+      submit('to:' + dragging.dataset.block, { to: node.dataset.index });
+    });
+  }
+
+  const parentOf = (node) => (node.dataset.block || '').split('-').slice(0, -1).join('-');
+
+  // ---- the panel applies as you go ---------------------------------------
+  // A Save button is a promise that nothing has happened yet, which is the
+  // wrong promise for a visual editor: the point of showing the real page is
+  // that a change to it is visible immediately. Save stays for anyone without
+  // this script, and as the way to force a write.
+  const panel = document.querySelector('form.inspector');
+  if (panel) {
+    let pending = null;
+    let saving = false;
+
+    const apply = async () => {
+      if (saving) return;
+      saving = true;
+      panel.classList.add('saving');
+
+      try {
+        const response = await fetch(panel.action, {
+          method: 'POST',
+          headers: { accept: 'application/json' },
+          body: new FormData(panel),
+        });
+
+        if (response.ok) {
+          // Only the frame: reloading the page would take the cursor out of the
+          // field being used.
+          frame.contentWindow.location.reload();
+          syncTreeLabel();
+        } else {
+          const body = await response.json().catch(() => ({}));
+          note(body.error || 'That change could not be applied.');
+        }
+      } catch {
+        note('Could not reach the server.');
+      } finally {
+        saving = false;
+        panel.classList.remove('saving');
+      }
+    };
+
+    // Selects land immediately — a dropdown has one deliberate value. Typing is
+    // debounced, or every keystroke becomes its own entry in history.
+    const schedule = (wait) => {
+      clearTimeout(pending);
+      pending = setTimeout(apply, wait);
+    };
+
+    panel.addEventListener('change', (event) => {
+      if (event.target.tagName === 'SELECT') schedule(0);
+    });
+    panel.addEventListener('input', (event) => {
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') schedule(600);
+    });
+
+    // The tree shows a block by its words, so an edited heading has to change
+    // there too or the two panes disagree about what you are looking at.
+    const syncTreeLabel = () => {
+      const text = panel.querySelector('[name="attr__text"], [name="attr__label"], [name="attr__title"]');
+      const row = selected && canvas.querySelector('.node[data-block="' + CSS.escape(selected) + '"] > a');
+      if (text && row && text.value.trim() !== '') row.textContent = text.value.slice(0, 36);
+    };
+  }
+
+  const note = (message) => {
+    let bar = document.getElementById('canvas-note');
+    if (!bar) {
+      bar = document.createElement('p');
+      bar.id = 'canvas-note';
+      bar.className = 'error';
+      canvas.parentNode.insertBefore(bar, canvas);
+    }
+    bar.textContent = message;
+  };
+
+  // ---- the page itself ----------------------------------------------------
+  frame.addEventListener('load', () => {
     const doc = frame.contentDocument;
     if (!doc) return;
 
-    // The renderer already stamps a unique class per block path (\`b0-1-2\`), so
+    // The renderer already stamps a unique class per block path ('b0-1-2'), so
     // the mapping needs no second identity scheme and no renderer change.
-    doc.addEventListener("click", (event) => {
-      const el = event.target instanceof Element ? event.target.closest('[class*="b"]') : null;
-      const cls = el && [...el.classList].find((c) => /^b\\d+(-\\d+)*$/.test(c));
-      if (!cls) return;
+    const pathOf = (el) => {
+      const node = el && el.closest ? el.closest('[class*="b"]') : null;
+      const cls = node && [...node.classList].find((c) => /^b\d+(-\d+)*$/.test(c));
+      return cls ? { el: node, id: cls.slice(1) } : null;
+    };
+
+    const style = doc.createElement('style');
+    style.textContent =
+      '[data-fcms-hover]{outline:1px dashed #1a7f5a;outline-offset:2px;cursor:pointer}' +
+      '[data-fcms-on]{outline:2px solid #1a7f5a;outline-offset:2px}' +
+      '[contenteditable="true"]{outline:2px solid #c2410c;outline-offset:2px}';
+    doc.head.appendChild(style);
+
+    let hovered = null;
+    doc.addEventListener('mousemove', (event) => {
+      const found = pathOf(event.target);
+      if (hovered && hovered !== (found && found.el)) hovered.removeAttribute('data-fcms-hover');
+      if (found && found.el.getAttribute('contenteditable') !== 'true') {
+        found.el.setAttribute('data-fcms-hover', '');
+        hovered = found.el;
+      }
+    });
+
+    doc.addEventListener('click', (event) => {
+      const found = pathOf(event.target);
+      if (!found || event.target.isContentEditable) return;
       event.preventDefault();
-      location.search = "?block=" + cls.slice(1);
+      if (found.id !== selected) select(found.id);
     }, true);
 
-    const current = new URLSearchParams(location.search).get("block");
-    if (!current) return;
-    const target = doc.querySelector("." + CSS.escape("b" + current));
-    if (!target) return;
-    target.style.outline = "2px solid #1a7f5a";
-    target.style.outlineOffset = "2px";
-    target.scrollIntoView({ block: "center", behavior: "smooth" });
+    if (selected) {
+      const current = doc.querySelector('.' + CSS.escape('b' + selected));
+      if (current) {
+        current.setAttribute('data-fcms-on', '');
+        current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+
+    // ---- typing on the page ------------------------------------------------
+    doc.addEventListener('dblclick', (event) => {
+      const found = pathOf(event.target);
+      if (!found) return;
+      // Only where the words are the whole content. A section containing other
+      // blocks is not text, and making it editable would let someone delete
+      // their own layout with a keystroke.
+      if (found.el.children.length > 0) return;
+
+      const before = found.el.textContent;
+      found.el.setAttribute('contenteditable', 'true');
+      found.el.focus();
+
+      const finish = async () => {
+        found.el.removeAttribute('contenteditable');
+        const text = found.el.textContent.trim();
+        if (text === before.trim()) return;
+
+        const body = new URLSearchParams({ path: found.id, text });
+        const response = await fetch('/admin/pages/' + pageKey + '/text', {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body,
+        });
+        // Reloaded on success so the tree label and the inspector agree with
+        // the page — three views of one block that must not drift apart.
+        if (response.ok) location.reload();
+        else found.el.textContent = before;
+      };
+
+      found.el.addEventListener('blur', finish, { once: true });
+      found.el.addEventListener('keydown', (key) => {
+        if (key.key === 'Enter' && !key.shiftKey) { key.preventDefault(); found.el.blur(); }
+        if (key.key === 'Escape') { found.el.textContent = before; found.el.blur(); }
+      });
+    });
   });
 })();
-</script>`;
-}
+`;

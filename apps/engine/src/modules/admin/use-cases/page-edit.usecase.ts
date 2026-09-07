@@ -129,6 +129,86 @@ export class PageEditUseCase {
     });
   }
 
+  /**
+   * Publish or unpublish the page itself.
+   *
+   * `draft` has been in the schema since the first version and nothing read it,
+   * so an unpublished page was served like any other. Now it means what it
+   * says, and this is the action that flips it — the one place in the canvas
+   * where "make this live" is a decision rather than a side effect of typing.
+   */
+  async setPublished(
+    spec: SiteSpec,
+    pageKey: string,
+    published: boolean,
+    input: EditInput,
+  ): Promise<EditResult> {
+    const draft = structuredClone(spec) as SiteSpec & { pages: Page[] };
+    const page = draft.pages.find((p) => p.key === pageKey);
+    if (!page) return { ok: false, error: `No page named "${pageKey}".` };
+
+    page.draft = !published;
+
+    try {
+      const { seq } = await this.applySpec.execute(SiteSpec.parse(draft), {
+        actor: input.actor,
+        source: "canvas",
+        // Unpublishing is classified destructive — it takes a live URL away —
+        // and the person pressing the button in the canvas is the confirmation.
+        allowDestructive: true,
+      });
+      return { ok: true, seq };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Change just the words in a block.
+   *
+   * Separate from `restyle` because inline editing on the canvas sends only the
+   * text: replacing the whole attribute set from a double-click would drop a
+   * heading's `level` and a button's `to`, which is a data loss the editor
+   * would never mention.
+   */
+  setText(spec: SiteSpec, pageKey: string, path: BlockPath, text: string, input: EditInput) {
+    return this.edit(spec, pageKey, input, (blocks) => {
+      const found = resolve(blocks, path);
+      if (!found) return "That block no longer exists.";
+
+      const block = found.parent[found.index]!;
+      const attrs = { ...((block.attrs ?? {}) as Record<string, unknown>) };
+
+      // The attribute this block actually uses for its words, not a guess: a
+      // button carries `label`, a heading `text`, a page section `title`.
+      const key = ["text", "label", "title", "heading"].find((name) => name in attrs) ?? "text";
+      attrs[key] = text;
+      block.attrs = attrs;
+      return null;
+    });
+  }
+
+  /**
+   * Move a block to a new index among its own siblings.
+   *
+   * What a drag produces. Distinct from `move`, which steps one place: dragging
+   * five rows up is one edit and one patch, not five.
+   */
+  reorder(spec: SiteSpec, pageKey: string, path: BlockPath, to: number, input: EditInput) {
+    return this.edit(spec, pageKey, input, (blocks) => {
+      const found = resolve(blocks, path);
+      if (!found) return "That block no longer exists.";
+
+      const { parent, index } = found;
+      const target = Math.max(0, Math.min(to, parent.length - 1));
+      if (target === index) return null;
+
+      const [moved] = parent.splice(index, 1);
+      parent.splice(target, 0, moved!);
+      return null;
+    });
+  }
+
   /** Replace one block's attributes and tier-2 style (ADR 0004). */
   restyle(
     spec: SiteSpec,

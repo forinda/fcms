@@ -6,9 +6,11 @@
  * one public tree and one deny-by-default tree, and no route becomes public
  * because someone forgot.
  */
-import { Autowired, Controller, Get, type Ctx, type RequestContext } from "@forinda/kickjs";
+import { Autowired, Controller, Get, Inject, type Ctx, type RequestContext } from "@forinda/kickjs";
 
 import { PublicSite } from "@/route-flags";
+import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
+import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
 import { SiteService } from "./site.service";
 
 @Controller()
@@ -18,6 +20,27 @@ export class SiteController {
   // does not resolve here, and it fails by leaving the controller
   // uninstantiable — which surfaces as routes that simply never mount.
   @Autowired() private readonly sites!: SiteService;
+
+  /**
+   * Only used to decide whether this request may see a draft.
+   *
+   * The site is public, so there is no actor on `ctx` here (ADR 0008 §4). A
+   * preview is the one case where the public tree needs to know who is asking,
+   * and it asks rather than trusting a query parameter — otherwise `?edit=1`
+   * would publish every draft to anyone who typed it.
+   */
+  @Inject(AuthenticateUseCase) private readonly authenticate!: AuthenticateUseCase;
+
+  /** Is this the canvas, run by someone signed in? */
+  private async mayPreview(ctx: Ctx): Promise<boolean> {
+    const url = ctx.req.url ?? "";
+    if (!url.includes("edit=1")) return false;
+
+    const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
+    const raw = headers["cookie"];
+    const cookie = Array.isArray(raw) ? raw[0] : raw;
+    return (await this.authenticate.execute(readCookie(cookie, SESSION_COOKIE))) !== null;
+  }
 
   /** Absolute base for canonicals and the sitemap (doc 08). */
   private base(ctx: RequestContext): string | undefined {
@@ -81,9 +104,15 @@ export class SiteController {
     const url = (ctx.req.url ?? "/").split("?")[0] ?? "/";
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
 
-    const rendered = await this.sites.render(path, this.base(ctx));
+    const rendered = await this.sites.render(path, this.base(ctx), await this.mayPreview(ctx));
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");
+      // The framework sends `X-Frame-Options: DENY` on everything, which is
+      // right for the admin and wrong here: the canvas edits the page by
+      // framing it (ADR 0017 §2), and DENY made that pane a broken-image icon.
+      // `SAMEORIGIN` keeps the site out of *other* people's frames, which is
+      // what the header is for.
+      ctx.res.setHeader("x-frame-options", "SAMEORIGIN");
       ctx.res.end(rendered.html);
       return;
     }

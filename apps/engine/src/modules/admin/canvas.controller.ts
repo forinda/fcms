@@ -105,8 +105,19 @@ export class CanvasController {
           // Confirmed by construction: the button says delete, and the gate
           // still refuses if the classifier decides content is lost.
           return path ? this.edits.remove(spec, key, path, { actor }) : refuse();
+        case "publish":
+          return this.edits.setPublished(spec, key, true, { actor });
+        case "unpublish":
+          return this.edits.setPublished(spec, key, false, { actor });
         case "add":
           return this.edits.add(spec, key, path, String(body["type"] ?? "text"), { actor });
+        case "to": {
+          // From a drag: the block and where it landed among its siblings.
+          const to = Number(body["to"]);
+          return path && Number.isInteger(to)
+            ? this.edits.reorder(spec, key, path, to, { actor })
+            : refuse();
+        }
         default:
           return refuse();
       }
@@ -120,6 +131,30 @@ export class CanvasController {
       : `${selected || "?"}${selected ? "&" : ""}error=${encodeURIComponent(result.error)}`;
 
     redirect(ctx, `/admin/pages/${key}${suffix}`);
+  }
+
+  /**
+   * Inline editing: the words in one block, and nothing else.
+   *
+   * Answers JSON rather than redirecting — this is called while someone is
+   * typing on the page, and a full reload after every edited heading would lose
+   * their place and their scroll position.
+   */
+  @Post("/pages/:key/text")
+  async setText(ctx: Ctx): Promise<void> {
+    const spec = await this.specs.execute();
+    const key = String((ctx.params as Record<string, string>)["key"] ?? "");
+    if (!spec || !spec.pages.some((p) => p.key === key)) return notFound(ctx);
+
+    const body = ctx.body as Record<string, unknown>;
+    const path = parsePath(body["path"]);
+    if (!path) return json(ctx, 400, { error: "No block." });
+
+    const result = await this.edits.setText(spec, key, path, String(body["text"] ?? ""), {
+      actor: ctx.require("actor").email,
+    });
+
+    json(ctx, result.ok ? 200 : 409, result.ok ? { ok: true } : { error: result.error });
   }
 
   /** The inspector's save: attributes and tier-2 style for one block. */
@@ -157,11 +192,31 @@ export class CanvasController {
       { actor: ctx.require("actor").email },
     );
 
+    // A live edit asks for JSON: the panel applies changes as they are made, and
+    // a redirect there would reload the page under someone's cursor — losing
+    // their scroll position, their selection, and the field they were in.
+    if (wantsJson(ctx)) {
+      return json(ctx, result.ok ? 200 : 409, result.ok ? { ok: true } : { error: result.error });
+    }
+
     const query = result.ok
       ? `?block=${path.join("-")}`
       : `?block=${path.join("-")}&error=${encodeURIComponent(result.error)}`;
     redirect(ctx, `/admin/pages/${key}${query}`);
   }
+}
+
+/** True when the caller is the panel's script rather than a form post. */
+function wantsJson(ctx: Ctx): boolean {
+  const accept = (ctx.req.headers as Record<string, string | string[] | undefined>)["accept"];
+  const header = Array.isArray(accept) ? accept[0] : accept;
+  return typeof header === "string" && header.includes("application/json");
+}
+
+function json(ctx: Ctx, status: number, body: unknown): void {
+  ctx.res.statusCode = status;
+  ctx.res.setHeader("content-type", "application/json; charset=utf-8");
+  ctx.res.end(JSON.stringify(body));
 }
 
 function refuse() {

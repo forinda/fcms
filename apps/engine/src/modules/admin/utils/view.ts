@@ -190,12 +190,14 @@ ${
 }
 
 const CSS = `
-:root{color-scheme:light dark;--line:#e7e5e4;--muted:#78716c;--brand:#1a7f5a;--bad:#991b1b}
+:root{color-scheme:light dark;--ink:#1c1917;--line:#e7e5e4;--muted:#78716c;--brand:#1a7f5a;--bad:#991b1b}
 *{box-sizing:border-box}
 body{font:16px/1.6 system-ui,sans-serif;margin:0;color:#1c1917;background:#fafaf9}
 header{display:flex;justify-content:space-between;align-items:center;gap:1rem;
   padding:.75rem 1rem;border-bottom:1px solid var(--line);background:#fff;flex-wrap:wrap}
 main{max-width:52rem;margin:0 auto;padding:1.5rem 1rem 4rem}
+/* The canvas needs the width; every other screen reads better narrow. */
+main:has(.canvas){max-width:82rem}
 a{color:var(--brand)}
 h1{font-size:1.4rem;margin:0 0 .25rem}
 h2{font-size:1.05rem;margin:2rem 0 .5rem}
@@ -235,9 +237,56 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
 .pill.live{background:#dcfce7;color:#166534}
 form.inline{display:inline}
+
+/* The canvas (ADR 0017): tree, the real page, inspector. One column on a phone,
+   where doc 14 says half this audience is. */
+.canvas{display:grid;grid-template-columns:minmax(13rem,17rem) minmax(0,1fr) minmax(13rem,18rem);
+  gap:1rem;align-items:start;margin-top:1rem}
+@media(max-width:70rem){.canvas{grid-template-columns:1fr}}
+.canvas .preview{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.canvas iframe{width:100%;height:34rem;border:0;display:block}
+.canvas .tree h2{margin:0;font-size:1rem}
+ul.blocks,ul.blocks ul{list-style:none;margin:.4rem 0 0;padding:0 0 0 .7rem}
+ul.blocks ul{border-left:1px solid var(--line)}
+.node{display:flex;align-items:center;gap:.3rem;padding:.15rem .25rem;border-radius:6px;min-width:0}
+.node.selected{background:#ecfdf5;outline:1px solid var(--brand)}
+.node>a{flex:1;min-width:0;text-decoration:none;color:inherit;font-size:.85rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.node-actions{display:flex;gap:0;opacity:.3;flex:none}
+.node:hover .node-actions,.node.selected .node-actions{opacity:1}
+.node-actions button{background:none;color:var(--muted);border:0;padding:.05rem .2rem;
+  font-size:.75rem;line-height:1.2;cursor:pointer;border-radius:4px}
+.node-actions button:hover{background:var(--line);color:var(--ink)}
+.node-actions button.destructive{background:none;border:0;color:var(--bad)}
+.canvas .add{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
+.canvas .add .row{display:flex;gap:.4rem}
+.canvas .add select{flex:1;min-width:0}
+.inspector h3{margin:0 0 .1rem;font-size:.95rem}
+.inspector .field{margin:.6rem 0}
+.inspector .group{margin:0 0 1.1rem;padding:0 0 .6rem;border-bottom:1px solid var(--line)}
+.inspector .group:last-of-type{border-bottom:0}
+.inspector h4{margin:.9rem 0 .2rem;font-size:.72rem;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted)}
+.inspector.saving{opacity:.6}
+.inspector .actions{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap}
+.inspector .saved{margin:0}
+.inspector label{font-size:.78rem;color:var(--muted);margin-bottom:.15rem}
+.node.drop{outline:2px solid var(--brand)}
+.node[draggable=true]{cursor:grab}
+.viewport-bar{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+  margin-bottom:.5rem;font-size:.85rem;flex-wrap:wrap}
+.stage-actions{display:flex;align-items:center;gap:.6rem}
+button.publish{padding:.25rem .7rem;font-size:.8rem}
+.sizes{display:flex;gap:.2rem}
+button.size{background:none;color:var(--muted);border:1px solid var(--line);padding:.2rem .6rem;
+  font-size:.8rem;border-radius:6px}
+button.size.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.stage .preview{transition:max-width .15s ease}
 @media(prefers-color-scheme:dark){
+  :root{--ink:#e7e5e4}
   body{background:#1c1917;color:#e7e5e4}
   .node.selected{background:#064e3b}
+  .canvas .preview{background:#fff}
   header,.card,input,select,textarea{background:#292524;border-color:#44403c}
   :root{--line:#44403c;--muted:#a8a29e}
 }

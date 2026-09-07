@@ -53,11 +53,17 @@ export class SiteService {
     return { spec, source };
   }
 
-  async render(path: string, canonicalBase?: string): Promise<Rendered | null> {
+  /**
+   * @param preview Include draft pages. Only ever true for a signed-in owner
+   *   looking at the canvas — a draft is unpublished, not merely unlinked.
+   */
+  async render(path: string, canonicalBase?: string, preview = false): Promise<Rendered | null> {
     const resolved = await this.resolve();
     if (!resolved) return null;
 
-    const match = routes(resolved.spec, resolved.source).find((r) => r.path === path);
+    const match = routes(resolved.spec, resolved.source, { drafts: preview }).find(
+      (r) => r.path === path,
+    );
     if (!match) return null;
 
     return renderPage(
