@@ -86,8 +86,18 @@ fcms apply     # destructive changes need --yes</code></pre>
   <h2>Where it is</h2>
 
   <p>
-    Phase 0 is done and self-hostable: the spec, the language, the renderer, the admin, the CLI and
-    the install. The AI layer is next, and it is deliberately last — a model editing a spec is only
-    worth something once the spec renders a site a real business would use.
+    Self-hostable and doing real work: the spec and the language, the renderer, the admin and its
+    visual canvas, the CLI, an MCP server, the assistant, and the install above. On top of that, a
+    business that takes bookings has the whole path — search by date or distance, a multi-step
+    journey, a deposit, automations that confirm and notify, and each visitor seeing their own
+    bookings and nobody else's.
+  </p>
+
+  <p>
+    What is <em>not</em> done, said plainly, because finding out later is worse: the M-Pesa and
+    messaging providers are written against their documented APIs and have never been run against a
+    live account — the product says so where you would use them, and taking payment at the counter
+    works today with no account at all. Plugins have a contract but no marketplace, and installing
+    one is a deploy rather than a button. There is no hosted service yet; this is software you run.
   </p>
 </Page>

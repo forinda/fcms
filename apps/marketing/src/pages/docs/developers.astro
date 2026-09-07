@@ -95,6 +95,46 @@ import Page from '../../layouts/Page.astro'
     that is the surface, and the client library is <code>@forinda-cms/sdk</code>.
   </p>
 
+  <h2>Extending it</h2>
+
+  <p>
+    Blocks, actions and availability kinds are registries, and a plugin adds to them. A
+    plugin declares what it provides and what it needs, contributes block types, and never
+    imports the engine, the database or a repository — what it gets is what a block gets, and
+    the whole of its authority is the shape of that function:
+  </p>
+
+  <pre><code>{`import { definePlugin } from '@forinda-cms/plugin'
+
+export default definePlugin({
+  manifest: {
+    name: 'acme-bookings',
+    version: '1.0.0',
+    api: '1',
+    provides: { blocks: ['acme-bookings-form'] },
+    capabilities: { network: ['api.acme.com'] },
+  },
+  blocks: [ /* the same shape core registers */ ],
+})`}</code></pre>
+
+  <p>
+    Every contribution is namespaced to the plugin, so two plugins cannot collide and none
+    can redefine what <code>form</code> means on a site that installs it. Today a plugin is a
+    dependency plus one line — a code review and a deploy — which is a feature at this stage
+    rather than a missing button: a block's <code>render</code> is code, and there will be no
+    install-from-the-internet until the isolation behind it is real.
+  </p>
+
+  <h2>Scripts inside an automation</h2>
+
+  <p>
+    A <code>script.run</code> step is JavaScript over the values a pipeline has, in a
+    separate process with the filesystem, child processes and native modules denied at the
+    runtime level, and no network, database or credentials in scope. It gets its input and
+    returns a value; two seconds, a fixed heap, and a cap on what it may return. See
+    <a href="/docs/automations/">automations</a>.
+  </p>
+
   <div class="ctas">
     <a class="cta" href="/docs/install/">Install it</a>
     <a class="cta secondary" href="/docs/operating/">Backups and upgrades</a>
