@@ -60,19 +60,28 @@ export class EntryWriteUseCase {
     const validation = validateEntry(type, input.data);
     if (!validation.ok) return { ok: false, errors: validation.errors ?? {} };
 
-    const [row] = await this.db
-      .insert(entries)
-      .values({
-        siteId: this.scope.siteId,
-        orgId: this.scope.orgId,
-        typeKey: input.typeKey,
-        slug: input.slug ?? null,
-        data: validation.data!,
-        status: input.status ?? "draft",
-      })
-      .returning();
+    try {
+      const [row] = await this.db
+        .insert(entries)
+        .values({
+          siteId: this.scope.siteId,
+          orgId: this.scope.orgId,
+          typeKey: input.typeKey,
+          slug: input.slug ?? null,
+          data: validation.data!,
+          status: input.status ?? "draft",
+        })
+        .returning();
 
-    return { ok: true, entry: row! };
+      return { ok: true, entry: row! };
+    } catch (error) {
+      // A taken slug is a field the caller can fix, not a server fault. Left to
+      // propagate it answered 500 with a SQL statement in the log and nothing
+      // useful to the caller — a form would show no error, and an agent would
+      // report the site as broken.
+      if (!isUniqueViolation(error)) throw error;
+      return { ok: false, errors: { slug: `Another ${type.label} already uses "${input.slug}".` } };
+    }
   }
 
   async update(spec: SiteSpec, id: string, input: EntryInput): Promise<EntryWriteResult> {
@@ -84,18 +93,24 @@ export class EntryWriteUseCase {
     const validation = validateEntry(type, input.data);
     if (!validation.ok) return { ok: false, errors: validation.errors ?? {} };
 
-    const [row] = await this.db
-      .update(entries)
-      .set({
-        slug: input.slug ?? null,
-        data: validation.data!,
-        ...(input.status ? { status: input.status } : {}),
-        updatedAt: new Date(),
-      })
-      // Scoped as well as keyed by id: an id from a request must not be able to
-      // reach another site's row just because it is a valid uuid.
-      .where(and(this.scoped, eq(entries.id, id)))
-      .returning();
+    let row: EntryRow | undefined;
+    try {
+      [row] = await this.db
+        .update(entries)
+        .set({
+          slug: input.slug ?? null,
+          data: validation.data!,
+          ...(input.status ? { status: input.status } : {}),
+          updatedAt: new Date(),
+        })
+        // Scoped as well as keyed by id: an id from a request must not be able
+        // to reach another site's row just because it is a valid uuid.
+        .where(and(this.scoped, eq(entries.id, id)))
+        .returning();
+    } catch (error) {
+      if (!isUniqueViolation(error)) throw error;
+      return { ok: false, errors: { slug: `Another ${type.label} already uses "${input.slug}".` } };
+    }
 
     if (!row) return { ok: false, errors: { _: "That entry no longer exists." } };
     return { ok: true, entry: row };
@@ -112,4 +127,18 @@ export class EntryWriteUseCase {
   find(id: string): Promise<EntryRow | null> {
     return this.repo.byId(id);
   }
+}
+
+/**
+ * Postgres' unique-violation code, wherever the driver put it.
+ *
+ * Drizzle wraps the driver error, so the code can be on the error or on its
+ * cause — checking only one is how this reads as "not a unique violation" and
+ * becomes a 500.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  for (let current = error; current; current = (current as { cause?: unknown }).cause) {
+    if ((current as { code?: unknown }).code === "23505") return true;
+  }
+  return false;
 }

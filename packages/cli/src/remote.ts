@@ -11,10 +11,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { splitFiles } from "@forinda-cms/lang";
-import { ApiError, Client } from "@forinda-cms/sdk";
+import {
+  ApiError,
+  Client,
+  forgetToken,
+  normalize,
+  readLink,
+  readToken,
+  writeLink,
+  writeToken,
+} from "@forinda-cms/sdk";
 import type { SpecChange } from "@forinda-cms/spec";
 
-import { forgetToken, normalize, readLink, readToken, writeLink, writeToken } from "./config.js";
 import { loadProject } from "./project.js";
 import { bold, dim, green, printDiagnostics, red, yellow } from "./report.js";
 
@@ -41,7 +49,7 @@ export async function login(
     options.password ?? process.env["FCMS_PASSWORD"] ?? (await ask("password: ", true));
 
   try {
-    const session = await new Client({ url }).login(email, password);
+    const session = await new Client({ url, source: "cli" }).login(email, password);
     const path = writeToken(url, {
       token: session.token,
       expiresAt: session.expiresAt,
@@ -206,7 +214,7 @@ function connect(root: string): Client | null {
     return null;
   }
 
-  return new Client({ url: linked.url, token });
+  return new Client({ url: linked.url, token, source: "cli" });
 }
 
 function notLinked(): number {

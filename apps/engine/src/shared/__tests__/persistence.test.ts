@@ -31,6 +31,7 @@ import {
   ApplySpecUseCase,
   DestructiveChangeError,
 } from "@/modules/admin/use-cases/apply-spec.usecase";
+import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "@/modules/admin/use-cases/undo-spec.usecase";
 
@@ -98,6 +99,7 @@ suite("the persistence layer", () => {
       specs: new SpecRepository(db, scope),
       entries: new EntryRepository(db, scope),
       read: new EntryReadUseCase(new EntryRepository(db, scope)),
+      writer: new EntryWriteUseCase(db, scope),
     };
   };
   const repo = of;
@@ -281,6 +283,42 @@ suite("the persistence layer", () => {
       const { html } = renderPage(page, { spec: loaded, source });
       expect(html).toContain("Cut and finish");
       expect(routes(loaded, source).map((r) => r.path)).toContain("/");
+    });
+  });
+
+  describe("writing an entry", () => {
+    const entry = (slug: string) => ({
+      typeKey: "service",
+      slug,
+      data: { slug, name: "Cut", blurb: "A cut" },
+    });
+
+    it("refuses a slug another entry already uses, as a field error", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const writer = repo().writer;
+
+      expect((await writer.create(spec, entry("cut"))).ok).toBe(true);
+      const second = await writer.create(spec, entry("cut"));
+
+      // A taken slug is a field the caller can fix. Left to propagate, the
+      // unique violation answered 500 with a SQL statement in the log: a form
+      // would show no error, and an agent would report the site as broken.
+      expect(second.ok).toBe(false);
+      expect(second.ok === false && second.errors["slug"]).toMatch(/already uses/);
+    });
+
+    it("refuses the same on update, not only on create", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const writer = repo().writer;
+
+      await writer.create(spec, entry("cut"));
+      const other = await writer.create(spec, entry("colour"));
+      expect(other.ok).toBe(true);
+
+      const clash = other.ok ? await writer.update(spec, other.entry.id, entry("cut")) : null;
+
+      expect(clash?.ok).toBe(false);
+      expect(clash && clash.ok === false && clash.errors["slug"]).toMatch(/already uses/);
     });
   });
 

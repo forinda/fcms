@@ -25,23 +25,34 @@ import { createDb, type Db } from "./client.js";
  * deployed image.
  */
 export function migrationsFolder(): string {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    process.env["MIGRATIONS_DIR"],
-    join(here, "migrations"),
-    join(here, "../migrations"),
-    join(process.cwd(), "migrations"),
-    join(process.cwd(), "packages/db/migrations"),
-  ];
+  // Both anchors, each walked upward: the bundle's own directory, and wherever
+  // the process was started. A fixed number of `..` segments is a guess about
+  // repository layout that the layout then invalidates — moving the app into
+  // `apps/engine` did exactly that, and the failure only appeared outside the
+  // image, which sets `MIGRATIONS_DIR` and therefore never noticed.
+  const anchors = [dirname(fileURLToPath(import.meta.url)), process.cwd()];
+  const candidates = [process.env["MIGRATIONS_DIR"], ...anchors.flatMap(upward)];
   for (const candidate of candidates) {
     if (candidate && existsSync(candidate)) return candidate;
   }
   throw new Error(
-    `no migrations directory found. Looked in:\n${candidates
-      .filter(Boolean)
-      .map((c) => `  ${c}`)
+    `no migrations directory found. Looked upward from:\n${anchors
+      .map((a) => `  ${a}`)
       .join("\n")}\n` + "Set MIGRATIONS_DIR to point at it.",
   );
+}
+
+/** Every place worth looking, from `from` up to the filesystem root. */
+function upward(from: string): string[] {
+  const out: string[] = [];
+  let dir = from;
+
+  for (;;) {
+    out.push(join(dir, "migrations"), join(dir, "packages/db/migrations"));
+    const parent = dirname(dir);
+    if (parent === dir) return out;
+    dir = parent;
+  }
 }
 
 export async function runMigrations(db: Db): Promise<void> {

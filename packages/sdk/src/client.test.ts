@@ -19,7 +19,15 @@ const spec = SiteSpec.parse({
   pages: [],
 });
 
-/** A fetch that records what it was asked and answers with what it was given. */
+/**
+ * A fetch that records what it was asked and answers with what it was given.
+ *
+ * Error bodies here are **RFC 9457 problem+json**, because that is what the
+ * engine emits. The first version of these tests invented `{ message, issues }`
+ * and passed while every real failure reached callers as
+ * "POST /api/apply failed with 409" — a fixture that does not match the server
+ * tests the fixture.
+ */
 function stub(status: number, body: unknown) {
   const calls: { url: string; init: RequestInit }[] = [];
   const fetch = (async (url: string | URL | Request, init?: RequestInit) => {
@@ -58,7 +66,11 @@ describe("the client", () => {
   });
 
   it("keeps 409 distinguishable, because the caller can resolve it", async () => {
-    const { fetch } = stub(409, { message: "refusing 1 destructive change(s)" });
+    const { fetch } = stub(409, {
+      status: 409,
+      title: "Conflict",
+      detail: "refusing 1 destructive change(s)",
+    });
     const client = new Client({ url: "http://x", token: "t", fetch });
 
     const error = await client.apply(spec).catch((e: unknown) => e);
@@ -70,15 +82,21 @@ describe("the client", () => {
   });
 
   it("keeps 401 distinguishable, because the caller must sign in", async () => {
-    const { fetch } = stub(401, { message: "Sign in to continue." });
+    const { fetch } = stub(401, {
+      status: 401,
+      title: "Unauthorized",
+      detail: "Sign in to continue.",
+    });
     const error = await new Client({ url: "http://x", fetch }).status().catch((e: unknown) => e);
     expect((error as ApiError).unauthorized).toBe(true);
   });
 
   it("carries the validation issues a bad spec came back with", async () => {
     const { fetch } = stub(400, {
-      message: "That is not a valid spec.",
-      issues: [{ path: "/content/0/key", message: "Required" }],
+      status: 400,
+      title: "Bad Request",
+      detail: "That is not a valid spec.",
+      errors: [{ path: "/content/0/key", message: "Required" }],
     });
     const error = await new Client({ url: "http://x", token: "t", fetch })
       .plan(spec)
@@ -94,5 +112,39 @@ describe("the client", () => {
     });
 
     expect(JSON.parse(String(calls[0]!.init.body))).toMatchObject({ allowDestructive: true });
+  });
+
+  it("falls back to the title, then to a generic line, when detail is absent", async () => {
+    const titled = stub(500, { status: 500, title: "Internal Server Error" });
+    const bare = stub(502, {});
+
+    const a = await new Client({ url: "http://x", fetch: titled.fetch }).status().catch((e) => e);
+    const b = await new Client({ url: "http://x", fetch: bare.fetch }).status().catch((e) => e);
+
+    expect((a as ApiError).message).toBe("Internal Server Error");
+    expect((b as ApiError).message).toContain("502");
+  });
+
+  it("ignores malformed entries in the errors array rather than inventing issues", async () => {
+    const { fetch } = stub(422, {
+      status: 422,
+      detail: "That entry is not valid.",
+      errors: [{ path: "name", message: "This is required." }, "not an issue", { path: 1 }],
+    });
+
+    const error = (await new Client({ url: "http://x", fetch })
+      .createEntry("service", { data: {} })
+      .catch((e: unknown) => e)) as ApiError;
+
+    expect(error.issues).toEqual([{ path: "name", message: "This is required." }]);
+  });
+
+  it("names its own surface on every change, so history can be queried", async () => {
+    const { fetch, calls } = stub(200, { seq: 1, changes: [], migration: [] });
+    await new Client({ url: "http://x", token: "t", source: "mcp", fetch }).apply(spec);
+
+    // Hardcoding this server-side recorded an agent's work as the CLI's, which
+    // is the one question the column exists to answer (ADR 0015 §5).
+    expect(JSON.parse(String(calls[0]!.init.body))).toMatchObject({ source: "mcp" });
   });
 });
