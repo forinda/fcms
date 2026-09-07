@@ -9,6 +9,7 @@ import { Inject, Scope as Lifetime, Service, getEnv } from "@forinda/kickjs";
 import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
 import type { PaymentRow } from "@forinda-cms/db";
 
+import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "./payment.repository";
 import { PROVIDERS } from "./index";
@@ -41,6 +42,7 @@ export class PaymentUseCase {
   constructor(
     @Inject(PaymentRepository) private readonly payments: PaymentRepository,
     @Inject(WorkflowUseCase) private readonly workflows: WorkflowUseCase,
+    @Inject(EntryRepository) private readonly entries: EntryRepository,
   ) {}
 
   /**
@@ -64,12 +66,24 @@ export class PaymentUseCase {
    * Never from the request. A form that posts an amount lets someone pay 1 for
    * a 15,000 booking, and that is the default shape of a naive integration.
    */
-  static amountOf(type: ContentType, data: Readonly<Record<string, unknown>>): number | null {
+  static amountOf(
+    type: ContentType,
+    data: Readonly<Record<string, unknown>>,
+    /**
+     * Rows of the type a dotted price reads through.
+     *
+     * A salon's deposit belongs to the service, not to the booking — and a
+     * booking that copied it would be a number a form could carry, which is
+     * the hole §3 exists to close.
+     */
+    referenced: Readonly<Record<string, unknown>> = {},
+  ): number | null {
     const payment = type.payment;
     if (!payment) return null;
     if ("fixed" in payment.amount) return payment.amount.fixed;
 
-    const value = data[payment.amount.field];
+    const path = payment.amount.field.split(".");
+    const value = path.length === 2 ? referenced[path[1]!] : data[payment.amount.field];
     const major = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(major) || major <= 0) return null;
 
@@ -96,7 +110,11 @@ export class PaymentUseCase {
       return { ok: false, error: "Payments are not set up for this site." };
     }
 
-    const amount = PaymentUseCase.amountOf(type, input.data);
+    const amount = PaymentUseCase.amountOf(
+      type,
+      input.data,
+      await this.referenced(type, input.data),
+    );
     if (amount === null) {
       // The price is missing or nonsense: better a refusal than a charge for an
       // amount nobody meant.
@@ -163,6 +181,28 @@ export class PaymentUseCase {
     if (settled.status === "paid") await this.announce(spec, settled);
 
     return { ok: true, payment: settled, instruction: result.instruction };
+  }
+
+  /**
+   * The row a dotted price reads through, when the type names one.
+   *
+   * Loaded here rather than passed in, so every caller of `record` gets the
+   * same answer without knowing the price is somewhere else.
+   */
+  private async referenced(
+    type: ContentType,
+    data: Readonly<Record<string, unknown>>,
+  ): Promise<Record<string, unknown>> {
+    const amount = type.payment?.amount;
+    if (!amount || !("field" in amount) || !amount.field.includes(".")) return {};
+
+    const [first] = amount.field.split(".") as [string, string];
+    const ref = String(data[first] ?? "");
+    const slug = ref.startsWith("ref:") ? ref.split("/")[1] : ref;
+    if (!slug) return {};
+
+    const row = await this.entries.bySlug(slug);
+    return (row?.data as Record<string, unknown>) ?? {};
   }
 
   /**

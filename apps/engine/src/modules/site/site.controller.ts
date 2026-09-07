@@ -13,6 +13,7 @@ import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
 import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
 import { VisitorUseCase } from "@/shared/visitors/visitor.usecase";
 import { VISITOR_COOKIE } from "./account.controller";
+import { FLOW_COOKIE } from "@/shared/flows/flow.usecase";
 import { MediaUseCase } from "@/modules/admin/use-cases/media.usecase";
 import { SiteService } from "./site.service";
 
@@ -39,6 +40,13 @@ export class SiteController {
 
   /** Resolves the visitor whose rows a `mine` query may return. */
   @Inject(VisitorUseCase) private readonly visitors!: VisitorUseCase;
+
+  /** The journey token, so a flow renders the step this visitor is on. */
+  private flowToken(ctx: Ctx): string | undefined {
+    const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
+    const raw = headers["cookie"];
+    return readCookie(Array.isArray(raw) ? raw[0] : raw, FLOW_COOKIE);
+  }
 
   /** The visitor's session token, if they have one. */
   private visitorToken(ctx: Ctx): string | undefined {
@@ -165,6 +173,7 @@ export class SiteController {
       // Who is signed in, read from the cookie rather than the query string —
       // a `mine` query is answered from this and nothing else (ADR 0027 §2).
       (await this.visitors.fromToken(this.visitorToken(ctx)))?.id ?? null,
+      this.flowToken(ctx),
     );
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");

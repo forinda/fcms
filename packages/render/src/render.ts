@@ -55,6 +55,21 @@ export interface RenderOptions {
    * name whose rows to return.
    */
   readonly viewer?: string | null;
+  /**
+   * What this visitor has already chosen in the page's flows (ADR 0028).
+   *
+   * Supplied by the server from the journey's state row — the renderer has no
+   * database, and what has been answered is not something a request may assert.
+   */
+  readonly flow?: Readonly<Record<string, Record<string, unknown>>>;
+  /**
+   * Render every step of every flow at once.
+   *
+   * For an authoring preview (`fcms dev`), which has no database and therefore
+   * no journey: an author writing a four-step booking needs to see all four,
+   * and the alternative is a preview that shows step one forever.
+   */
+  readonly previewFlows?: boolean;
 }
 
 /**
@@ -80,6 +95,18 @@ function className(path: readonly number[]): string {
 
 interface Walk {
   readonly css: string[];
+  /** The page's key, so a flow's steps know where to post. */
+  readonly pageKey: string;
+  /** Authoring preview: every step at once (see `RenderOptions`). */
+  readonly previewFlows?: boolean;
+  /**
+   * Set while rendering a step that chooses (ADR 0028 §2).
+   *
+   * The rows of *this* type become buttons carrying what they are, so a card
+   * in a `selects` step is a choice rather than a decoration. Any other query
+   * on the same step renders normally.
+   */
+  readonly selecting?: string;
   /** Who is asking. Threaded to every query on the page. */
   readonly viewer?: string | null;
   readonly params: Readonly<Record<string, string | readonly string[] | undefined>>;
@@ -133,13 +160,28 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
         : runQueryPage(walk.source, block.data, walk.params, walk.viewer);
     const rows = result.rows;
     children = fragment(
-      ...rows.map((row, i) =>
-        fragment(
+      ...rows.map((row, i) => {
+        const rendered = fragment(
           ...block.item!.map((child, j) =>
             renderBlock(child, { ...scope, item: row }, [...path, i, j], walk),
           ),
-        ),
-      ),
+        );
+
+        // In a choosing step, the row is the choice: a submit button carrying
+        // what was picked, so the journey advances without JavaScript.
+        return walk.selecting === block.data!.from
+          ? el(
+              "button",
+              {
+                type: "submit",
+                name: "choice",
+                value: String(row["slug"] ?? row["id"] ?? ""),
+                class: "fx-choice",
+              },
+              rendered,
+            )
+          : rendered;
+      }),
     );
   } else {
     children = fragment(
@@ -185,13 +227,33 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
 }
 
 /**
- * A flow, rendered as its steps.
+ * Which step a visitor is on (ADR 0028 §2).
  *
- * ADR 0007 is explicit that the spike renders a journey without completing one:
- * *"a flow that renders but cannot be completed is a successful spike"*. Without
- * persistence there is no step state to keep, so every step is emitted and
- * marked — enough to answer "can the spec express this booking journey", which
- * is the question Phase 0a exists to answer.
+ * The first step whose requirements are answered and whose own answer is
+ * missing. `requires` rather than order, because `when` can skip a step — so
+ * "the next one" is not "the one after this".
+ */
+export function currentStep(
+  flow: NonNullable<Page["flows"]>[number],
+  answers: Readonly<Record<string, unknown>>,
+  scope: Scope = {},
+): { step: NonNullable<Page["flows"]>[number]["steps"][number]; index: number } | null {
+  for (const [index, step] of flow.steps.entries()) {
+    if (step.when && !matches(scope as Entry, step.when)) continue;
+    if ((step.requires ?? []).some((need) => answers[need] === undefined)) continue;
+    if (answers[step.key] === undefined) return { step, index };
+  }
+  return null;
+}
+
+/**
+ * A flow, rendered one step at a time.
+ *
+ * ADR 0007 accepted a journey that rendered without completing — *"a flow that
+ * renders but cannot be completed is a successful spike"*. It completes now:
+ * the state is a row on the server, this shows the step it names, and the
+ * answered steps become a summary, because a journey that cannot show what you
+ * already picked makes people start again.
  */
 function renderFlow(
   flow: NonNullable<Page["flows"]>[number],
@@ -199,24 +261,113 @@ function renderFlow(
   path: readonly number[],
   walk: Walk,
 ): Html {
-  return el(
-    "div",
-    { class: "fx-flow", "data-flow": flow.key },
-    el(
-      "ol",
-      { class: "fx-flow-steps" },
-      ...flow.steps.map((step, i) =>
-        el("li", { "aria-current": i === 0 ? "step" : undefined }, step.label ?? step.key),
+  const answers = (scope["flow"] ?? {}) as Record<string, unknown>;
+
+  // An authoring preview shows the whole journey, marked, because it has no
+  // state to be part-way through.
+  if (walk.previewFlows) {
+    return el(
+      "div",
+      { class: "fx-flow", "data-flow": flow.key, "data-preview": "all" },
+      el(
+        "ol",
+        { class: "fx-flow-steps" },
+        ...flow.steps.map((step, i) =>
+          el("li", { "aria-current": i === 0 ? "step" : undefined }, step.label ?? step.key),
+        ),
       ),
-    ),
+      ...flow.steps.map((step, i) =>
+        el(
+          "section",
+          { class: "fx-flow-step", "data-step": step.key },
+          ...step.blocks.map((b, j) => renderBlock(b, scope, [...path, i, j], walk)),
+        ),
+      ),
+    );
+  }
+
+  const here = currentStep(flow, answers, scope);
+  const action = `/flow/${walk.pageKey}/${flow.key}`;
+
+  const trail = el(
+    "ol",
+    { class: "fx-flow-steps" },
     ...flow.steps.map((step, i) =>
       el(
-        "section",
-        { class: "fx-flow-step", "data-step": step.key, hidden: i !== 0 },
-        ...step.blocks.map((b, j) => renderBlock(b, scope, [...path, i, j], walk)),
+        "li",
+        {
+          class: answers[step.key] !== undefined ? "done" : undefined,
+          "aria-current": i === here?.index ? "step" : undefined,
+        },
+        step.label ?? step.key,
       ),
     ),
   );
+
+  // What has been chosen so far, with a way back to change it.
+  const chosen = flow.steps
+    .filter((step) => answers[step.key] !== undefined)
+    .map((step) =>
+      el(
+        "div",
+        { class: "fx-flow-chosen" },
+        el("span", {}, `${step.label ?? step.key}: ${describeChoice(answers[step.key])}`),
+        el(
+          "form",
+          { method: "post", action: `${action}/${step.key}/undo` },
+          el("button", { type: "submit", class: "fx-flow-change" }, "Change"),
+        ),
+      ),
+    );
+
+  if (!here) {
+    return el(
+      "div",
+      { class: "fx-flow", "data-flow": flow.key },
+      trail,
+      ...chosen,
+      el("p", { class: "fx-flow-done" }, "Everything is chosen."),
+    );
+  }
+
+  // A copy rather than a mutation: `css` is the same array, so styles still
+  // collect, and the flag lasts exactly as long as this step's subtree.
+  const stepWalk: Walk = here.step.selects ? { ...walk, selecting: here.step.selects.from } : walk;
+
+  const blocks = here.step.blocks.map((b, j) =>
+    renderBlock(b, scope, [...path, here.index, j], stepWalk),
+  );
+
+  return el(
+    "div",
+    { class: "fx-flow", "data-flow": flow.key },
+    trail,
+    ...chosen,
+    el(
+      "section",
+      { class: "fx-flow-step", "data-step": here.step.key },
+      // A step that chooses posts its choice back; one that does not is
+      // whatever its blocks are — usually the form that completes the journey.
+      here.step.selects
+        ? el(
+            "form",
+            { method: "post", action: `${action}/${here.step.key}`, class: "fx-flow-choose" },
+            ...blocks,
+          )
+        : fragment(...blocks),
+    ),
+  );
+}
+
+/** A choice, as a line of text: its title if it has one, its id otherwise. */
+function describeChoice(value: unknown): string {
+  if (!value || typeof value !== "object") return String(value ?? "");
+  const row = value as Record<string, unknown>;
+  for (const key of ["name", "title", "label", "startsAt", "slug", "id"]) {
+    const found = row[key];
+    if (typeof found === "string" && found !== "") return found;
+  }
+  return "";
 }
 
 export interface RenderedPage {
@@ -234,6 +385,8 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   const source = withDerived(spec, options.source, options.now, options.params ?? {});
   const walk: Walk = {
     css: [],
+    pageKey: page.key,
+    ...(options.previewFlows ? { previewFlows: true } : {}),
     ...(options.viewer ? { viewer: options.viewer } : {}),
     registry,
     source,
@@ -253,6 +406,8 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   }
   const scope: Scope = {
     site: { name: spec.name },
+    // `{{ flow.stylist.name }}` — the choices, in the shape ADR 0009 §3 wrote.
+    ...(options.flow ? { flow: options.flow } : {}),
     // What the page's own query found, so any block can say it: a heading
     // reading "{{ results.total }} rooms free" needs no bespoke placeholder,
     // and `results-count`'s `{n}` stops being the only way to show a number.

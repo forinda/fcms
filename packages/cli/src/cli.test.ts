@@ -103,7 +103,9 @@ describe("the salon fixture (ADR 0007 test 1)", () => {
     if (!loaded.ok) throw new Error("fixture must load");
     const { spec, source } = loaded.project;
     const book = spec.pages.find((p) => p.key === "book")!;
-    const { html } = renderPage(book, { spec, source });
+    // The authoring preview, which is what `fcms dev` serves: no database, so
+    // no journey to be part-way through, so every step is shown (ADR 0028).
+    const { html } = renderPage(book, { spec, source, previewFlows: true });
     // Types come from the field declarations, so the form cannot drift from the
     // model — a phone field is `type="tel"` because the type says `phone`.
     expect(html).toContain('name="customerPhone" type="tel"');
@@ -125,15 +127,24 @@ describe("the salon fixture (ADR 0007 test 1)", () => {
     }
   });
 
-  it("renders the booking flow as steps without completing one", () => {
+  it("previews every step of the booking flow", () => {
+    // What an author needs while writing a four-step journey. The engine
+    // renders the step the state says instead (ADR 0028 §2) — that behaviour
+    // is tested where the state lives.
     const loaded = loadProject(SALON);
     if (!loaded.ok) throw new Error("fixture must load");
     const { spec, source } = loaded.project;
     const book = spec.pages.find((p) => p.key === "book")!;
-    const { html } = renderPage(book, { spec, source });
+
+    const { html } = renderPage(book, { spec, source, previewFlows: true });
     for (const step of ["service", "stylist", "time", "details"]) {
       expect(html).toContain(`data-step="${step}"`);
     }
+
+    // Without the preview flag it is a journey: the first step only.
+    const live = renderPage(book, { spec, source }).html;
+    expect(live).toContain('data-step="service"');
+    expect(live).not.toContain('data-step="details"');
   });
 
   it("does not repeat the site name in the home page title", () => {

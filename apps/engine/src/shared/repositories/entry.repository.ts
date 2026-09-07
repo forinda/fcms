@@ -132,6 +132,16 @@ export class EntryRepository {
     }));
   }
 
+  /** One row by its slug — how a `ref:type/slug` is followed. */
+  async bySlug(slug: string): Promise<EntryRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(entries)
+      .where(and(this.scoped, eq(entries.slug, slug)))
+      .limit(1);
+    return row ?? null;
+  }
+
   async countsByType(): Promise<Record<string, number>> {
     const rows = await this.db
       .select({ typeKey: entries.typeKey, count: sql<number>`count(*)::int` })

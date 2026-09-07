@@ -45,7 +45,9 @@ flows:
       - key: time
         label: Pick a time
         requires: [stylist]
-        selects: { from: availability, as: slot }
+        # `as` names the field it fills on the booking (ADR 0028 §3): the
+        # chosen slot's start time becomes `startsAt`.
+        selects: { from: availability, as: startsAt }
         blocks:
           - type: list
             style: { cols: { base: 2, md: 4 }, gap: sm }

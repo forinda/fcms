@@ -354,7 +354,19 @@ export const Payment = z
      * naive integration.
      */
     amount: z.union([
-      z.object({ field: FieldName }).strict(),
+      /**
+       * A field on the row, or a field on something the row references —
+       * `service.deposit`.
+       *
+       * A price often lives on the thing that was chosen rather than on the
+       * order: a salon's deposit belongs to the service, and a booking that
+       * had to copy it would be a number a form could carry, which is the
+       * hole §3 exists to close. One level, because a price two references
+       * away is a query, not a path.
+       */
+      z
+        .object({ field: FieldName.or(z.string().regex(/^[a-z][a-zA-Z0-9]*\.[a-z][a-zA-Z0-9]*$/)) })
+        .strict(),
       z.object({ fixed: z.number().int().positive() }).strict(),
     ]),
     /** ISO 4217, uppercase. Money is an integer of these units, never a float. */
@@ -414,13 +426,17 @@ export const ContentType = z
       ctx.addIssue({ code: "custom", message: `duplicate field "${dup}" on type "${t.key}"` });
     }
     if (t.payment && "field" in t.payment.amount) {
-      const field = t.fields.find((f) => f.name === (t.payment!.amount as { field: string }).field);
+      const named = (t.payment.amount as { field: string }).field;
+      // A path is checked where the whole document is available, in
+      // `checkReferences` — this schema knows one type at a time.
+      if (named.includes(".")) return;
+      const field = t.fields.find((f) => f.name === named);
       // A price that is not a number is a price that cannot be charged, and the
       // failure would otherwise happen at the till rather than at the edit.
       if (!field) {
         ctx.addIssue({
           code: "custom",
-          message: `payment reads "${(t.payment.amount as { field: string }).field}", which "${t.key}" does not have`,
+          message: `payment reads "${named}", which "${t.key}" does not have`,
         });
       } else if (field.type !== "number" && field.type !== "computed") {
         ctx.addIssue({

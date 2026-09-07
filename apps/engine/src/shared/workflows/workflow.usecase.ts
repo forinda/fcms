@@ -61,6 +61,33 @@ export class WorkflowUseCase {
   }
 
   /**
+   * Queue a run for steps that are not a declared workflow (ADR 0028 §5).
+   *
+   * A flow's `onComplete` hands to this same registry, so it retries, backs off
+   * and appears in the same list of automations — a flow completing is an event
+   * with a different name, not a special kind of event. The steps travel on the
+   * run because they belong to a page rather than to `logic`.
+   */
+  async enqueueSteps(
+    spec: SiteSpec,
+    steps: readonly { action: string; params?: Record<string, unknown> }[],
+    about: { typeKey: string; entryId: string; label: string },
+  ): Promise<number> {
+    if (steps.length === 0) return 0;
+    void spec;
+
+    await this.db.insert(workflowRuns).values({
+      siteId: this.scope.siteId,
+      orgId: this.scope.orgId,
+      workflowKey: about.label,
+      trigger: "flow.completed",
+      entryId: about.entryId,
+      detail: { steps: steps.map((s) => s.action), inline: steps },
+    });
+    return 1;
+  }
+
+  /**
    * Queue the scheduled workflows that are due this minute.
    *
    * The dedupe key is the workflow and the minute, so two app instances ticking
@@ -137,7 +164,13 @@ export class WorkflowUseCase {
 
   /** One run: every step in order, and the first failure stops it. */
   private async execute(spec: SiteSpec, run: WorkflowRunRow): Promise<WorkflowRunRow> {
-    const workflow = spec.logic.find((w) => w.key === run.workflowKey);
+    // A flow's completion carries its own steps: they belong to a page, not to
+    // `logic`, so there is no workflow to look up (ADR 0028 §5).
+    const inline = (run.detail as { inline?: Workflow["steps"] } | null)?.inline;
+    const workflow =
+      spec.logic.find((w) => w.key === run.workflowKey) ??
+      (inline ? ({ key: run.workflowKey, steps: inline } as Workflow) : undefined);
+
     if (!workflow) return this.finish(run, "done", { note: "the automation no longer exists" });
 
     const entry = run.entryId ? await this.entry(run.entryId) : undefined;
