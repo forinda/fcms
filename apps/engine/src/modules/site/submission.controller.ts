@@ -18,6 +18,7 @@ import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SiteSpecUseCase } from "@/shared/use-cases";
 import { VisitorUseCase } from "@/shared/visitors/visitor.usecase";
 import { SubmissionLimitUseCase } from "@/shared/visitors/submission-limit.usecase";
+import { PaymentUseCase } from "@/shared/payments";
 import { readCookie } from "@/contributors/actor.contributor";
 import { VISITOR_COOKIE } from "./account.controller";
 
@@ -28,6 +29,7 @@ export class SubmissionController {
   @Inject(EntryWriteUseCase) private readonly entries!: EntryWriteUseCase;
   @Inject(VisitorUseCase) private readonly visitors!: VisitorUseCase;
   @Inject(SubmissionLimitUseCase) private readonly limit!: SubmissionLimitUseCase;
+  @Inject(PaymentUseCase) private readonly pay!: PaymentUseCase;
 
   @Post("/submit/:type")
   async submit(ctx: Ctx): Promise<void> {
@@ -72,7 +74,28 @@ export class SubmissionController {
     }
 
     await this.limit.record(key, visitor?.id ?? null, ip);
+
+    // A payable type sends the person to pay for what they just booked
+    // (ADR 0023). The entry is written either way and stays a draft — paying
+    // does not publish anything, and an owner still decides what appears.
+    if (type.payment) {
+      const payment = await this.pay.record({
+        spec,
+        type,
+        entryId: result.entry.id,
+        data,
+      });
+      if (payment.ok) return this.redirectTo(ctx, `/pay/${payment.payment.id}`);
+      return this.back(ctx, body, payment.error);
+    }
+
     this.back(ctx, body, undefined, "Thank you — it will appear once it is approved.");
+  }
+
+  private redirectTo(ctx: Ctx, to: string): void {
+    ctx.res.statusCode = 303;
+    ctx.res.setHeader("location", to);
+    ctx.res.end();
   }
 
   private token(ctx: Ctx): string | undefined {

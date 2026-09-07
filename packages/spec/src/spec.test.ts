@@ -519,3 +519,93 @@ describe("reusable components", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+/**
+ * Payable types (ADR 0023 §2).
+ *
+ * The spec may say what a thing costs and through which integration; it may not
+ * say anything about money moving. These are the checks that keep an owner from
+ * shipping a form that takes a booking and charges nothing.
+ */
+describe("payments", () => {
+  const payable = (
+    payment: unknown,
+    wiring: unknown[] = [{ key: "counter", kind: "payment.manual" }],
+  ) => ({
+    ...base,
+    wiring,
+    content: [
+      {
+        ...base.content[0]!,
+        payment,
+        fields: [
+          ...base.content[0]!.fields,
+          { name: "deposit", label: "Deposit", type: "number" as const },
+        ],
+      },
+    ],
+  });
+
+  it("accepts a price read from a number field", () => {
+    const result = validateSpec(
+      payable({ amount: { field: "deposit" }, currency: "KES", via: "counter" }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("catches a price that names a field the type does not have", () => {
+    const result = validateSpec(
+      payable({ amount: { field: "nope" }, currency: "KES", via: "counter" }),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/does not have/);
+  });
+
+  it("catches a price read from something that is not a number", () => {
+    const result = validateSpec(
+      payable({ amount: { field: "name" }, currency: "KES", via: "counter" }),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/has to be a number/);
+  });
+
+  it("catches an integration that cannot take money", () => {
+    const result = validateSpec(
+      payable({ amount: { fixed: 25000 }, currency: "KES", via: "post" }, [
+        { key: "post", kind: "email" },
+      ]),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/cannot take a payment/);
+  });
+
+  it("catches a payment routed through an integration that is switched off", () => {
+    // Otherwise the form takes the booking and the charge silently never
+    // happens — the failure an owner finds on their bank statement.
+    const result = validateSpec(
+      payable({ amount: { fixed: 25000 }, currency: "KES", via: "counter" }, [
+        { key: "counter", kind: "payment.manual", enabled: false },
+      ]),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/turned off/);
+  });
+
+  it("refuses a currency that is not one", () => {
+    expect(
+      validateSpec(payable({ amount: { fixed: 1 }, currency: "shillings", via: "counter" })).ok,
+    ).toBe(false);
+  });
+
+  it("refuses a fixed price that is not a whole number of minor units", () => {
+    expect(
+      validateSpec(payable({ amount: { fixed: 12.5 }, currency: "KES", via: "counter" })).ok,
+    ).toBe(false);
+  });
+
+  it("has no way to express a status", () => {
+    // A spec that could say `paid` would be an editor with write access to the
+    // ledger (ADR 0023 §2).
+    expect(
+      validateSpec(
+        payable({ amount: { fixed: 1 }, currency: "KES", via: "counter", status: "paid" }),
+      ).ok,
+    ).toBe(false);
+  });
+});

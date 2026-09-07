@@ -3,12 +3,22 @@ label: Booking
 labelPlural: Bookings
 titleField: reference
 publishable: false
+# Booked online, and paid for at the chair (ADR 0023). `payment.manual` needs no
+# credentials, which is what a salon has on the day it opens — swapping `via` to
+# the M-Pesa till is a one-line change once the shortcode exists.
+submissions: anyone
+payment:
+  amount: { field: deposit }
+  currency: KES
+  via: counter
+  label: Booking deposit
 fields:
   - { name: reference, label: Reference, type: text, required: true, unique: true }
   - { name: service, label: Service, type: reference, to: service, required: true }
   - { name: stylist, label: Stylist, type: reference, to: staff }
   - { name: startsAt, label: Starts at, type: datetime, required: true, filterable: true }
   - { name: minutes, label: Minutes, type: number, required: true }
+  - { name: deposit, label: Deposit, type: number }
   - { name: customerName, label: Customer name, type: text, required: true }
   - { name: customerPhone, label: Phone, type: phone, required: true }
   - name: status

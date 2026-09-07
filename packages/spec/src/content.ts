@@ -291,6 +291,42 @@ export const ScheduleSource = z
 export const DerivedSource = z.discriminatedUnion("kind", [ScheduleSource]);
 export type DerivedSource = z.infer<typeof DerivedSource>;
 
+/**
+ * What it costs to create a row of this type (ADR 0023).
+ *
+ * The spec declares **inputs** — where the amount comes from, in what currency,
+ * through which declared integration — and the platform owns everything that
+ * touches money: the conversion to minor units, the state machine, the
+ * provider call, and what a callback is allowed to change.
+ *
+ * There is deliberately no `status` here and no way to express one. A spec that
+ * could say `paid` would be an editor with write access to the ledger.
+ */
+export const Payment = z
+  .object({
+    /**
+     * `field` reads the amount from the entry that was just written; `fixed` is
+     * the same price every time, in **minor units** (25000 = KSh 250.00).
+     *
+     * Never from the request. A form that posts an amount is a form that lets
+     * someone pay 1 for a 15,000 booking, and that is the default shape of a
+     * naive integration.
+     */
+    amount: z.union([
+      z.object({ field: FieldName }).strict(),
+      z.object({ fixed: z.number().int().positive() }).strict(),
+    ]),
+    /** ISO 4217, uppercase. Money is an integer of these units, never a float. */
+    currency: z.string().regex(/^[A-Z]{3}$/, "an ISO currency code, e.g. KES"),
+    /** The `wiring` integration that takes it — `manual`, an M-Pesa till, a card processor. */
+    via: Key,
+    /** What the payment is for, shown to the person paying. */
+    label: Label.optional(),
+  })
+  .strict();
+
+export type Payment = z.infer<typeof Payment>;
+
 export const ContentType = z
   .object({
     key: Key,
@@ -326,6 +362,8 @@ export const ContentType = z
      * doing nothing.
      */
     derived: DerivedSource.optional(),
+    /** Creating a row of this type is charged for (ADR 0023). */
+    payment: Payment.optional(),
     note: Note,
   })
   .strict()
@@ -333,6 +371,28 @@ export const ContentType = z
     const names = t.fields.map((f) => f.name);
     for (const dup of names.filter((n, i) => names.indexOf(n) !== i)) {
       ctx.addIssue({ code: "custom", message: `duplicate field "${dup}" on type "${t.key}"` });
+    }
+    if (t.payment && "field" in t.payment.amount) {
+      const field = t.fields.find((f) => f.name === (t.payment!.amount as { field: string }).field);
+      // A price that is not a number is a price that cannot be charged, and the
+      // failure would otherwise happen at the till rather than at the edit.
+      if (!field) {
+        ctx.addIssue({
+          code: "custom",
+          message: `payment reads "${(t.payment.amount as { field: string }).field}", which "${t.key}" does not have`,
+        });
+      } else if (field.type !== "number" && field.type !== "computed") {
+        ctx.addIssue({
+          code: "custom",
+          message: `payment reads "${field.name}", which is a ${field.type} — an amount has to be a number`,
+        });
+      }
+    }
+    if (t.payment && t.derived) {
+      ctx.addIssue({
+        code: "custom",
+        message: `"${t.key}" is derived, so its rows are computed and cannot be paid for`,
+      });
     }
     if (t.titleField && !names.includes(t.titleField)) {
       ctx.addIssue({

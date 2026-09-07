@@ -41,6 +41,12 @@ layout:
 
 access: {}
 wiring:
+  # What the salon can actually take today: cash at the chair. It needs no
+  # shortcode, so a booking can be charged for before any account exists.
+  - key: counter
+    kind: payment.manual
+    label: Pay at the salon
+    config: { instruction: "Pay the deposit when you arrive — cash or M-Pesa to the till." }
   - key: mpesa
     kind: payment.mpesa
     label: M-Pesa

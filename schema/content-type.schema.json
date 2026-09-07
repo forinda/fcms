@@ -1074,6 +1074,65 @@
         }
       ]
     },
+    "payment": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-zA-Z0-9]*$"
+                }
+              },
+              "required": [
+                "field"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fixed": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "fixed"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "via": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "amount",
+        "currency",
+        "via"
+      ],
+      "additionalProperties": false
+    },
     "note": {
       "type": "string",
       "maxLength": 2000

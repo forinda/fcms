@@ -14,6 +14,7 @@
 import { defineModule } from "@forinda/kickjs";
 
 import { AccountController } from "./account.controller";
+import { PaymentController } from "./payment.controller";
 import { SubmissionController } from "./submission.controller";
 import { SiteController } from "./site.controller";
 
@@ -35,6 +36,7 @@ export const SiteModule = defineModule({
       return [
         { path: "/", controller: AccountController },
         { path: "/", controller: SubmissionController },
+        { path: "/", controller: PaymentController },
         { path: "/", controller: SiteController },
       ];
     },
