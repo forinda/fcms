@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { Access } from "./access.js";
 import { ContentType } from "./content.js";
-import { Workflow } from "./logic.js";
+import { ACTIONS, Workflow } from "./logic.js";
 import { Block, Component, Page, collectionType } from "./pages.js";
 import { Label, Note } from "./primitives.js";
 import { CustomCss, Theme } from "./style.js";
@@ -20,7 +20,12 @@ import { Wiring } from "./wiring.js";
  * Internal, not user-facing, and not the plugin API integer (ADR 0003/0012).
  * A `specVersion` bump is a data migration; an `api` bump is an ecosystem event.
  */
-export const SPEC_VERSION = 1;
+/**
+ * 2 — action names became `namespace.verb` (ADR 0024, consequences).
+ *
+ * A bump is a data migration, and `migrateSpec` is the one that runs it.
+ */
+export const SPEC_VERSION = 2;
 
 /**
  * Header and footer shared by every page (ADR 0014, decision 2).
@@ -116,6 +121,7 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const types = new Map(spec.content.map((t) => [t.key, t]));
   const components = new Set(spec.components.map((c) => c.key));
+  const integrations = new Map(spec.wiring.map((i) => [i.key, i]));
 
   const seen = <T extends { key: string }>(items: readonly T[], where: string) => {
     const keys = items.map((i) => i.key);
@@ -366,6 +372,60 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     }
   }
 
+  // Steps naming an action nobody implements, and the parameters each needs.
+  for (const w of spec.logic) {
+    w.steps.forEach((step, i) => {
+      const at = `/logic/${w.key}/steps/${i}`;
+      if (!(ACTIONS as readonly string[]).includes(step.action)) {
+        issues.push({
+          path: `${at}/action`,
+          message: `unknown action "${step.action}" — nothing would run`,
+        });
+        return;
+      }
+
+      if (step.action === "webhook.post") {
+        // The destination is an integration, never a URL in the step (ADR 0024
+        // §5): a step that names its own address is an exfiltration channel a
+        // spec edit can add without anyone seeing a new integration appear.
+        const to = step.params?.["to"];
+        const integration = typeof to === "string" ? integrations.get(to) : undefined;
+        if (typeof to !== "string") {
+          issues.push({
+            path: `${at}/params/to`,
+            message: "needs `to`, naming a webhook integration",
+          });
+        } else if (!integration) {
+          issues.push({ path: `${at}/params/to`, message: `unknown integration "${to}"` });
+        } else if (integration.kind !== "webhook") {
+          issues.push({
+            path: `${at}/params/to`,
+            message: `"${to}" is a ${integration.kind} integration, which is not somewhere to post to`,
+          });
+        }
+      }
+
+      if (step.action === "entry.transition") {
+        const to = step.params?.["to"];
+        if (typeof to !== "string") {
+          issues.push({ path: `${at}/params/to`, message: "needs `to`, naming a state" });
+          return;
+        }
+        // The state has to exist on the type this workflow watches, or the
+        // transition is a no-op nobody notices until they read the rows.
+        const key = "type" in w.trigger ? w.trigger.type : undefined;
+        const type = key ? types.get(key) : undefined;
+        const state = type?.fields.find((f) => f.type === "state");
+        if (type && (!state || !("values" in state) || !state.values.includes(to))) {
+          issues.push({
+            path: `${at}/params/to`,
+            message: `"${type.key}" has no state "${to}" to move to`,
+          });
+        }
+      }
+    });
+  }
+
   // Workflows watching a type, and transition triggers naming a real state.
   for (const w of spec.logic) {
     const t = "type" in w.trigger ? w.trigger.type : undefined;
@@ -387,7 +447,6 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
   }
 
   // A payable type must name an integration that exists and can take money.
-  const integrations = new Map(spec.wiring.map((i) => [i.key, i]));
   for (const type of spec.content) {
     if (!type.payment) continue;
     const at = `/content/${type.key}/payment`;

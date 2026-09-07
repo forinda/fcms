@@ -3,7 +3,7 @@
 # The question this file answers is not "does the renderer work" but "can A2
 # express a business a real owner would run" (ADR 0001). Anything that had to be
 # left out belongs on the list ADR 0007 asks for.
-specVersion: 1
+specVersion: 2
 name: Riverside Salon
 theme:
   colors:
@@ -54,6 +54,12 @@ wiring:
     secrets:
       consumerKey: secret:MPESA_CONSUMER_KEY
       consumerSecret: secret:MPESA_CONSUMER_SECRET
+  # Where new bookings are announced. A real salon points this at its own
+  # chat; the address is declared here so it is visible and refusable.
+  - key: chat
+    kind: webhook
+    label: Salon chat
+    config: { url: "https://hooks.example.test/salon" }
   - key: notify
     kind: sms
     config: { sender: RIVERSIDE }

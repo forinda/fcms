@@ -451,6 +451,8 @@ function describeTrigger(w: Workflow): string {
       return `when the ${w.trigger.form} form is submitted`;
     case "flow.completed":
       return `when someone finishes the ${w.trigger.flow} flow`;
+    case "payment.succeeded":
+      return w.trigger.type ? `when a ${w.trigger.type} is paid for` : `when a payment succeeds`;
     case "schedule":
       return `on a schedule (${w.trigger.cron})`;
   }

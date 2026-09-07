@@ -13,7 +13,7 @@ import { runQueryExcluding, runQueryPage, staticSource, withDerived } from "./en
 import { renderPage } from "./render.js";
 
 const spec = SiteSpec.parse({
-  specVersion: 1,
+  specVersion: 2,
   name: "Stays",
   theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
   content: [

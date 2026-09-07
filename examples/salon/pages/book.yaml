@@ -67,6 +67,9 @@ flows:
           - type: form
             attrs: { for: booking, submitLabel: Confirm booking }
 
+    # Named in the same vocabulary `logic` uses (ADR 0024): a flow's completion
+    # hands to the same action registry. The flow runtime does not exist yet, so
+    # nothing here runs — what it must not do is name actions that will never
+    # exist, which is what `booking-create` and `sms-send` were.
     onComplete:
-      - { action: booking-create }
-      - { action: sms-send, params: { template: booking-confirmed } }
+      - { action: entry.transition, params: { to: confirmed } }

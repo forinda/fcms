@@ -1,8 +1,9 @@
 key: confirm-booking
-label: Text the customer when a booking is confirmed
-trigger: { on: entry.transitioned, type: booking, to: confirmed }
+label: Confirm a booking once the deposit is paid
+# The sentence ADR 0024 §6 exists for. `payment.succeeded` fires only from a
+# payment the platform confirmed with the provider — never from a callback body
+# — so a stranger posting JSON cannot confirm anybody's booking.
+trigger: { on: payment.succeeded, type: booking }
 steps:
-  - action: sms-send
-    params:
-      to: "{{ entry.customerPhone }}"
-      body: "Hi {{ entry.customerName }}, your appointment on {{ entry.startsAt | datetime }} is confirmed. Riverside Salon."
+  - action: entry.transition
+    params: { to: confirmed }

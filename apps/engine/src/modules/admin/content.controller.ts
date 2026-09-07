@@ -19,6 +19,7 @@ import type { ContentType } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
+import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { EntryWriteUseCase } from "./use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
@@ -38,6 +39,7 @@ export class ContentController {
   @Inject(UndoSpecUseCase) private readonly undoLast!: UndoSpecUseCase;
   @Inject(PaymentRepository) private readonly payments!: PaymentRepository;
   @Inject(PaymentUseCase) private readonly pay!: PaymentUseCase;
+  @Inject(WorkflowUseCase) private readonly workflows!: WorkflowUseCase;
 
   /** Types, their row counts, and what is deliberately absent. */
   @Get("/")
@@ -296,7 +298,8 @@ ${entryForm(type, data, {
     const payment = await this.payments.byId(String(body["payment"] ?? ""));
 
     if (payment && payment.provider === "payment.manual") {
-      await this.pay.settleManually(payment, ctx.require("actor").email);
+      const spec = await this.specs.execute();
+      await this.pay.settleManually(payment, ctx.require("actor").email, spec ?? undefined);
     }
 
     redirect(ctx, `/admin/content/${params["type"]}/${params["id"]}`);
@@ -316,6 +319,62 @@ ${entryForm(type, data, {
    * "yes" being cheap to reverse. This is where that stops being a property of
    * the schema and becomes something a person can actually press.
    */
+  /**
+   * What the automations have been doing (ADR 0024 §3).
+   *
+   * The screen that makes a runner honest. "Text me when someone books" failing
+   * quietly is this feature's worst outcome, so every run — done, waiting to be
+   * retried, or given up on — is a row here with the reason on it.
+   */
+  @Get("/automations")
+  async automations(ctx: Ctx): Promise<void> {
+    const spec = await this.specs.execute();
+    const runs = await this.workflows.recent(50);
+    const declared = spec?.logic ?? [];
+
+    html(
+      ctx,
+      200,
+      page({
+        title: "Automations",
+        trail: [{ label: "Automations" }],
+        body: `<h1>Automations</h1>
+${
+  declared.length === 0
+    ? `<p class="muted">This site has no automations yet.</p>`
+    : `<table>
+  <thead><tr><th>Automation</th><th>Runs when</th><th>Steps</th></tr></thead>
+  <tbody>${declared
+    .map(
+      (
+        w,
+      ) => `<tr><td>${esc(w.key)}${w.enabled === false ? ' <span class="pill">off</span>' : ""}</td>
+      <td class="muted">${esc(w.trigger.on)}</td><td class="muted">${w.steps.length}</td></tr>`,
+    )
+    .join("")}</tbody></table>`
+}
+<h2>Recent runs</h2>
+${
+  runs.length === 0
+    ? `<p class="muted">Nothing has run yet.</p>`
+    : `<table>
+  <thead><tr><th>When</th><th>Automation</th><th>Trigger</th><th>Status</th><th>What happened</th></tr></thead>
+  <tbody>${runs
+    .map(
+      (run) => `<tr${run.status === "failed" ? ' class="destructive"' : ""}>
+      <td class="muted">${esc(run.createdAt.toISOString().replace("T", " ").slice(0, 16))}</td>
+      <td>${esc(run.workflowKey)}</td>
+      <td class="muted">${esc(run.trigger)}</td>
+      <td>${esc(run.status)}${run.attempts > 1 ? ` <span class="pill">${run.attempts} tries</span>` : ""}</td>
+      <td class="muted">${esc(run.lastError ?? stepsOf(run.detail))}</td>
+    </tr>`,
+    )
+    .join("")}</tbody></table>`
+}`,
+      }),
+    );
+  }
+
   @Get("/history")
   async history(ctx: Ctx): Promise<void> {
     const entries = await this.changes.execute(50);
@@ -397,4 +456,10 @@ function paymentsPanel(
   <table><thead><tr><th>Amount</th><th>Status</th><th>Method</th><th>Paid</th><th></th></tr></thead>
   <tbody>${rows.map(row).join("")}</tbody></table>
 </section>`;
+}
+
+/** What a run's steps did, on one line. */
+function stepsOf(detail: Record<string, unknown> | null): string {
+  const steps = detail?.["steps"];
+  return Array.isArray(steps) ? steps.join(" · ") : String(detail?.["note"] ?? "");
 }

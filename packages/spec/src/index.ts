@@ -16,6 +16,7 @@ export * from "./access.js";
 export * from "./wiring.js";
 export * from "./patch.js";
 export * from "./site.js";
+export * from "./migrate.js";
 
 import { SiteSpec, checkReferences, type SpecIssue } from "./site.js";
 

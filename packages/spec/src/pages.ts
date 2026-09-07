@@ -10,6 +10,7 @@
 import { z } from "zod";
 
 import { Condition, When } from "./condition.js";
+import { ActionKey } from "./logic.js";
 import { Key, Label, Note, Path, TemplateString } from "./primitives.js";
 import { Query } from "./query.js";
 import { CustomCss, Layout, StyleProps } from "./style.js";
@@ -116,7 +117,9 @@ export const Flow = z
     /** Handed to the same action registry `logic` uses. */
     onComplete: z
       .array(
-        z.object({ action: Key, params: z.record(z.string(), z.unknown()).optional() }).strict(),
+        z
+          .object({ action: ActionKey, params: z.record(z.string(), z.unknown()).optional() })
+          .strict(),
       )
       .optional(),
   })

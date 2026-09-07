@@ -19,3 +19,4 @@ export * from "./assets.js";
 export * from "./owners.js";
 export * from "./visitors.js";
 export * from "./payments.js";
+export * from "./workflow-runs.js";

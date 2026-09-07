@@ -128,6 +128,13 @@ export function coerceEntryInput(
         // An unchecked checkbox sends nothing; absent means false, not missing.
         out[field.name] = raw === "on" || raw === "true" || raw === true;
         break;
+      case "state":
+        // A declared `initial` that nothing writes is decoration: the row lands
+        // with no status, listings show a blank column, and an automation that
+        // moves it along a transition has nothing to move *from* — which is how
+        // this was found (ADR 0024).
+        out[field.name] = raw === "" || raw === undefined ? field.initial : raw;
+        break;
       default:
         out[field.name] = raw;
     }

@@ -50,6 +50,7 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
   <span class="header-actions">
     <a href="/admin/media">Media</a>
     <a href="/admin/assist">Assistant</a>
+    <a href="/admin/automations">Automations</a>
     <a href="/admin/sessions">Sessions</a>
     <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
   </span>

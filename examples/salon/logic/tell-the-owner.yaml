@@ -1,0 +1,9 @@
+key: tell-the-owner
+label: Post new bookings to the salon's chat
+# The destination is an integration, never a URL in the step (ADR 0024 §5):
+# a step that names its own address is an exfiltration channel a spec edit can
+# add without a new integration appearing in the diff.
+trigger: { on: entry.created, type: booking }
+steps:
+  - action: webhook.post
+    params: { to: chat }

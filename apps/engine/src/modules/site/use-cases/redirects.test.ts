@@ -34,7 +34,7 @@ const page = (key: string, path: string) => ({ key, path, title: key, blocks: []
 
 const specWith = (pages: unknown[]) =>
   SiteSpec.parse({
-    specVersion: 1,
+    specVersion: 2,
     name: "Test",
     theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
     content: [],

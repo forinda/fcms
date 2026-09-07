@@ -8,7 +8,7 @@
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, eq } from "drizzle-orm";
-import { SiteSpec } from "@forinda-cms/spec";
+import { SiteSpec, migrateSpec, SPEC_VERSION } from "@forinda-cms/spec";
 
 import { siteSpecs, type SiteSpecRow } from "@forinda-cms/db";
 import type { Db, Executor, Scope } from "@forinda-cms/db";
@@ -42,7 +42,10 @@ export class SpecRepository {
    */
   async find(): Promise<SiteSpec | null> {
     const row = await this.findRow();
-    return row ? SiteSpec.parse(row.document) : null;
+    // Brought forward on read (ADR 0003 §3): a stored document may predate the
+    // current shape, and an install whose site stops loading after an upgrade
+    // is the failure `specVersion` exists to prevent.
+    return row ? SiteSpec.parse(migrateSpec(row.document, SPEC_VERSION)) : null;
   }
 
   async save(document: SiteSpec, tx: Executor = this.db): Promise<void> {
