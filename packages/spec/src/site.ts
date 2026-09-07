@@ -461,6 +461,20 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
         }
       }
 
+      if (step.action === "script.run") {
+        const code = step.params?.["code"];
+        if (typeof code !== "string" || code.trim() === "") {
+          issues.push({ path: `${at}/params/code`, message: "needs `code` to run" });
+        } else if (code.length > 20_000) {
+          // A script this long is a program, and a program belongs in a plugin
+          // where it can be reviewed and versioned (ADR 0021).
+          issues.push({
+            path: `${at}/params/code`,
+            message: "that script is too long — a program belongs in a plugin, not in a step",
+          });
+        }
+      }
+
       if (step.action === "entry.transition") {
         const to = step.params?.["to"];
         if (typeof to !== "string") {

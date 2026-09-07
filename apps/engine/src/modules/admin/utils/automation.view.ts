@@ -71,6 +71,12 @@ function control(param: ActionParam, value: unknown, spec: SiteSpec, workflow: W
       ?.fields.find((f) => f.type === "state");
     const values = state && "values" in state ? state.values : [];
     field = options(values.map((v) => ({ value: v, label: v })));
+  } else if (param.name === "code") {
+    // A script is lines, not a line. Everything else about it is an ordinary
+    // parameter (ADR 0031 §3) — it diffs, it reverts, and the history says who
+    // changed it.
+    field = `<textarea id="${id}" name="param__${esc(param.name)}" rows="10" spellcheck="false"
+      class="code">${esc(current)}</textarea>`;
   } else {
     field = `<input id="${id}" name="param__${esc(param.name)}" value="${esc(current)}">`;
   }

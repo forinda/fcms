@@ -212,6 +212,8 @@ function firstLegalValue(param: ActionParam, spec: SiteSpec, workflow: Workflow)
     return state && "values" in state ? (state.values[0] ?? null) : null;
   }
 
-  // A template or a text parameter has no closed set, so the author writes it.
-  return "";
+  // No closed set to choose from, so the action says what a working starting
+  // point is — and a required one without a default is a mistake in the action
+  // rather than something to paper over here.
+  return param.default ?? (param.required ? null : "");
 }

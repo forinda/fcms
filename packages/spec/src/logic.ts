@@ -36,6 +36,15 @@ export const ACTIONS = [
    * URL is an exfiltration channel a spec edit adds invisibly.
    */
   "http.request",
+  /**
+   * The escape hatch: a script, in a process that can reach nothing (ADR 0031).
+   *
+   * Declarative steps cover mapping, calling and moving things along. They do
+   * not cover "work out the VAT and split it by line item", and a pipeline
+   * without an escape hatch sends that work back to whoever maintains the
+   * platform.
+   */
+  "script.run",
 ] as const;
 
 export type ActionName = (typeof ACTIONS)[number];
