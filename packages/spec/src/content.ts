@@ -128,6 +128,69 @@ export const AggregateField = scalarField("aggregate").extend({
   precision: z.number().int().min(0).max(4).default(1),
 });
 
+/**
+ * An operand: this row's field, a request parameter, or a number.
+ *
+ * Three kinds and no more. Every one of them is inspectable — you can read a
+ * formula and say what it depends on without running it, which is what makes it
+ * migratable and proposable by a model.
+ */
+export const Operand: z.ZodType<Operand> = z.lazy(() =>
+  z.union([
+    z.object({ field: FieldName }).strict(),
+    z
+      .object({ param: z.string().regex(/^[a-z][a-z0-9_]*$/), default: z.number().optional() })
+      .strict(),
+    z.object({ value: z.number() }).strict(),
+    Formula,
+  ]),
+);
+
+export type Operand =
+  | { field: string }
+  | { param: string; default?: number }
+  | { value: number }
+  | Formula;
+
+/**
+ * Arithmetic, as a declared tree (ADR 0019 §5).
+ *
+ * ADR 0001 forbids `{{ nights * rate }}` and that stays forbidden: a template
+ * is a lookup. But "three nights, 4,500 total" is not optional for a booking
+ * site, so the ceiling rises in exactly one place — a **field** with a
+ * **declared formula** over a closed set of operations.
+ *
+ * The difference from an expression language is the difference the whole spec
+ * turns on: this is data. It diffs, it validates, the canvas can show it, and
+ * the planner can see that it is computed rather than stored. `a * b` in a
+ * string is none of those.
+ */
+export const Formula: z.ZodType<Formula> = z.lazy(() =>
+  z
+    .object({
+      op: z.enum(["add", "subtract", "multiply", "divide", "min", "max", "round"]),
+      of: z.array(Operand).min(1).max(8),
+    })
+    .strict(),
+);
+
+export type Formula = {
+  op: "add" | "subtract" | "multiply" | "divide" | "min" | "max" | "round";
+  of: Operand[];
+};
+
+/**
+ * A number this type works out for itself.
+ *
+ * Computed on read like an aggregate, never written, and available to sort and
+ * filter by — a "total price" you cannot order by is not much of a total.
+ */
+export const ComputedField = scalarField("computed").extend({
+  formula: Formula,
+  /** Decimal places. Money is 2; a night count is 0. */
+  precision: z.number().int().min(0).max(4).default(0),
+});
+
 export const Field = z.intersection(
   z.object({ name: FieldName, label: Label }),
   z.union([
@@ -151,6 +214,7 @@ export const Field = z.intersection(
     StateField,
     HoursField,
     AggregateField,
+    ComputedField,
   ]),
 );
 export type Field = z.infer<typeof Field>;

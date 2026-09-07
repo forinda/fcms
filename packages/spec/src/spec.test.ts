@@ -387,4 +387,87 @@ describe("patches classify for the gate (doc 03)", () => {
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.issues[0]!.message).toMatch(/needs a field/);
   });
+
+  it("refuses a formula naming a field the type does not have", () => {
+    // Evaluating to null forever reads as "free" on a price, and nobody
+    // reports a price of zero as a bug in a formula.
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Stays",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "room",
+          label: "Room",
+          fields: [
+            { name: "price", label: "Price", type: "number" },
+            {
+              name: "total",
+              label: "Total",
+              type: "computed",
+              formula: { op: "multiply", of: [{ field: "rate" }, { param: "nights" }] },
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/"rate"/);
+  });
+
+  it("refuses a formula that refers to itself", () => {
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Stays",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "room",
+          label: "Room",
+          fields: [
+            { name: "price", label: "Price", type: "number" },
+            {
+              name: "total",
+              label: "Total",
+              type: "computed",
+              formula: { op: "add", of: [{ field: "total" }, { value: 1 }] },
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/itself/);
+  });
+
+  it("refuses a subtraction with one operand, where order is the whole meaning", () => {
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Stays",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "room",
+          label: "Room",
+          fields: [
+            { name: "price", label: "Price", type: "number" },
+            {
+              name: "total",
+              label: "Total",
+              type: "computed",
+              formula: { op: "subtract", of: [{ field: "price" }] },
+            },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/at least two/);
+  });
 });

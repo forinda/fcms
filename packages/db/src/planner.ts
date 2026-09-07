@@ -101,7 +101,12 @@ function indexExpression(field: Field): string {
  * field is fast — the worst of both.
  */
 const filterable = (f: Field): boolean =>
-  "filterable" in f && f.filterable === true && f.type !== "aggregate";
+  "filterable" in f &&
+  f.filterable === true &&
+  // Both are worked out on read and never stored, so an expression index over
+  // one would index nothing while reporting the field as fast.
+  f.type !== "aggregate" &&
+  f.type !== "computed";
 
 function fieldsOf(type: ContentType | undefined): Map<string, Field> {
   return new Map((type?.fields ?? []).map((f) => [f.name, f]));

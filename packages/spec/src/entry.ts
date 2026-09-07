@@ -67,8 +67,10 @@ function schemaForField(field: Field): z.ZodType {
       case "state":
         return z.enum(("values" in field ? field.values : []) as [string, ...string[]]);
       case "aggregate":
-        // Computed by the engine, never written by a form or an API caller —
-        // accepting one would let a caller claim their own rating.
+      case "computed":
+        // Worked out by the engine, never written by a form or an API caller:
+        // accepting one would let a caller claim their own rating, or their own
+        // total price.
         return z.never();
       case "hours":
         // The shape is declared by the field type itself, so it validates
