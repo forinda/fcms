@@ -3,13 +3,23 @@
 A self-hostable CMS where the site is a **spec** — content types, pages, logic,
 access, integrations — rather than a pile of plugins and a database nobody can
 read. One declarative artifact, edited by a person through forms, by a developer
-through files, and (Phase 1) by a model through a governed tool table. Same
-validation, same history, same undo, whichever door a change came through.
+through files, and by a model through a governed tool table. Same validation,
+same history, same undo, whichever door a change came through.
 
-**Status: Phase 0 complete.** The spec, the language, the renderer, persistence
-with a patch spine, the HTTP engine, the admin, the CLI and the install are
-built and verified. The AI layer is next and deliberately last — a model editing
-a spec is worth nothing until the spec renders a site a real business would use.
+**Status: self-hostable, and doing real work.** The spec and the language, the
+renderer, persistence with a patch spine, the HTTP engine, the admin and its
+visual canvas, the CLI, the MCP server, the assistant and the install are built
+and verified. On top of them a business that takes bookings has the whole path:
+availability by appointment or by date range, distance, a multi-step journey,
+deposits, automations that confirm and notify, and visitors who can see their
+own bookings and nobody else's.
+
+Not done, stated here because finding out later is worse: the M-Pesa and
+messaging providers are implemented against documented APIs and have **never
+been run against a live account** — the product says so where they are used, and
+payment at the counter needs no account at all. Plugins have a contract
+(`@forinda-cms/plugin`) but no marketplace: installing one is a dependency and a
+deploy, reviewed, rather than a button. There is no hosted service.
 
 ---
 

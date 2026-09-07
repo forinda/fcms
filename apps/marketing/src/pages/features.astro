@@ -75,12 +75,42 @@ import Page from '../layouts/Page.astro'
     </div>
   </div>
 
+  <h2>For a business that takes bookings</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Search by date, or by what is near</h3>
+      <p>Availability is computed, not stored: appointment slots from working hours, or which
+        rooms are free for every night between two dates. Add a location to something and a
+        listing can sort by how close it is.</p>
+    </div>
+    <div class="card">
+      <h3>A journey, one step at a time</h3>
+      <p>Pick a service, pick a person, pick a time, give your details. The steps are declared;
+        what somebody chose is remembered on the server, and changing an earlier answer
+        forgets the ones that depended on it.</p>
+    </div>
+    <div class="card">
+      <h3>Take a deposit</h3>
+      <p>The amount is worked out from your own prices, on the server — never from the form.
+        Cash or card at the counter needs no account at all; M-Pesa is built and waiting on a
+        shortcode.</p>
+    </div>
+    <div class="card">
+      <h3>Automations that run</h3>
+      <p>Confirm the booking when the deposit lands, text the customer when it is confirmed,
+        post enquiries to your chat at nine. Try one before it is real, and read every run
+        afterwards — including the ones that failed and why.</p>
+    </div>
+  </div>
+
   <h2>For the people who visit</h2>
 
   <p>
     A site can give its own visitors accounts — separate from the people who run it, scoped to
-    that one site, and unable to touch the site itself. They can sign up, sign in, and keep
-    the things they are interested in.
+    that one site, and unable to touch the site itself. They can sign up, sign in, keep the
+    things they are interested in, and see <em>their own</em> bookings — which nobody else
+    can, including other visitors.
   </p>
 
   <h2>What it will not do</h2>
@@ -103,8 +133,16 @@ import Page from '../layouts/Page.astro'
       </tr>
       <tr>
         <td><strong>A plugin marketplace</strong></td>
-        <td>Not yet. The block and action registry exists; opening it to third parties is
-          deliberately later.</td>
+        <td>Not yet. A plugin contract exists and plugins mount onto the registries core
+          already has — but installing one is a dependency and a deploy, reviewed, rather
+          than a button. There will be no install-from-the-internet button until the
+          isolation behind it is real.</td>
+      </tr>
+      <tr>
+        <td><strong>Card payments, or a verified M-Pesa</strong></td>
+        <td>M-Pesa and the messaging providers are written against their documented APIs and
+          have never been run against a live account. The product says so where you would
+          use them. Taking payment at the counter works today and needs no account.</td>
       </tr>
     </tbody>
   </table>
