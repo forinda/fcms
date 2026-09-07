@@ -252,3 +252,74 @@ describe("no change", () => {
     expect(diffSpecs(base, reordered, counts)).toEqual([]);
   });
 });
+
+/**
+ * A component's diff has to answer the question its reviewer actually has:
+ * *how far does this go?* One edit reaching eleven pages is the feature and the
+ * risk in the same sentence (ADR 0022).
+ */
+describe("components", () => {
+  const cta = { key: "cta", label: "Call to action", blocks: [{ type: "heading" }] };
+  const withCta = SiteSpec.parse({
+    ...base,
+    components: [cta],
+    pages: base.pages.map((p) => ({
+      ...p,
+      blocks: [...p.blocks, { type: "component", attrs: { use: "cta" } }],
+    })),
+  });
+
+  it("says how many pages an edit to a component lands on", () => {
+    const edited = SiteSpec.parse({
+      ...withCta,
+      components: [{ ...cta, blocks: [{ type: "heading", attrs: { text: "New" } }] }],
+    });
+
+    const [change] = diffSpecs(withCta, edited);
+    expect(change!.summary).toBe("Changes the Call to action component, which appears on 1 page.");
+    expect(change!.classification).toBe("additive");
+  });
+
+  it("treats deleting a component as destructive, and says what it costs", () => {
+    const [change] = diffSpecs(withCta, SiteSpec.parse({ ...withCta, components: [] }));
+    expect(change!.classification).toBe("destructive");
+    expect(change!.impact).toMatch(/every page placing it/);
+  });
+
+  it("reports adding one as additive", () => {
+    const [change] = diffSpecs(base, SiteSpec.parse({ ...base, components: [cta] }));
+    expect(change!.summary).toBe("Adds the Call to action component.");
+  });
+});
+
+/**
+ * Extraction is not a deletion.
+ *
+ * The first thing anyone does with components is lift an existing section out
+ * of a page — and the differ compares outlines, so without seeing through the
+ * instance it read as "removes What we do. Content in the removed sections is
+ * not kept", refused as destructive, and the feature was unusable. Found by
+ * doing it in the editor.
+ */
+describe("extracting a section into a component", () => {
+  it("is not reported as content lost from the page", () => {
+    const section = base.pages[0]!.blocks[0]!;
+    const extracted = SiteSpec.parse({
+      ...base,
+      components: [{ key: "band", label: "Band", blocks: [section] }],
+      pages: [
+        {
+          ...base.pages[0]!,
+          blocks: [
+            { type: "component", attrs: { use: "band" } },
+            ...base.pages[0]!.blocks.slice(1),
+          ],
+        },
+      ],
+    });
+
+    const changes = diffSpecs(base, extracted);
+    expect(changes.filter((c) => c.classification === "destructive")).toEqual([]);
+    expect(changes.map((c) => c.summary)).toEqual(["Adds the Band component."]);
+  });
+});

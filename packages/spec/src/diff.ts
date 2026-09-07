@@ -16,7 +16,7 @@
 import type { Classification } from "./patch.js";
 import type { ContentType, Field } from "./content.js";
 import type { Workflow } from "./logic.js";
-import type { Page } from "./pages.js";
+import type { Block, Page } from "./pages.js";
 import type { SiteSpec } from "./site.js";
 
 export interface SpecChange {
@@ -198,8 +198,23 @@ function diffContent(before: SiteSpec, after: SiteSpec, counts: EntryCounts): Sp
  * Identity is the block type plus its first human-readable attribute, which is
  * what actually distinguishes two sections to a reader.
  */
-function blockOutline(page: Page, options: { labels?: boolean } = {}): string[] {
+function blockOutline(page: Page, options: { labels?: boolean; spec?: SiteSpec } = {}): string[] {
   const withLabels = options.labels !== false;
+  /**
+   * A placed component contributes what it holds, not the word "component".
+   *
+   * Extracting a section into a component moves the same blocks one indirection
+   * deeper and changes nothing a visitor sees — so the outline has to see
+   * through the instance, or the very act of making something reusable reads as
+   * "removes What we do" and lands in front of the owner as a destructive
+   * change with content loss (ADR 0022). It also means a later edit to a
+   * component is reported once, as the component, instead of as churn on every
+   * page that places it.
+   */
+  const expand = (block: { type: string; attrs?: Record<string, unknown> }) =>
+    block.type === "component"
+      ? options.spec?.components.find((c) => c.key === block.attrs?.["use"])?.blocks
+      : undefined;
   const out: string[] = [];
   const label = (attrs: Record<string, unknown> | undefined): string => {
     for (const key of ["text", "heading", "label", "title"]) {
@@ -217,6 +232,11 @@ function blockOutline(page: Page, options: { labels?: boolean } = {}): string[] 
     }[],
   ) => {
     for (const b of blocks) {
+      const placed = expand(b);
+      if (placed) {
+        walk(placed as never);
+        continue;
+      }
       out.push(withLabels ? `${b.type}${label(b.attrs)}` : b.type);
       if (Array.isArray(b.children)) walk(b.children as never);
       if (Array.isArray(b.item)) walk(b.item as never);
@@ -231,6 +251,74 @@ function text(id: string | undefined): string {
   if (!id) return "nothing";
   const words = id.split(":").slice(1).join(":");
   return words === "" ? id : `"${words}"`;
+}
+
+/** How many pages place a component — so its diff can say what it will touch. */
+function usedBy(spec: SiteSpec, key: string): number {
+  let count = 0;
+  const uses = (blocks: readonly Block[]): boolean =>
+    blocks.some(
+      (b) =>
+        (b.type === "component" && (b.attrs ?? {})["use"] === key) ||
+        uses((b.children ?? []) as Block[]) ||
+        uses((b.item ?? []) as Block[]),
+    );
+  for (const page of spec.pages) if (uses(page.blocks as Block[])) count += 1;
+  if (
+    uses((spec.layout?.header ?? []) as Block[]) ||
+    uses((spec.layout?.footer ?? []) as Block[])
+  ) {
+    count += spec.pages.length;
+  }
+  return count;
+}
+
+/**
+ * Components, and why editing one is worth its own sentence.
+ *
+ * The reason a reusable component exists is that one edit reaches every page
+ * placing it. That is also exactly what makes it dangerous to approve without
+ * reading, so the change says how many pages it lands on rather than leaving
+ * the reviewer to work it out (ADR 0022).
+ */
+function diffComponents(before: SiteSpec, after: SiteSpec): SpecChange[] {
+  const out: SpecChange[] = [];
+  const b = byKey(before.components);
+  const a = byKey(after.components);
+  const name = (c: { key: string; label?: string }) => c.label ?? c.key;
+
+  for (const [key, c] of a) {
+    const was = b.get(key);
+    if (!was) {
+      out.push(additive(`/components/${key}`, `Adds the ${name(c)} component.`));
+      continue;
+    }
+    if (!same(was.blocks, c.blocks)) {
+      const pages = usedBy(after, key);
+      out.push(
+        additive(
+          `/components/${key}/blocks`,
+          `Changes the ${name(c)} component` +
+            (pages > 0 ? `, which appears on ${pages} page${pages === 1 ? "" : "s"}.` : "."),
+        ),
+      );
+    }
+    if (was.label !== c.label) {
+      out.push(additive(`/components/${key}`, `Renames the ${name(was)} component to ${name(c)}.`));
+    }
+  }
+
+  for (const [key, c] of b) {
+    if (a.has(key)) continue;
+    out.push(
+      destructive(
+        `/components/${key}`,
+        `Deletes the ${name(c)} component.`,
+        "Everything it holds is lost, and every page placing it loses that section.",
+      ),
+    );
+  }
+  return out;
 }
 
 function diffPages(before: SiteSpec, after: SiteSpec): SpecChange[] {
@@ -284,8 +372,8 @@ function diffPages(before: SiteSpec, after: SiteSpec): SpecChange[] {
       );
     }
 
-    const bo = blockOutline(before_);
-    const ao = blockOutline(after_);
+    const bo = blockOutline(before_, { spec: before });
+    const ao = blockOutline(after_, { spec: after });
 
     // Same blocks in the same places, different words in them. Identity
     // includes a block's text so that two identically-shaped sections are
@@ -294,8 +382,8 @@ function diffPages(before: SiteSpec, after: SiteSpec): SpecChange[] {
     // ordinary edit there is. The tree tells the two apart: a rewording leaves
     // the structure identical.
     const structureUnchanged =
-      blockOutline(before_, { labels: false }).join() ===
-      blockOutline(after_, { labels: false }).join();
+      blockOutline(before_, { labels: false, spec: before }).join() ===
+      blockOutline(after_, { labels: false, spec: after }).join();
 
     // A reorder keeps every label and moves them; a rewording changes the
     // labels themselves. Both leave the structure identical, so the multiset is
@@ -499,6 +587,7 @@ export function diffSpecs(
 ): SpecChange[] {
   const changes = [
     ...diffSite(before, after),
+    ...diffComponents(before, after),
     ...diffContent(before, after, counts),
     ...diffPages(before, after),
     ...diffLogic(before, after),
