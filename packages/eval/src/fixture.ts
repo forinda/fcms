@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { joinFiles } from "@forinda-cms/lang";
-import type { SiteSpec } from "@forinda-cms/spec";
+import { COLLECTION_SECTIONS, type SiteSpec } from "@forinda-cms/spec";
 
 export const SALON_DIR = join(import.meta.dirname, "../../../examples/salon");
 
@@ -18,7 +18,7 @@ export function loadSalonSpec(dir: string = SALON_DIR): SiteSpec {
     "site.yaml": readFileSync(join(dir, "site.yaml"), "utf8"),
   };
 
-  for (const section of ["content", "pages", "logic"]) {
+  for (const section of COLLECTION_SECTIONS) {
     const path = join(dir, section);
     try {
       if (!statSync(path).isDirectory()) continue;

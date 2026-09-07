@@ -20,7 +20,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { joinFiles, type Diagnostic } from "@forinda-cms/lang";
-import type { SiteSpec } from "@forinda-cms/spec";
+import { COLLECTION_SECTIONS, type SiteSpec } from "@forinda-cms/spec";
 import { staticSource, type Entry, type EntrySource } from "@forinda-cms/render";
 
 export interface Project {
@@ -65,7 +65,7 @@ export function loadProject(
     };
   }
 
-  for (const section of ["content", "pages", "logic"]) {
+  for (const section of COLLECTION_SECTIONS) {
     for (const path of yamlFilesIn(join(root, section))) {
       files[
         relative(root, path)
