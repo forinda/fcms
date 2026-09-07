@@ -17,6 +17,7 @@ import {
 } from "@forinda-cms/spec";
 
 import type { Db } from "./client.js";
+import { planMigration, runMigration, type MigrationStep } from "./planner.js";
 import { entries, siteSpecs, sites, specPatches } from "./schema.js";
 
 export interface Scope {
@@ -90,18 +91,30 @@ export class SiteRepository {
   async applySpec(
     next: SiteSpec,
     options: ApplyOptions,
-  ): Promise<{ seq: number; changes: SpecChange[] }> {
+  ): Promise<{ seq: number; changes: SpecChange[]; migration: MigrationStep[] }> {
+    // Validated on the way *in*, not only on the way out.
+    //
+    // `loadSpec` parses, so a bad document was survivable — but it would be
+    // discovered at the next render rather than at the write that caused it,
+    // with a patch already recorded and an inverse pointing at it. Rejecting
+    // here keeps the invariant that everything in `site_specs` is a valid spec.
+    const validated = SiteSpec.parse(next);
     const current = await this.loadSpec();
     const counts = current ? await this.entryCounts(current) : {};
-    const changes = current ? diffSpecs(current, next, counts) : [];
+    const changes = current ? diffSpecs(current, validated, counts) : [];
     const destructive = changes.filter((c) => c.classification === "destructive");
 
     if (destructive.length > 0 && options.allowDestructive !== true) {
       throw new DestructiveChangeError(destructive);
     }
 
-    const ops = [{ op: "set" as const, path: "/", value: next }];
+    const ops = [{ op: "set" as const, path: "/", value: validated }];
     const inverse = [{ op: "set" as const, path: "/", value: current ?? null }];
+
+    // The schema difference, computed before anything is written. Additive
+    // steps run on their own; destructive ones are skipped unless the same
+    // confirmation that unlocked the spec change also unlocked these.
+    const plan = planMigration(current, validated, { siteId: this.scope.siteId });
 
     return this.db.transaction(async (tx) => {
       // Computed inside the transaction, so two concurrent applies cannot pick
@@ -125,7 +138,7 @@ export class SiteRepository {
         })
         .onConflictDoUpdate({
           target: siteSpecs.siteId,
-          set: { document: next, updatedAt: new Date() },
+          set: { document: validated, updatedAt: new Date() },
         });
 
       await tx.insert(specPatches).values({
@@ -147,7 +160,14 @@ export class SiteRepository {
               : `${changes.length} changes, ${destructive.length} destructive.`,
       });
 
-      return { seq, changes };
+      // Inside the transaction with the spec write. A spec that says a field is
+      // gone while the index for it still exists — or the reverse — is a state
+      // no later run can reason about, so they land together or not at all.
+      const { applied } = await runMigration(tx, plan, {
+        allowDestructive: options.allowDestructive === true,
+      });
+
+      return { seq, changes, migration: applied };
     });
   }
 
