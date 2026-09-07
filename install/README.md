@@ -33,8 +33,12 @@ docker compose pull && docker compose up -d
 Migrations are idempotent and resumable, so an interrupted upgrade is re-runnable
 rather than a state to reason about.
 
-Pin a version in `.env` (`VERSION=2026.3`) if you would rather not track
-`latest`. Core uses CalVer — the year and which release of that year (ADR 0012).
+**Before the first release, `.env` ships `VERSION=edge`** — the tip of main,
+rebuilt on every merge, which is what exists until a version is tagged. Once
+there is one, pin it (`VERSION=2026.1`) and upgrade deliberately: `edge` makes
+no promise about what changed between two pulls. Core uses CalVer — the year and
+which release of that year (ADR 0012) — and `latest` moves only on a tagged
+release.
 
 ## Backups
 
