@@ -14,6 +14,7 @@
 import { defineModule } from "@forinda/kickjs";
 
 import { AccountController } from "./account.controller";
+import { SubmissionController } from "./submission.controller";
 import { SiteController } from "./site.controller";
 
 // Eagerly import every file in the module so decorators run and register in
@@ -33,6 +34,7 @@ export const SiteModule = defineModule({
       // otherwise swallow them.
       return [
         { path: "/", controller: AccountController },
+        { path: "/", controller: SubmissionController },
         { path: "/", controller: SiteController },
       ];
     },

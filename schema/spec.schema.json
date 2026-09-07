@@ -124,6 +124,13 @@
             "minLength": 1,
             "maxLength": 200
           },
+          "submissions": {
+            "type": "string",
+            "enum": [
+              "visitors",
+              "anyone"
+            ]
+          },
           "titleField": {
             "type": "string",
             "minLength": 1,
