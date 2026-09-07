@@ -2,8 +2,7 @@
  * The schema, one file per table.
  *
  * Drizzle reads this barrel, so a new table is one file plus one line here —
- * and a model is findable by its name rather than by scrolling. `enaton` splits
- * the same way for the same reason.
+ * and a model is findable by its name rather than by scrolling.
  *
  * Three decisions from the dossier are load-bearing and each is documented at
  * the table it shapes rather than here: `org_id` + `site_id` on everything

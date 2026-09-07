@@ -41,7 +41,10 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgres://ci:ci@localhost:5432/forinda_cms
+      # The suites read this too — `.env.test` supplies a default and an
+      # exported value wins, so CI points both at the test database and migrates
+      # it below.
+      DATABASE_URL: postgres://ci:ci@localhost:5432/forinda_cms_test
 
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +63,11 @@ jobs:
       # packages, and `minimumReleaseAge` quarantines brand-new releases.
       - run: pnpm install --frozen-lockfile
 
+      - name: create the test database
+        run: PGPASSWORD=ci psql -h localhost -U ci -d forinda_cms -c 'CREATE DATABASE forinda_cms_test'
+
+      # Without this the database suites silently skip, and the guarantees they
+      # cover go unchecked on every pull request.
       - name: migrate
         run: pnpm --filter @forinda-cms/db db:migrate
 

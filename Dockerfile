@@ -2,8 +2,8 @@
 #
 # The install artifact (doc 09 target B).
 #
-# Shape taken from `somakwetu`'s api image, which was already right about the
-# things that are easy to get wrong: strip devDeps into a self-contained tree,
+# The shape targets the things that are easy to get wrong: strip devDeps into a
+# self-contained tree,
 # ship no package manager or source in the runtime layer, run as a non-root
 # user, and copy migration SQL explicitly because it is data rather than part of
 # the JS bundle.

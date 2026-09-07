@@ -5,15 +5,18 @@
  * session except the two routes flagged `auth.public`, which are the login form
  * and its POST (ADR 0008 §4).
  */
-import { Controller, Get, Post, getEnv, type Ctx } from "@forinda/kickjs";
-import { InvalidCredentialsError, LoginUseCase, LogoutUseCase, createDb } from "@forinda-cms/db";
+import { Controller, Get, Inject, Post, getEnv, type Ctx } from "@forinda/kickjs";
+import { InvalidCredentialsError, type LoginUseCase, type LogoutUseCase } from "@forinda-cms/db";
+
+import { LOGIN, LOGOUT } from "@/adapters/database.adapter";
 
 import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
 import { PublicAuth } from "@/route-flags";
 
 @Controller()
 export class AdminController {
-  private readonly db = createDb(getEnv("DATABASE_URL"));
+  @Inject(LOGIN) private readonly loginUseCase!: LoginUseCase;
+  @Inject(LOGOUT) private readonly logoutUseCase!: LogoutUseCase;
 
   @Get("/login")
   @PublicAuth
@@ -28,7 +31,7 @@ export class AdminController {
     const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
 
     try {
-      const session = await new LoginUseCase(this.db).execute({
+      const session = await this.loginUseCase.execute({
         email: String(body.email ?? ""),
         password: String(body.password ?? ""),
         userAgent: firstHeader(headers["user-agent"]),
@@ -51,7 +54,7 @@ export class AdminController {
   async logout(ctx: Ctx): Promise<void> {
     const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
     const token = readCookie(firstHeader(headers["cookie"]) ?? undefined, SESSION_COOKIE);
-    if (token) await new LogoutUseCase(this.db).execute(token);
+    if (token) await this.logoutUseCase.execute(token);
 
     ctx.res.setHeader("set-cookie", expiredCookie());
     ctx.res.statusCode = 303;

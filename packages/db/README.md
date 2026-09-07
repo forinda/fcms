@@ -15,9 +15,26 @@ the target database, so a run that died halfway continues rather than replaying.
 That is the property doc 09 §6 relies on, and the reason the install artifact can
 migrate on boot instead of asking a self-hoster to run a command.
 
-Tests skip when `DATABASE_URL` is unset, so `pnpm verify` still passes on a
-machine with no database — the same reasoning as the eval harness replaying by
-default: a suite that cannot run is a suite nobody runs.
+## The test database is a different database
+
+Suites truncate tables, so they read `DATABASE_URL` from **`.env.test`** — the
+project's convention for test credentials, loaded by `vitest.config.ts` here the
+way the framework loads it for the app. An exported `DATABASE_URL` wins over the
+file, because a committed default cannot be right on every machine.
+
+That is not tidiness. Sharing one database means `pnpm verify` quietly destroys
+whatever you were working on, and it did: the app provisioned an owner, and the
+auth suite then failed because `ProvisionOwnerUseCase` counts owners _globally_
+— which is correct, since the rule it enforces is "one owner per install".
+
+```bash
+createdb forinda_cms_test
+DATABASE_URL=postgres://…/forinda_cms_test pnpm --filter @forinda-cms/db db:migrate
+```
+
+Tests skip when no database is configured, so `pnpm verify` still passes on a
+machine with none — the same reasoning as the eval harness replaying by default:
+a suite that cannot run is a suite nobody runs.
 
 ## What is here, and why it is shaped this way
 

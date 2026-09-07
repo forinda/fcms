@@ -2,7 +2,7 @@
  * One site, and the operations on it.
  *
  * A facade over the repositories and use-cases rather than a class that does
- * the work — `enaton`'s shape, arrived at the hard way. The first version was a
+ * the work. The first version was a
  * single `SiteRepository` holding loading, diffing, destructive gating,
  * migration, undo and history, which meant none of those could be tested or
  * changed without the rest, and every method reached for `as unknown as` to get

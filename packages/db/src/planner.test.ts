@@ -7,8 +7,7 @@
  * index the planner says it made is one Postgres will actually use.
  */
 import { describe, expect, it } from "vitest";
-import { sql } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { closeAllPools, createDb } from "./client.js";
@@ -149,7 +148,6 @@ suite("executing a plan (needs a database)", () => {
     await reset();
     await repo().applySpec(indexed, { actor: "a", source: "cli" });
     await db.insert(entries).values({
-      id: "e1",
       siteId: SITE,
       orgId: ORG,
       typeKey: "service",
@@ -159,7 +157,10 @@ suite("executing a plan (needs a database)", () => {
 
     // The spec change itself is refused first, so nothing runs at all.
     await expect(repo().applySpec(dropped, { actor: "a", source: "cli" })).rejects.toThrow();
-    const [row] = await db.select().from(entries).where(eq(entries.id, "e1"));
+    const [row] = await db
+      .select()
+      .from(entries)
+      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
     expect((row!.data as Record<string, unknown>)["price"]).toBe(1500);
   });
 
@@ -167,7 +168,6 @@ suite("executing a plan (needs a database)", () => {
     await reset();
     await repo().applySpec(indexed, { actor: "a", source: "cli" });
     await db.insert(entries).values({
-      id: "e1",
       siteId: SITE,
       orgId: ORG,
       typeKey: "service",
@@ -182,7 +182,10 @@ suite("executing a plan (needs a database)", () => {
     });
     expect(migration.map((s) => s.kind).sort()).toEqual(["drop-index", "purge-field"]);
 
-    const [row] = await db.select().from(entries).where(eq(entries.id, "e1"));
+    const [row] = await db
+      .select()
+      .from(entries)
+      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
     expect((row!.data as Record<string, unknown>)["price"]).toBeUndefined();
     // The name survives: only the removed field's values are deleted.
     expect((row!.data as Record<string, unknown>)["name"]).toBe("Cut");

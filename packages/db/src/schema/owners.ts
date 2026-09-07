@@ -31,9 +31,9 @@ export const owners = pgTable(
 /**
  * Sessions.
  *
- * Stores a **hash** of the token, not the token — `enaton`'s pattern. A database
- * read, a backup, or a leaked dump must not hand out live sessions, and hashing
- * is the difference between an exposure and a breach.
+ * Stores a **hash** of the token, not the token. A database read, a backup, or a
+ * leaked dump must not hand out live sessions, and hashing is the difference
+ * between an exposure and a breach.
  */
 export const ownerSessions = pgTable(
   "owner_sessions",
