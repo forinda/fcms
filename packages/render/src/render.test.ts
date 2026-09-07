@@ -297,3 +297,43 @@ describe("determinism", () => {
     expect(paths(true)).toContain("/secret");
   });
 });
+
+describe("components (ADR 0022)", () => {
+  const withComponent = SiteSpec.parse({
+    ...spec,
+    components: [
+      {
+        key: "cta",
+        label: "Call to action",
+        blocks: [
+          { type: "heading", attrs: { text: "Book today" } },
+          { type: "button", attrs: { label: "Book", to: "/book" } },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "twice",
+        path: "/twice",
+        title: "Twice",
+        blocks: [
+          { type: "component", attrs: { use: "cta" } },
+          { type: "text", attrs: { text: "Between" } },
+          { type: "component", attrs: { use: "cta" } },
+        ],
+      },
+    ],
+  });
+
+  it("renders a component's blocks where it is placed, every time it is placed", () => {
+    const { html } = renderPage(withComponent.pages[0]!, { spec: withComponent, source });
+    expect(html.split("Book today")).toHaveLength(3);
+    expect(html.indexOf("Between")).toBeGreaterThan(html.indexOf("Book today"));
+  });
+
+  it("says so rather than rendering nothing when the component is missing", () => {
+    const broken = { ...withComponent, components: [] } as typeof withComponent;
+    const { html } = renderPage(broken.pages[0]!, { spec: broken, source });
+    expect(html).toContain("cta");
+  });
+});

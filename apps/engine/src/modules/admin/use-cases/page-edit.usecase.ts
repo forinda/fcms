@@ -12,12 +12,29 @@
  * same node without a second identity scheme to keep in step.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { SiteSpec, type Block, type Page } from "@forinda-cms/spec";
+import {
+  checkReferences,
+  Key,
+  SiteSpec,
+  type Block,
+  type Component,
+  type Page,
+} from "@forinda-cms/spec";
 
 import { ApplySpecUseCase } from "./apply-spec.usecase";
 
 /** Where a block sits: the page it belongs to, then its index at each depth. */
 export type BlockPath = readonly number[];
+
+/**
+ * Which tree an edit is against.
+ *
+ * A component is a block tree with a name (ADR 0022), so every operation here
+ * works on one unchanged — the surgery never knew what it was inside. Naming
+ * the target explicitly rather than letting a bare string mean "page" keeps the
+ * two from being confused at a call site, which is the only place they could be.
+ */
+export type EditTarget = { readonly page: string } | { readonly component: string };
 
 export interface EditInput {
   readonly actor: string;
@@ -32,8 +49,8 @@ export class PageEditUseCase {
   constructor(@Inject(ApplySpecUseCase) private readonly applySpec: ApplySpecUseCase) {}
 
   /** Move a block up or down among its siblings. */
-  move(spec: SiteSpec, pageKey: string, path: BlockPath, delta: number, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  move(spec: SiteSpec, target: EditTarget, path: BlockPath, delta: number, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
 
@@ -54,25 +71,25 @@ export class PageEditUseCase {
    * canvas can build a real layout with four buttons and no drag: nesting is
    * how `section > stack > text` gets made.
    */
-  nest(spec: SiteSpec, pageKey: string, path: BlockPath, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  nest(spec: SiteSpec, target: EditTarget, path: BlockPath, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
 
       const { parent, index } = found;
       if (index === 0) return "There is nothing above it to nest into.";
 
-      const target = parent[index - 1]!;
-      if (target.data) return "That section repeats a query; nest inside its template instead.";
+      const above = parent[index - 1]!;
+      if (above.data) return "That section repeats a query; nest inside its template instead.";
 
       const [moved] = parent.splice(index, 1);
-      target.children = [...(target.children ?? []), moved!];
+      above.children = [...(above.children ?? []), moved!];
       return null;
     });
   }
 
-  unnest(spec: SiteSpec, pageKey: string, path: BlockPath, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  unnest(spec: SiteSpec, target: EditTarget, path: BlockPath, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       if (path.length < 2) return "It is already at the top level.";
 
       const found = resolve(blocks, path);
@@ -86,9 +103,17 @@ export class PageEditUseCase {
   }
 
   /** Add a block after the selected one, or at the end when nothing is selected. */
-  add(spec: SiteSpec, pageKey: string, path: BlockPath | null, type: string, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
-      const fresh = { type } as Block;
+  add(
+    spec: SiteSpec,
+    target: EditTarget,
+    path: BlockPath | null,
+    type: string,
+    input: EditInput,
+    /** Set when the new block needs one to mean anything — `use` for a component. */
+    attrs?: Record<string, unknown>,
+  ) {
+    return this.edit(spec, target, input, (blocks) => {
+      const fresh = (attrs ? { type, attrs } : { type }) as Block;
 
       if (!path) {
         blocks.push(fresh);
@@ -102,8 +127,8 @@ export class PageEditUseCase {
     });
   }
 
-  duplicate(spec: SiteSpec, pageKey: string, path: BlockPath, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  duplicate(spec: SiteSpec, target: EditTarget, path: BlockPath, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
 
@@ -120,8 +145,8 @@ export class PageEditUseCase {
    * owner must confirm, and the classifier already knows how to say what is
    * lost.
    */
-  remove(spec: SiteSpec, pageKey: string, path: BlockPath, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  remove(spec: SiteSpec, target: EditTarget, path: BlockPath, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
       found.parent.splice(found.index, 1);
@@ -171,8 +196,8 @@ export class PageEditUseCase {
    * heading's `level` and a button's `to`, which is a data loss the editor
    * would never mention.
    */
-  setText(spec: SiteSpec, pageKey: string, path: BlockPath, text: string, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  setText(spec: SiteSpec, target: EditTarget, path: BlockPath, text: string, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
 
@@ -194,17 +219,17 @@ export class PageEditUseCase {
    * What a drag produces. Distinct from `move`, which steps one place: dragging
    * five rows up is one edit and one patch, not five.
    */
-  reorder(spec: SiteSpec, pageKey: string, path: BlockPath, to: number, input: EditInput) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+  reorder(spec: SiteSpec, target: EditTarget, path: BlockPath, to: number, input: EditInput) {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
 
       const { parent, index } = found;
-      const target = Math.max(0, Math.min(to, parent.length - 1));
-      if (target === index) return null;
+      const landing = Math.max(0, Math.min(to, parent.length - 1));
+      if (landing === index) return null;
 
       const [moved] = parent.splice(index, 1);
-      parent.splice(target, 0, moved!);
+      parent.splice(landing, 0, moved!);
       return null;
     });
   }
@@ -212,12 +237,12 @@ export class PageEditUseCase {
   /** Replace one block's attributes and tier-2 style (ADR 0004). */
   restyle(
     spec: SiteSpec,
-    pageKey: string,
+    target: EditTarget,
     path: BlockPath,
     next: { attrs?: Record<string, unknown>; style?: Record<string, unknown> },
     input: EditInput,
   ) {
-    return this.edit(spec, pageKey, input, (blocks) => {
+    return this.edit(spec, target, input, (blocks) => {
       const found = resolve(blocks, path);
       if (!found) return "That block no longer exists.";
       const block = found.parent[found.index]!;
@@ -233,6 +258,63 @@ export class PageEditUseCase {
   }
 
   /**
+   * Turn the selected block into a reusable component, in place.
+   *
+   * Where a component comes from in practice: someone built a call-to-action
+   * band, likes it, and wants it on four more pages. Extracting it here rather
+   * than authoring components separately means the thing that gets reused is
+   * the thing that was already working — and the page it came from keeps
+   * rendering identically, because the instance placed in its hole expands to
+   * exactly what was lifted out.
+   */
+  async saveAsComponent(
+    spec: SiteSpec,
+    target: EditTarget,
+    path: BlockPath,
+    label: string,
+    input: EditInput,
+  ): Promise<EditResult> {
+    const trimmed = label.trim();
+    if (!trimmed) return { ok: false, error: "Give the component a name." };
+
+    const key = slug(trimmed);
+    if (!Key.safeParse(key).success) {
+      return { ok: false, error: "That name has no letters or digits in it." };
+    }
+    if (spec.components.some((c) => c.key === key)) {
+      return { ok: false, error: `There is already a component called "${trimmed}".` };
+    }
+
+    const draft = structuredClone(spec) as SiteSpec & {
+      pages: Page[];
+      components: Component[];
+    };
+    const blocks = rootOf(draft, target);
+    if (!blocks) return { ok: false, error: "That block no longer exists." };
+
+    const found = resolve(blocks, path);
+    if (!found) return { ok: false, error: "That block no longer exists." };
+
+    const lifted = found.parent[found.index]!;
+    if (lifted.type === "component") {
+      return { ok: false, error: "That is already a component." };
+    }
+    // One level deep (ADR 0022): a component cannot hold another, so a subtree
+    // that places one cannot be lifted whole.
+    if (placesComponent(lifted)) {
+      return {
+        ok: false,
+        error: "That section places another component. Components are one level deep.",
+      };
+    }
+
+    draft.components.push({ key, label: trimmed, blocks: [lifted] });
+    found.parent[found.index] = { type: "component", attrs: { use: key } };
+
+    return this.apply(draft, input);
+  }
+
+  /**
    * One edit: copy the spec, mutate the copy, validate it, apply it.
    *
    * The copy matters. Mutating the caller's spec would leave a half-applied tree
@@ -241,19 +323,40 @@ export class PageEditUseCase {
    */
   private async edit(
     spec: SiteSpec,
-    pageKey: string,
+    target: EditTarget,
     input: EditInput,
     mutate: (blocks: Block[]) => string | null,
   ): Promise<EditResult> {
-    const draft = structuredClone(spec) as SiteSpec & { pages: Page[] };
-    const page = draft.pages.find((p) => p.key === pageKey);
-    if (!page) return { ok: false, error: `No page named "${pageKey}".` };
+    const draft = structuredClone(spec) as SiteSpec & {
+      pages: Page[];
+      components: Component[];
+    };
+    const blocks = rootOf(draft, target);
+    if (!blocks) {
+      return {
+        ok: false,
+        error:
+          "page" in target
+            ? `No page named "${target.page}".`
+            : `No component named "${target.component}".`,
+      };
+    }
 
-    const blocks = page.blocks as Block[];
     const refusal = mutate(blocks);
     if (refusal) return { ok: false, error: refusal };
 
+    return this.apply(draft, input);
+  }
+
+  private async apply(draft: SiteSpec, input: EditInput): Promise<EditResult> {
     const validated = SiteSpec.safeParse(draft);
+    if (validated.success) {
+      // References too, not only shape: placing a component inside a component
+      // is a well-formed document and a forbidden one (ADR 0022), and the
+      // canvas should say so instead of writing it and rendering nothing.
+      const issues = checkReferences(validated.data);
+      if (issues[0]) return { ok: false, error: issues[0].message };
+    }
     if (!validated.success) {
       // The tree is well-formed but the spec is not — a block type that requires
       // an attribute, usually. Reported rather than written.
@@ -274,6 +377,32 @@ export class PageEditUseCase {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
+}
+
+/** The block array an edit works on: a page's, or a component's. */
+function rootOf(
+  draft: SiteSpec & { pages: Page[]; components: Component[] },
+  target: EditTarget,
+): Block[] | undefined {
+  const owner =
+    "page" in target
+      ? draft.pages.find((p) => p.key === target.page)
+      : draft.components.find((c) => c.key === target.component);
+  return owner?.blocks as Block[] | undefined;
+}
+
+/** True when a subtree places a component anywhere inside it. */
+function placesComponent(block: Block): boolean {
+  if (block.type === "component") return true;
+  return [...(block.children ?? []), ...(block.item ?? [])].some(placesComponent);
+}
+
+/** A name an owner typed, as a `Key`. */
+function slug(label: string): string {
+  return label
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 /**

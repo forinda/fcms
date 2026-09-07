@@ -8,7 +8,7 @@
  * recorded so it can be undone.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
+import { checkReferences, classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
 
 import { planMigration, runMigration, type MigrationStep } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
@@ -53,6 +53,24 @@ export class DestructiveChangeError extends Error {
   }
 }
 
+/**
+ * Shape *and* references, at the one door every writer comes through.
+ *
+ * `SiteSpec.parse` was catching a malformed block and missing a dangling one —
+ * a query against a deleted type, a component instance naming a component that
+ * is not there. Those are exactly the changes that render as a blank section
+ * rather than an error, so a spec is only well-formed here if `checkReferences`
+ * agrees. The canvas, the chat, the CLI and MCP all land on this line.
+ */
+function validate(next: SiteSpec): SiteSpec {
+  const spec = SiteSpec.parse(next);
+  const issues = checkReferences(spec);
+  if (issues.length > 0) {
+    throw new Error(issues.map((i) => `${i.path}: ${i.message}`).join("; "));
+  }
+  return spec;
+}
+
 @Service({ scope: Lifetime.REQUEST })
 export class ApplySpecUseCase {
   private readonly specs: SpecRepository;
@@ -77,7 +95,7 @@ export class ApplySpecUseCase {
    * A second implementation of "what changed" is a second answer.
    */
   async plan(next: SiteSpec): Promise<PlanResult> {
-    const validated = SiteSpec.parse(next);
+    const validated = validate(next);
     const current = await this.specs.find();
 
     const changes = current ? diffSpecs(current, validated, await this.entryCounts(current)) : [];
@@ -97,7 +115,7 @@ export class ApplySpecUseCase {
     // survivable before — but it would surface at the next render rather than
     // at the write that caused it, with a patch already recorded and an inverse
     // pointing at it.
-    const validated = SiteSpec.parse(next);
+    const validated = validate(next);
     const current = await this.specs.find();
 
     const counts = await this.entryCounts(current);

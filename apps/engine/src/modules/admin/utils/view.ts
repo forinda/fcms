@@ -271,7 +271,16 @@ ul.blocks ul{border-left:1px solid var(--line)}
 .node-actions button.destructive{background:none;border:0;color:var(--bad)}
 .canvas .add{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
 .canvas .add .row{display:flex;gap:.4rem}
-.canvas .add select{flex:1;min-width:0}
+.canvas .add select,.canvas .add input{flex:1;min-width:0}
+.canvas .components{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
+.canvas .components h3{margin:0 0 .3rem;font-size:.72rem;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted)}
+.canvas .components ul{list-style:none;margin:0;padding:0;font-size:.85rem}
+.canvas .components li{padding:.1rem 0}
+/* A pill sits beside a node's label, never over it: the label truncates, the
+   pill keeps its size, and neither wins the row. */
+.node .pill{flex:none;font-size:.65rem;padding:.05rem .35rem;white-space:nowrap}
+a.pill{text-decoration:none}
 .inspector h3{margin:0 0 .1rem;font-size:.95rem}
 .inspector .field{margin:.6rem 0}
 .inspector .group{margin:0 0 1.1rem;padding:0 0 .6rem;border-bottom:1px solid var(--line)}

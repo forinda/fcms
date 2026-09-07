@@ -11,7 +11,7 @@ import { z } from "zod";
 import { Access } from "./access.js";
 import { ContentType } from "./content.js";
 import { Workflow } from "./logic.js";
-import { Block, Page, collectionType } from "./pages.js";
+import { Block, Component, Page, collectionType } from "./pages.js";
 import { Label, Note } from "./primitives.js";
 import { CustomCss, Theme } from "./style.js";
 import { Wiring } from "./wiring.js";
@@ -44,6 +44,15 @@ export const SiteSpec = z
     /** Site-level tier-3 CSS. Gated to the `developer` role (ADR 0004/0008). */
     css: CustomCss.optional(),
     theme: Theme,
+    /**
+     * Reusable block groups (ADR 0022).
+     *
+     * Site-level rather than a collection section, for the same reason `layout`
+     * is: a component is shared chrome, it belongs beside the header and footer
+     * in `site.yaml`, and putting it there means the splitter needs no change —
+     * `SiteFile` is derived by omission.
+     */
+    components: z.array(Component).default([]),
     content: z.array(ContentType),
     pages: z.array(Page),
     logic: z.array(Workflow).default([]),
@@ -106,6 +115,7 @@ export interface SpecIssue {
 export function checkReferences(spec: SiteSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const types = new Map(spec.content.map((t) => [t.key, t]));
+  const components = new Set(spec.components.map((c) => c.key));
 
   const seen = <T extends { key: string }>(items: readonly T[], where: string) => {
     const keys = items.map((i) => i.key);
@@ -113,6 +123,7 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
       issues.push({ path: where, message: `duplicate key "${dup}"` });
     }
   };
+  seen(spec.components, "/components");
   seen(spec.content, "/content");
   seen(spec.pages, "/pages");
   seen(spec.logic, "/logic");
@@ -247,9 +258,40 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
   }
 
   // Every `data.from` in every block of every page, at any depth.
-  const walk = (blocks: readonly import("./pages.js").Block[], at: string) => {
+  const walk = (
+    blocks: readonly import("./pages.js").Block[],
+    at: string,
+    /** Set while walking a component's own blocks — see the nesting check. */
+    insideComponent?: string,
+  ) => {
     blocks.forEach((b, i) => {
       const here = `${at}/${i}`;
+      if (b.type === "component") {
+        const use = (b.attrs ?? {})["use"];
+        if (typeof use !== "string" || !components.has(use)) {
+          issues.push({
+            path: `${here}/attrs/use`,
+            message:
+              typeof use === "string"
+                ? `uses unknown component "${use}"`
+                : "a component block needs `use` naming the component to place here",
+          });
+        } else if (insideComponent) {
+          // The rule that makes cycles impossible instead of merely detectable.
+          issues.push({
+            path: here,
+            message:
+              `component "${insideComponent}" places component "${use}" — components are ` +
+              `one level deep, so copy what it holds instead`,
+          });
+        }
+        if (b.style || b.css) {
+          issues.push({
+            path: here,
+            message: `styling belongs on the component itself, not on a place it is used`,
+          });
+        }
+      }
       if (b.data && !types.has(b.data.from)) {
         issues.push({
           path: `${here}/data`,
@@ -296,11 +338,12 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
           });
         }
       }
-      if (b.item) walk(b.item, `${here}/item`);
-      if (b.children) walk(b.children, `${here}/children`);
+      if (b.item) walk(b.item, `${here}/item`, insideComponent);
+      if (b.children) walk(b.children, `${here}/children`, insideComponent);
     });
   };
 
+  for (const c of spec.components) walk(c.blocks, `/components/${c.key}/blocks`, c.key);
   walk(spec.layout?.header ?? [], "/layout/header");
   walk(spec.layout?.footer ?? [], "/layout/footer");
 

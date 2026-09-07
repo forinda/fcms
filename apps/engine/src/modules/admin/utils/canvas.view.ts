@@ -14,6 +14,14 @@ import { esc } from "./view";
 export interface CanvasOptions {
   readonly spec: SiteSpec;
   readonly page: Page;
+  /**
+   * Where this canvas posts: `/admin/pages/home` or `/admin/components/cta`.
+   *
+   * The one thing that differs between editing a page and editing a component
+   * (ADR 0022) — everything else on this screen is the same tree, the same
+   * inspector and the same script.
+   */
+  readonly base: string;
   readonly registry: Record<string, BlockType>;
   readonly selected: readonly number[] | null;
   readonly inspector: string;
@@ -40,6 +48,7 @@ function tree(
   blocks: readonly Block[],
   registry: Record<string, BlockType>,
   selected: string,
+  components: ReadonlyMap<string, string>,
   path: readonly number[] = [],
 ): string {
   return blocks
@@ -47,12 +56,17 @@ function tree(
       const here = [...path, index];
       const id = here.join("-");
       const children = block.children ?? block.item ?? [];
-      const label = summarise(block, registry[block.type]);
+      const use = block.type === "component" ? String((block.attrs ?? {})["use"] ?? "") : "";
+      const label = use ? (components.get(use) ?? use) : summarise(block, registry[block.type]);
 
       return `<li>
   <div class="node${id === selected ? " selected" : ""}" draggable="true"
        data-block="${esc(id)}" data-index="${index}">
-    <a href="?block=${esc(id)}">${esc(label)}</a>${block.data ? '<span class="pill">repeats</span>' : ""}
+    <a href="?block=${esc(id)}">${esc(label)}</a>${block.data ? '<span class="pill">repeats</span>' : ""}${
+      use
+        ? `<a class="pill" href="/admin/components/${esc(use)}" title="A component — edit it everywhere it is used">component</a>`
+        : ""
+    }
     <span class="node-actions">
       <button form="act" name="op" value="up:${esc(id)}" title="Move up">↑</button>
       <button form="act" name="op" value="down:${esc(id)}" title="Move down">↓</button>
@@ -64,7 +78,7 @@ function tree(
   </div>
   ${
     children.length > 0
-      ? `<ul>${tree(children, registry, selected, block.data ? [...here, 0] : here)}</ul>`
+      ? `<ul>${tree(children, registry, selected, components, block.data ? [...here, 0] : here)}</ul>`
       : ""
   }
 </li>`;
@@ -90,15 +104,31 @@ function summarise(block: Block, type: BlockType | undefined): string {
 }
 
 export function canvas(options: CanvasOptions): string {
-  const { page, registry, selected, inspector, previewUrl, error } = options;
+  const { spec, page, base, registry, selected, inspector, previewUrl, error } = options;
   const selectedId = selected ? selected.join("-") : "";
+  const editingComponent = base.startsWith("/admin/components/");
+  const names = new Map(spec.components.map((c) => [c.key, c.label ?? c.key]));
 
-  const palette = Object.values(registry)
+  const blocks = Object.values(registry)
     .map(
       (type) =>
         `<option value="${esc(type.name)}">${esc(type.name)} — ${esc(type.summary)}</option>`,
     )
     .join("");
+
+  // Components sit in their own group, and only where they may be placed: one
+  // level deep (ADR 0022) means a component's own canvas cannot offer them.
+  const reusable =
+    editingComponent || spec.components.length === 0
+      ? ""
+      : `<optgroup label="Your components">${spec.components
+          .map(
+            (c) =>
+              `<option value="component:${esc(c.key)}">${esc(c.label ?? c.key)} — used wherever it is placed</option>`,
+          )
+          .join("")}</optgroup>`;
+
+  const palette = reusable ? `<optgroup label="Blocks">${blocks}</optgroup>${reusable}` : blocks;
 
   const sizes = VIEWPORTS.map(
     (viewport) =>
@@ -107,11 +137,11 @@ export function canvas(options: CanvasOptions): string {
   ).join("");
 
   return `${error ? `<p class="error">${esc(error)}</p>` : ""}
-<div class="canvas" data-page="${esc(page.key)}">
+<div class="canvas" data-page="${esc(page.key)}" data-base="${esc(base)}">
   <aside class="tree">
     <h2>${esc(page.title)}</h2>
     <p class="help">${esc(page.path)}</p>
-    <ul class="blocks">${tree(page.blocks, registry, selectedId)}</ul>
+    <ul class="blocks">${tree(page.blocks, registry, selectedId, names)}</ul>
 
     <form method="post" id="act" class="add">
       <input type="hidden" name="block" value="${esc(selectedId)}">
@@ -123,6 +153,33 @@ export function canvas(options: CanvasOptions): string {
       </div>
       <p class="help">Added after the selected block, or at the end.</p>
     </form>
+
+    ${
+      editingComponent
+        ? '<p class="help">Editing a component. Every page that places it changes with it.</p>'
+        : `<form method="post" class="add">
+      <input type="hidden" name="block" value="${esc(selectedId)}">
+      <label for="save-component">Save the selected section as a component</label>
+      <div class="row">
+        <input id="save-component" name="name" placeholder="Call to action"${selectedId ? "" : " disabled"}>
+        <button name="op" value="component:${esc(selectedId)}" type="submit"${selectedId ? "" : " disabled"}>Save</button>
+      </div>
+      <p class="help">Reuse it on other pages. Editing it there changes it here.</p>
+    </form>`
+    }
+
+    ${
+      spec.components.length > 0
+        ? `<nav class="components">
+      <h3>Components</h3>
+      <ul>${spec.components
+        .map(
+          (c) => `<li><a href="/admin/components/${esc(c.key)}">${esc(c.label ?? c.key)}</a></li>`,
+        )
+        .join("")}</ul>
+    </nav>`
+        : ""
+    }
   </aside>
 
   <div class="stage">
@@ -130,10 +187,12 @@ export function canvas(options: CanvasOptions): string {
       <span class="sizes">${sizes}</span>
       <span class="stage-actions">
         ${
-          page.draft
-            ? `<span class="pill">draft — not public</span>
+          editingComponent
+            ? '<span class="pill">component</span>'
+            : page.draft
+              ? `<span class="pill">draft — not public</span>
                <button form="act" name="op" value="publish" class="publish">Publish page</button>`
-            : `<span class="pill live">live</span>
+              : `<span class="pill live">live</span>
                <button form="act" name="op" value="unpublish" class="link">Unpublish</button>
                <a href="${esc(page.path)}" target="_blank" rel="noopener" class="muted">Open ↗</a>`
         }
@@ -175,7 +234,8 @@ const SCRIPT = String.raw`
   const act = document.getElementById('act');
   if (!canvas || !frame || !act) return;
 
-  const pageKey = canvas.dataset.page;
+  // Where this canvas posts — a page's route or a component's (ADR 0022).
+  const base = canvas.dataset.base;
   const selected = new URLSearchParams(location.search).get('block');
 
   const select = (id) => { location.search = '?block=' + id; };
@@ -364,7 +424,7 @@ const SCRIPT = String.raw`
         if (text === before.trim()) return;
 
         const body = new URLSearchParams({ path: found.id, text });
-        const response = await fetch('/admin/pages/' + pageKey + '/text', {
+        const response = await fetch(base + '/text', {
           method: 'POST',
           headers: { 'content-type': 'application/x-www-form-urlencoded' },
           body,

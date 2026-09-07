@@ -170,6 +170,33 @@ export function collectionType(
   return typeof binding === "string" ? binding : binding.from;
 }
 
+/**
+ * A block subtree with a name, used in more than one place (ADR 0022).
+ *
+ * The unit an owner actually repeats: a call-to-action band, a contact strip, a
+ * card layout. Instances reference it by key — `{ type: "component", attrs: {
+ * use: "cta" } }` — so editing the component changes every page that uses it,
+ * which is the entire point and the reason a copy-paste is not the same thing.
+ *
+ * **One level, no parameters, no slots.** Exactly the boundary `SiteLayout`
+ * draws: those are the increments by which a component library becomes a
+ * template language, and ADR 0006 already refused that. A component that may
+ * not contain another component also cannot form a cycle, so there is no depth
+ * guard here and no expansion limit in the renderer — the schema makes the
+ * problem not exist rather than the runtime detecting it.
+ */
+export const Component = z
+  .object({
+    key: Key,
+    label: Label.optional(),
+    /** Empty is not a component; it is a mistake that renders nothing on every page. */
+    blocks: z.array(Block).min(1),
+    note: Note,
+  })
+  .strict();
+
+export type Component = z.infer<typeof Component>;
+
 export const Page = z
   .object({
     key: Key,

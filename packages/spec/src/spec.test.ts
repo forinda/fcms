@@ -471,3 +471,51 @@ describe("patches classify for the gate (doc 03)", () => {
     expect(result.ok === false && result.issues[0]!.message).toMatch(/at least two/);
   });
 });
+
+/**
+ * Components (ADR 0022) — one level, referenced by key, and never styled where
+ * they are placed. Each of these is a rule that only holds if the whole
+ * document is checked, which is why they live in `checkReferences`.
+ */
+describe("reusable components", () => {
+  const cta = { key: "cta", label: "Call to action", blocks: [{ type: "heading" }] };
+  const place = (blocks: unknown[]) => ({
+    ...base,
+    components: [cta],
+    pages: [{ ...base.pages[0]!, blocks }],
+  });
+
+  it("accepts an instance that names a component that exists", () => {
+    expect(validateSpec(place([{ type: "component", attrs: { use: "cta" } }])).ok).toBe(true);
+  });
+
+  it("catches an instance naming a component that does not exist", () => {
+    const result = validateSpec(place([{ type: "component", attrs: { use: "gone" } }]));
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/unknown component "gone"/);
+  });
+
+  it("catches an instance that names nothing at all", () => {
+    const result = validateSpec(place([{ type: "component" }]));
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/needs `use`/);
+  });
+
+  it("refuses a component inside a component — the rule that makes cycles impossible", () => {
+    const result = validateSpec({
+      ...base,
+      components: [cta, { key: "band", blocks: [{ type: "component", attrs: { use: "cta" } }] }],
+    });
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/one level deep/);
+  });
+
+  it("refuses styling on a place a component is used", () => {
+    const result = validateSpec(
+      place([{ type: "component", attrs: { use: "cta" }, style: { padding: "lg" } }]),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/on the component itself/);
+  });
+
+  it("refuses two components with the same key", () => {
+    const result = validateSpec({ ...base, components: [cta, { ...cta, label: "Other" }] });
+    expect(result.ok).toBe(false);
+  });
+});

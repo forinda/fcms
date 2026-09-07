@@ -94,6 +94,19 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
   // condition inside an `item` sees that row.
   if (block.when && !matches(scope as Entry, block.when)) return raw("");
 
+  // A component is placed, not rendered: its blocks render here as if they had
+  // been written here, keeping the current scope so an instance inside an
+  // `item` still sees that row. No recursion limit is needed — the schema
+  // forbids a component containing a component (ADR 0022).
+  if (block.type === "component") {
+    const use = (block.attrs ?? {})["use"];
+    const component = walk.spec.components.find((c) => c.key === use);
+    if (!component) return unknownBlock(`component "${String(use)}"`);
+    return fragment(
+      ...component.blocks.map((child, i) => renderBlock(child, scope, [...path, i], walk)),
+    );
+  }
+
   const cls = className(path);
   const css = blockCss(cls, block.style, block.css);
   if (css) walk.css.push(css);
