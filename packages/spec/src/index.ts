@@ -44,3 +44,4 @@ export function validateSpec(input: unknown): ValidationResult {
   const issues = checkReferences(parsed.data)
   return issues.length ? { ok: false, issues } : { ok: true, spec: parsed.data }
 }
+export * from './jsonschema.js'
