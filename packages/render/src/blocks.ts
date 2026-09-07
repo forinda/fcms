@@ -380,6 +380,34 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       },
     }),
     define({
+      name: "gallery",
+      summary: "Several pictures in a grid.",
+      attrs: ["images", "alt"],
+      layout: true,
+      render: ({ className, attrs }) => {
+        // A list of references, or one comma-separated string — the second is
+        // what a text field in the inspector can hold today.
+        const raw_ = attrs["images"];
+        const sources = Array.isArray(raw_)
+          ? raw_.map((value) => String(value))
+          : String(raw_ ?? "")
+              .split(",")
+              .map((value) => value.trim())
+              .filter(Boolean);
+
+        if (sources.length === 0) return raw("");
+
+        const alt = String(attrs["alt"] ?? "");
+        return el(
+          "div",
+          { class: `fx-gallery ${className}` },
+          fragment(
+            ...sources.map((src) => el("img", { src, alt, loading: "lazy", decoding: "async" })),
+          ),
+        );
+      },
+    }),
+    define({
       name: "divider",
       summary: "A horizontal rule.",
       attrs: [],

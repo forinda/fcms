@@ -62,14 +62,21 @@ services:
       OWNER_PASSWORD: ${OWNER_PASSWORD:-}
       SECURE_COOKIES: ${SECURE_COOKIES:-false}
       SITE_TIMEZONE: ${SITE_TIMEZONE:-UTC}
+      # Matches the volume below; content-addressed files live here.
+      MEDIA_DIR: /app/data/media
       PUBLIC_URL: ${PUBLIC_URL:-}
       # Off unless something in front terminates TLS and sets the header.
       # Trusting it unconditionally lets a caller pick which site they get once
       # multi-site exists.
       TRUST_PROXY: ${TRUST_PROXY:-false}
+    volumes:
+      # Uploaded media. On disk rather than in an object store, so the default
+      # install stays one container and a database (ADR 0010's local backend).
+      - media:/app/data/media
     ports:
       - "${HTTP_PORT:-8080}:3000"
     logging: *logging
 
 volumes:
   postgres-data:
+  media:

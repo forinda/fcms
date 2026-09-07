@@ -11,8 +11,9 @@
 # plain `pg_dump` that any Postgres can read.
 #
 # It captures everything that matters: the spec, its whole patch history, and
-# the content. Uploaded media is not in Postgres — once the asset store exists
-# (ADR 0010), back its bucket up alongside this.
+# the content — plus the uploaded media, which lives on disk rather than in
+# Postgres. Both go in one archive, because a backup that restores the site
+# without its pictures is a backup someone finds out about at the worst moment.
 set -euo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -48,6 +48,7 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
     ? `<header>
   <nav class="crumbs"><a href="/admin">Admin</a>${crumbs ? `<span class="sep">/</span>${crumbs}` : ""}</nav>
   <span class="header-actions">
+    <a href="/admin/media">Media</a>
     <a href="/admin/assist">Assistant</a>
     <a href="/admin/sessions">Sessions</a>
     <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
@@ -237,6 +238,16 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
 .pill.live{background:#dcfce7;color:#166534}
 form.inline{display:inline}
+.upload{margin:1rem 0 1.5rem;padding:1rem;border:1px dashed var(--line);border-radius:8px}
+.upload .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.assets{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))}
+.asset{margin:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card,#fff)}
+.asset img{width:100%;height:9rem;object-fit:cover;display:block;background:#f5f5f4}
+.asset .file{display:flex;align-items:center;justify-content:center;height:9rem;
+  background:#f5f5f4;color:var(--muted);text-transform:uppercase;font-size:.8rem;letter-spacing:.08em}
+.asset figcaption{padding:.6rem;display:grid;gap:.35rem;font-size:.8rem}
+.asset code{font-size:.7rem;word-break:break-all;color:var(--muted)}
+.asset .alt{display:grid;gap:.25rem}
 
 /* The canvas (ADR 0017): tree, the real page, inspector. One column on a phone,
    where doc 14 says half this audience is. */
