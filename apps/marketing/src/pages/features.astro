@@ -8,10 +8,12 @@
  * loses them permanently.
  */
 import Page from '../layouts/Page.astro'
+import Shot from '../components/Shot.astro'
 ---
 
 <Page
   section="What it does"
+  width="prose"
   title="What forinda-cms does"
   description="A spec-driven CMS: forms for owners, files for developers, a visual canvas, an assistant, and one history that covers all of them."
 >
@@ -48,6 +50,12 @@ import Page from '../layouts/Page.astro'
         line or the assistant. One list, newest first, with an undo button.</p>
     </div>
   </div>
+
+  <Shot
+    src="/shots/canvas.png"
+    alt="The canvas: the block tree, the live page, and a properties panel generated from what the selected block declares."
+    caption="Selecting a heading on the canvas. The panel is generated from the block's own declarations, so it cannot drift from what the block accepts."
+  />
 
   <h2>For whoever builds it</h2>
 
@@ -103,6 +111,12 @@ import Page from '../layouts/Page.astro'
         afterwards — including the ones that failed and why.</p>
     </div>
   </div>
+
+  <Shot
+    src="/shots/runs.png"
+    alt="The automations screen: declared automations, a form to add one, and recent runs with what each step did."
+    caption="Every run, what each step did, and the failures with their reason — including a test run that touched nothing."
+  />
 
   <h2>For the people who visit</h2>
 

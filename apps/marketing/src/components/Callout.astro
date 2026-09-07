@@ -1,0 +1,20 @@
+---
+/**
+ * A note or a warning.
+ *
+ * Two kinds only. A palette of six severity levels is a palette nobody reads —
+ * the distinction that matters is "worth knowing" against "this will cost you
+ * something".
+ */
+interface Props {
+  kind?: 'note' | 'warn'
+  title?: string
+}
+
+const { kind = 'note', title } = Astro.props
+---
+
+<div class={kind}>
+  {title && <p><strong>{title}</strong></p>}
+  <slot />
+</div>

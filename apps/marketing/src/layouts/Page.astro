@@ -2,25 +2,48 @@
 /**
  * The shell every page uses.
  *
- * One layout, no framework, no client JavaScript. A marketing site that ships a
- * hydration runtime to say what a product is has already lost the argument it
- * is making about weight — and doc 14's reader is on a phone, on a network that
- * charges by the megabyte.
+ * One layout, no framework, and the only JavaScript on the site is the eight
+ * lines at the bottom that make a copy button work — a marketing site arguing
+ * that software should be small cannot ship a hydration runtime to say so.
  */
+import '../styles/site.css'
+
 interface Props {
   title: string
   description: string
   /** Shown above the page's own heading, so a reader knows where they are. */
   section?: string
+  /** Wide pages lay their own content out; prose pages get one readable column. */
+  width?: 'prose' | 'wide'
 }
 
-const { title, description, section } = Astro.props
+const { title, description, section, width = 'prose' } = Astro.props
 const path = Astro.url.pathname
 
 const NAV = [
   { href: '/features/', label: 'What it does' },
   { href: '/docs/', label: 'Docs' },
   { href: '/pricing/', label: 'Pricing' },
+]
+
+const FOOTER = [
+  {
+    title: 'Product',
+    links: [
+      { href: '/features/', label: 'What it does' },
+      { href: '/pricing/', label: 'Pricing' },
+      { href: '/docs/install/', label: 'Install' },
+    ],
+  },
+  {
+    title: 'Documentation',
+    links: [
+      { href: '/docs/editing/', label: 'Run your site' },
+      { href: '/docs/automations/', label: 'Automations' },
+      { href: '/docs/developers/', label: 'Build with it' },
+      { href: '/docs/operating/', label: 'Keep it running' },
+    ],
+  },
 ]
 
 const current = (href: string) => path === href || (href !== '/' && path.startsWith(href))
@@ -38,99 +61,69 @@ const canonical = new URL(Astro.url.pathname, Astro.site)
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <style is:global>
-      :root {
-        color-scheme: light dark;
-        --ink: #1c1917;
-        --muted: #57534e;
-        --line: #e7e5e4;
-        --brand: #1a7f5a;
-        --bg: #fafaf9;
-        --card: #ffffff;
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --ink: #e7e5e4;
-          --muted: #a8a29e;
-          --line: #44403c;
-          --bg: #1c1917;
-          --card: #292524;
-        }
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--ink);
-        font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
-      }
-      header {
-        display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
-        max-width: 60rem; margin: 0 auto; padding: 1.25rem 1.25rem 0; flex-wrap: wrap;
-      }
-      .wordmark { font-weight: 600; letter-spacing: -0.02em; text-decoration: none; color: var(--ink); }
-      header nav { display: flex; gap: 1.1rem; flex-wrap: wrap; }
-      header nav a { text-decoration: none; color: var(--muted); font-size: 0.95rem; }
-      header nav a:hover, header nav a.here { color: var(--ink); }
-      .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem;
-        color: var(--muted); margin: 0 0 0.5rem; }
-      main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 6rem; }
-      h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0 0 1rem; letter-spacing: -0.02em; }
-      h2 { font-size: 1.35rem; margin: 3rem 0 0.75rem; letter-spacing: -0.01em; }
-      p { margin: 0 0 1rem; }
-      .lede { font-size: 1.2rem; color: var(--muted); }
-      a { color: var(--brand); }
-      code, pre { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9em; }
-      pre {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 1rem;
-        overflow-x: auto;
-      }
-      .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin-top: 1rem; }
-      .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem; }
-      .card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
-      .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-      .cta { display: inline-block; background: var(--brand); color: #fff; text-decoration: none;
-        padding: 0.6rem 1.1rem; border-radius: 8px; font-weight: 500; }
-      .cta.secondary { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
-      .ctas { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1.5rem 0 0; }
-      table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
-      th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line);
-        vertical-align: top; }
-      th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
-      .note { border-left: 3px solid var(--brand); padding: 0.1rem 0 0.1rem 0.9rem;
-        margin: 1.25rem 0; color: var(--muted); }
-      .soon { display: inline-block; font-size: 0.7rem; text-transform: uppercase;
-        letter-spacing: 0.06em; background: var(--line); color: var(--muted);
-        padding: 0.1rem 0.4rem; border-radius: 99px; vertical-align: middle; }
-      ol { padding-left: 1.2rem; }
-      ol li { margin: 0.45rem 0; }
-      footer { border-top: 1px solid var(--line); margin-top: 4rem; padding-top: 1.5rem; color: var(--muted); font-size: 0.9rem; }
-    </style>
+    <meta name="twitter:card" content="summary" />
   </head>
   <body>
-    <header>
-      <a href="/" class="wordmark">forinda&#8203;-cms</a>
-      <nav>
-        {NAV.map((item) => (
-          <a href={item.href} class={current(item.href) ? 'here' : ''}>{item.label}</a>
-        ))}
-      </nav>
+    <header class="site-header">
+      <div class="bar">
+        <a href="/" class="wordmark"><span class="mark">f</span> forinda&#8203;-cms</a>
+        <nav>
+          {NAV.map((item) => (
+            <a href={item.href} class={current(item.href) ? 'here' : ''}>{item.label}</a>
+          ))}
+        </nav>
+        <a class="cta small" href="/docs/install/">Install</a>
+      </div>
     </header>
 
     <main>
-      {section && <p class="eyebrow">{section}</p>}
-      <slot />
-      <footer>
-        <p>
-          Self-hostable. Your database, your export, no account required.
-          <br />
-          <a href="/docs/install/">Install it</a> · <a href="/docs/">Documentation</a> ·
-          <a href="/pricing/">Pricing</a>
-        </p>
-      </footer>
+      <slot name="hero" />
+      <div class={width}>
+        {section && <p class="eyebrow">{section}</p>}
+        <slot />
+      </div>
     </main>
+
+    <footer class="site-footer">
+      <div class="cols">
+        <div>
+          <a href="/" class="wordmark"><span class="mark">f</span> forinda&#8203;-cms</a>
+          <p class="about">
+            A self-hostable CMS where the site is a spec. Your database, your export, no
+            account required.
+          </p>
+        </div>
+        {FOOTER.map((group) => (
+          <div>
+            <h4>{group.title}</h4>
+            <ul>
+              {group.links.map((link) => (
+                <li><a href={link.href}>{link.label}</a></li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </footer>
+
+    <script is:inline>
+      // The only script on the site. Without it every code block still reads
+      // and still selects; the button simply does nothing, so it is hidden.
+      for (const button of document.querySelectorAll('.copy')) {
+        if (!navigator.clipboard) {
+          button.remove()
+          continue
+        }
+        button.addEventListener('click', async () => {
+          await navigator.clipboard.writeText(button.dataset.copy ?? '')
+          button.textContent = 'Copied'
+          button.dataset.copied = 'true'
+          setTimeout(() => {
+            button.textContent = 'Copy'
+            delete button.dataset.copied
+          }, 1600)
+        })
+      }
+    </script>
   </body>
 </html>

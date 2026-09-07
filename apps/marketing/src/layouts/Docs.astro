@@ -1,0 +1,124 @@
+---
+/**
+ * The documentation shell: where you are, the page, and what is on it.
+ *
+ * Three columns because documentation answers three questions at once — what
+ * else exists, what this page says, and where in it the thing I need is. A
+ * single column answers only the second, which is why the docs read like a
+ * long letter rather than a reference.
+ *
+ * The middle column is Markdown, so writing a page is writing a page. The
+ * right-hand rail comes from that Markdown's own headings, so it cannot drift
+ * from what is actually on the screen.
+ */
+import Page from './Page.astro'
+
+interface Heading {
+  depth: number
+  slug: string
+  text: string
+}
+
+interface Props {
+  frontmatter: {
+    title: string
+    description: string
+    /** Shown at the top of the page, above the heading. */
+    section?: string
+    next?: { href: string; label: string }
+    previous?: { href: string; label: string }
+  }
+  headings: Heading[]
+}
+
+const { frontmatter, headings } = Astro.props
+const path = Astro.url.pathname
+
+const SIDEBAR = [
+  {
+    title: 'Start here',
+    links: [
+      { href: '/docs/', label: 'Overview' },
+      { href: '/docs/install/', label: 'Install' },
+    ],
+  },
+  {
+    title: 'Running a site',
+    links: [
+      { href: '/docs/editing/', label: 'Run your site' },
+      { href: '/docs/automations/', label: 'Automations' },
+      { href: '/docs/operating/', label: 'Keep it running' },
+    ],
+  },
+  {
+    title: 'Building on it',
+    links: [{ href: '/docs/developers/', label: 'Build with it' }],
+  },
+]
+
+// `h2` and `h3` only. A rail listing every heading is a second copy of the
+// page, and one that lists `h4`s is a table of contents nobody scans.
+const onThisPage = (headings ?? []).filter((h) => h.depth === 2 || h.depth === 3)
+---
+
+<Page
+  title={frontmatter.title}
+  description={frontmatter.description}
+  width="wide"
+>
+  <div class="docs">
+    <aside class="sidebar">
+      {SIDEBAR.map((group) => (
+        <>
+          <h4>{group.title}</h4>
+          <ul>
+            {group.links.map((link) => (
+              <li>
+                <a href={link.href} class={path === link.href ? 'here' : ''}>{link.label}</a>
+              </li>
+            ))}
+          </ul>
+        </>
+      ))}
+    </aside>
+
+    <article class="body">
+      {frontmatter.section && <p class="eyebrow">{frontmatter.section}</p>}
+      <slot />
+
+      {(frontmatter.previous || frontmatter.next) && (
+        <nav class="next">
+          {frontmatter.previous && (
+            <a href={frontmatter.previous.href}>
+              <span class="dir">Previous</span>
+              <span class="name">{frontmatter.previous.label}</span>
+            </a>
+          )}
+          {frontmatter.next && (
+            <a href={frontmatter.next.href}>
+              <span class="dir">Next</span>
+              <span class="name">{frontmatter.next.label}</span>
+            </a>
+          )}
+        </nav>
+      )}
+    </article>
+
+    <aside class="toc">
+      {onThisPage.length > 1 && (
+        <>
+          <h4>On this page</h4>
+          <ul>
+            {onThisPage.map((heading) => (
+              <li>
+                <a href={`#${heading.slug}`} class={heading.depth === 3 ? 'sub' : ''}>
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </aside>
+  </div>
+</Page>
