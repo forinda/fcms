@@ -51,6 +51,54 @@ Write \`{ field: active, op: eq, value: true }\`. Never write
 A block with \`data\` renders its \`item\` template once per row. That is the only
 loop. It may not be nested more than one level deep.
 
+## Arithmetic lives in fields, never in templates
+
+\`{{ nights * rate }}\` is still invalid. A number worked out from other numbers
+is a **field** with a declared formula:
+
+\`\`\`yaml
+- name: total
+  label: Total
+  type: computed
+  precision: 0
+  formula: { op: multiply, of: [{ field: price }, { param: nights, default: 1 }] }
+\`\`\`
+
+Operations: add, subtract, multiply, divide, min, max, round. Operands are
+\`{ field: name }\`, \`{ param: name, default: n }\`, \`{ value: n }\`, or another
+formula. A number summarising *other rows* — an average rating, a review count —
+is an \`aggregate\` field instead:
+
+\`\`\`yaml
+- name: rating
+  label: Guest rating
+  type: aggregate
+  of: review        # the type holding the rows
+  on: property      # its reference field pointing back here
+  field: score
+  fn: avg           # count | avg | sum | min | max
+\`\`\`
+
+Both are computed by the engine and cannot be written by a form or an import.
+
+## Filters the visitor controls
+
+A search page compares a field to a request parameter, structurally:
+
+\`\`\`yaml
+data:
+  from: property
+  where:
+    - { field: city, op: eq, value: { param: city } }
+  sort: { param: sort, allow: [price, rating], default: price }
+  page: { param: page }
+  limit: 25
+\`\`\`
+
+Any field filtered this way must be declared \`filterable: true\`. The blocks
+\`filters\`, \`facets\`, \`results-count\` and \`pager\` render the search form, the
+filter counts, the total and the page links.
+
 ## Styling
 
 Colours, spacing and sizes are **token references** (\`token:color.brand\`) or

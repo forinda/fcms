@@ -206,7 +206,9 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   // Derived types resolve once here, so every query on the page sees the same
   // rows. A page showing a slot as free in one place and taken in another would
   // be worse than either.
-  const source = withDerived(spec, options.source, options.now);
+  // Params reach the source because a computed field may read them: "three
+  // nights" is a request parameter, and the total depends on it.
+  const source = withDerived(spec, options.source, options.now, options.params ?? {});
   const walk: Walk = {
     css: [],
     registry,
@@ -277,6 +279,8 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
 export interface RouteOptions {
   /** Injected so derived types render deterministically in tests. */
   readonly now?: Date;
+  /** Passed through for computed fields; routes themselves do not read it. */
+  readonly params?: Readonly<Record<string, string | readonly string[] | undefined>>;
   /**
    * Include pages marked `draft`.
    *
@@ -296,7 +300,7 @@ export function routes(
   // A `Date` third argument is the old signature, kept working because the
   // renderer's tests and the CLI both call it that way.
   const settings: RouteOptions = options instanceof Date ? { now: options } : options;
-  const resolved = withDerived(spec, source, settings.now);
+  const resolved = withDerived(spec, source, settings.now, settings.params ?? {});
   const out: { path: string; page: Page; entry?: Entry }[] = [];
 
   for (const page of spec.pages) {

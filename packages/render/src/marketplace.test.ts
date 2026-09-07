@@ -179,3 +179,90 @@ describe("the page itself", () => {
     expect(html).toMatch(/href="\/search\?city=Nairobi"/);
   });
 });
+
+describe("computed fields", () => {
+  const withTotal = SiteSpec.parse({
+    ...spec,
+    content: [
+      {
+        ...spec.content[0]!,
+        fields: [
+          ...spec.content[0]!.fields,
+          {
+            name: "total",
+            label: "Total",
+            type: "computed",
+            precision: 0,
+            // Three nights at the nightly rate — the sentence a booking site
+            // has to be able to say, and the one ADR 0001 forbids in a
+            // template.
+            formula: {
+              op: "multiply",
+              of: [{ field: "price" }, { param: "nights", default: 1 }],
+            },
+          },
+          {
+            name: "value",
+            label: "Value for money",
+            type: "computed",
+            precision: 2,
+            // Reads the aggregate the engine filled in on the same pass.
+            formula: { op: "divide", of: [{ field: "rating" }, { field: "stars" }] },
+          },
+        ],
+      },
+      spec.content[1]!,
+    ],
+  });
+
+  const rows = (params: Record<string, string> = {}) =>
+    withDerived(withTotal, base, undefined, params).all("property");
+
+  it("multiplies a field by a request parameter", () => {
+    const [grand] = rows({ nights: "3" });
+    expect(grand!["total"]).toBe(36000);
+  });
+
+  it("falls back to the declared default when nobody said how many", () => {
+    const [grand] = rows();
+    expect(grand!["total"]).toBe(12000);
+  });
+
+  it("can read a value the engine computed earlier in the same pass", () => {
+    // `rating` is an aggregate; `value` divides it. Order is declaration order,
+    // aggregates first — anything else would be an evaluation order to reason
+    // about.
+    const [grand] = rows();
+    expect(grand!["value"]).toBe(1.7);
+  });
+
+  it("is null rather than zero when something it needs is missing", () => {
+    // The property with no reviews has no rating, so it has no value-for-money
+    // either. Zero would be a claim about it.
+    const coast = rows().find((row) => row["id"] === "p3");
+    expect(coast!["value"]).toBeNull();
+  });
+
+  it("is null rather than infinity when a denominator is zero", () => {
+    const zeroStars = SiteSpec.parse({
+      ...withTotal,
+      content: [withTotal.content[0]!, withTotal.content[1]!],
+    });
+    const source_ = withDerived(
+      zeroStars,
+      staticSource({
+        property: [{ id: "p9", name: "Unrated", city: "X", stars: 0, price: 100 }],
+        review: [{ id: "r9", property: "p9", score: 8 }],
+      }),
+      undefined,
+      {},
+    );
+
+    expect(source_.all("property")[0]!["value"]).toBeNull();
+  });
+
+  it("ignores a parameter that is not a number", () => {
+    const [grand] = rows({ nights: "three" });
+    expect(grand!["total"]).toBe(12000);
+  });
+});

@@ -8,7 +8,7 @@
  * That seam is worth having on day one for the reason ADR 0002 gives about all
  * of them: cheap now, expensive later.
  */
-import type { ContentType, Condition, Field, Query, SiteSpec } from "@forinda-cms/spec";
+import type { ContentType, Condition, Field, Operand, Query, SiteSpec } from "@forinda-cms/spec";
 
 import { generateSchedule } from "./schedule.js";
 
@@ -247,6 +247,8 @@ export function withDerived(
   spec: SiteSpec,
   base: EntrySource,
   now: Date = new Date(),
+  /** Computed fields may read the request — "three nights" is a parameter. */
+  params: RequestParams = {},
 ): EntrySource {
   const cache = new Map<string, readonly Entry[]>();
 
@@ -265,9 +267,9 @@ export function withDerived(
         ? generateSchedule(base, declared.derived, { now })
         : base.all(type);
 
-      const withAggregates = addAggregates(declared, rows, source);
-      cache.set(type, withAggregates);
-      return withAggregates;
+      const enriched = addComputed(declared, addAggregates(declared, rows, source), params);
+      cache.set(type, enriched);
+      return enriched;
     },
   };
 
@@ -311,6 +313,85 @@ function addAggregates(
 
     return computed;
   });
+}
+
+/**
+ * Work out a type's computed fields (ADR 0019 §5).
+ *
+ * After the aggregates, deliberately: "value for money" is a rating divided by
+ * a price, so a formula has to be able to read a field the engine just filled
+ * in. Computed fields cannot read each other — one pass, in declaration order,
+ * and anything more would be an evaluation order to reason about.
+ */
+function addComputed(
+  type: ContentType,
+  rows: readonly Entry[],
+  params: RequestParams,
+): readonly Entry[] {
+  const computed = type.fields.filter(
+    (field): field is Extract<Field, { type: "computed" }> => field.type === "computed",
+  );
+  if (computed.length === 0) return rows;
+
+  return rows.map((row) => {
+    const out: Record<string, unknown> = { ...row };
+    for (const field of computed) {
+      const value = evaluate(field.formula, row, params);
+      const factor = 10 ** field.precision;
+      out[field.name] = value === null ? null : Math.round(value * factor) / factor;
+    }
+    return out;
+  });
+}
+
+/**
+ * One formula, or `null`.
+ *
+ * Null propagates rather than becoming zero: a nightly rate with no price is
+ * unknown, and a total of 0 would be a claim about it. Division by zero is null
+ * for the same reason — it is not infinity, it is a question with no answer.
+ */
+function evaluate(operand: Operand, row: Entry, params: RequestParams): number | null {
+  if ("value" in operand) return operand.value;
+
+  if ("field" in operand) {
+    const value = row[operand.field];
+    return typeof value === "number" ? value : null;
+  }
+
+  if ("param" in operand) {
+    const supplied = params[operand.param];
+    const raw = Array.isArray(supplied) ? supplied[0] : supplied;
+    const parsed = raw === undefined || raw === "" ? undefined : Number(raw);
+    if (parsed !== undefined && Number.isFinite(parsed)) return parsed;
+    return operand.default ?? null;
+  }
+
+  const values = operand.of.map((child) => evaluate(child, row, params));
+  if (values.some((value) => value === null)) return null;
+
+  const numbers = values as number[];
+  const [first = 0, ...rest] = numbers;
+
+  switch (operand.op) {
+    case "add":
+      return numbers.reduce((total, value) => total + value, 0);
+    case "subtract":
+      return rest.reduce((total, value) => total - value, first);
+    case "multiply":
+      return numbers.reduce((total, value) => total * value, 1);
+    case "divide":
+      // A zero denominator is not infinity; it is a question with no answer.
+      return rest.some((value) => value === 0)
+        ? null
+        : rest.reduce((total, value) => total / value, first);
+    case "min":
+      return Math.min(...numbers);
+    case "max":
+      return Math.max(...numbers);
+    default:
+      return Math.round(first);
+  }
 }
 
 /** A reference may hold one id or several (`many: true`). */

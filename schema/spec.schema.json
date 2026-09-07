@@ -938,6 +938,62 @@
                     "on",
                     "fn"
                   ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "type": {
+                      "type": "string",
+                      "const": "computed"
+                    },
+                    "required": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "unique": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "filterable": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "help": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "note": {
+                      "type": "string",
+                      "maxLength": 2000
+                    },
+                    "formula": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "precision": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "label",
+                    "type",
+                    "formula"
+                  ]
                 }
               ]
             }
@@ -2885,6 +2941,83 @@
       },
       "required": [
         "type"
+      ],
+      "additionalProperties": false
+    },
+    "__schema1": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": [
+            "add",
+            "subtract",
+            "multiply",
+            "divide",
+            "min",
+            "max",
+            "round"
+          ]
+        },
+        "of": {
+          "minItems": 1,
+          "maxItems": 8,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-zA-Z0-9]*$"
+                  }
+                },
+                "required": [
+                  "field"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "param": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "default": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "param"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "$ref": "#/$defs/__schema1"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "op",
+        "of"
       ],
       "additionalProperties": false
     }

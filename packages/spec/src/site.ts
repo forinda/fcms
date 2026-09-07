@@ -205,6 +205,47 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     }
   }
 
+  // A formula naming a field that does not exist evaluates to null forever,
+  // which on a price reads as "free" and on a rating as "unrated" (ADR 0019 §5).
+  for (const type of spec.content) {
+    const names = new Set(type.fields.map((f) => f.name));
+
+    for (const field of type.fields) {
+      if (field.type !== "computed") continue;
+      const path = `/content/${type.key}/fields/${field.name}`;
+
+      const walkFormula = (operand: unknown): void => {
+        if (typeof operand !== "object" || operand === null) return;
+
+        if ("field" in operand) {
+          const named = String((operand as { field: string }).field);
+          if (!names.has(named)) {
+            issues.push({ path, message: `uses "${named}", which "${type.key}" does not have` });
+          } else if (named === field.name) {
+            // Not clever, just wrong: a field cannot be part of its own value.
+            issues.push({ path, message: `refers to itself` });
+          }
+          return;
+        }
+
+        if ("of" in operand) {
+          for (const child of (operand as { of: unknown[] }).of) walkFormula(child);
+        }
+      };
+
+      walkFormula(field.formula);
+
+      // Order matters for these two and nobody expects it not to, so a single
+      // operand is almost always a mistake rather than a shorthand.
+      if (
+        (field.formula.op === "subtract" || field.formula.op === "divide") &&
+        field.formula.of.length < 2
+      ) {
+        issues.push({ path, message: `${field.formula.op} needs at least two values` });
+      }
+    }
+  }
+
   // Every `data.from` in every block of every page, at any depth.
   const walk = (blocks: readonly import("./pages.js").Block[], at: string) => {
     blocks.forEach((b, i) => {
