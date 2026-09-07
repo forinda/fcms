@@ -88,14 +88,20 @@ export function pageSeo(
   scope: Record<string, unknown>,
 ): { title: string; description?: string; image?: string; noindex: boolean } {
   const seo = page.seo;
+  // A collection page's title is a template — `{{ entry.name }}` — and it was
+  // being emitted literally, so every entry page on every site shared one
+  // `<title>` reading `{{ entry.name }} — Riverside Rooms`. The `<h1>` beside
+  // it resolved, because block attributes go through the scope and this did
+  // not. Doc 08 makes titles most of what a crawler reads.
+  const named = resolve(page.title, scope);
   // Don't append the site name to a page already named after the site — the
   // home page is usually titled "Riverside Salon", and "Riverside Salon —
   // Riverside Salon" is what a template does when nobody looks at the output.
   const title = seo?.title
     ? resolve(seo.title, scope)
-    : page.title === spec.name
-      ? page.title
-      : `${page.title} — ${spec.name}`;
+    : named === spec.name
+      ? named
+      : `${named} — ${spec.name}`;
   const description = seo?.description ? resolve(seo.description, scope) : undefined;
   const image = seo?.image ? resolve(seo.image, scope) : undefined;
   return {

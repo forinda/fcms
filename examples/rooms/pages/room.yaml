@@ -18,6 +18,15 @@ blocks:
         style: { textColor: token:color.brand, fontWeight: bold }
 
   - type: section
+    style: { padding: { y: xl, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: Where it is, level: 2 }
+      # OpenStreetMap's own embed: no key, no account, no script (ADR 0026 §3).
+      - type: map
+        attrs: { at: location, zoom: 15, title: "Riverside Rooms, Naivasha" }
+
+  - type: section
     style: { padding: { y: xl, x: lg }, background: token:color.surface }
     children:
       - type: heading

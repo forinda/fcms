@@ -10,6 +10,7 @@ export * from "./html.js";
 export * from "./css.js";
 export * from "./entries.js";
 export * from "./stay.js";
+export * from "./places.js";
 export * from "./scope.js";
 export * from "./blocks.js";
 export * from "./seo.js";

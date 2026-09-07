@@ -207,6 +207,8 @@ a{color:var(--color-brand,#06c)}
 .fx-grid{display:grid}
 .fx-section{display:block}
 .fx-card-meta{color:var(--color-brand,#06c);font-weight:600;margin:0}
+.fx-map iframe{width:100%;height:20rem;border:0;display:block;border-radius:var(--radius-md,8px)}
+.fx-map-link{display:inline-block;margin-top:.4rem;font-size:.9rem}
 `.trim();
 
 export function siteCss(spec: SiteSpec): string {

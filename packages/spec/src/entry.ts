@@ -62,6 +62,12 @@ function schemaForField(field: Field): z.ZodType {
         );
       case "asset":
         return z.string().regex(/^asset:/);
+      case "geo":
+        // Both numbers, both in range. A swapped pair puts a Nairobi business
+        // in the Indian Ocean, and nothing downstream would notice (ADR 0026).
+        return z
+          .object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+          .strict();
       case "reference":
         return z.string().regex(/^ref:/);
       case "state":
@@ -128,6 +134,23 @@ export function coerceEntryInput(
         // An unchecked checkbox sends nothing; absent means false, not missing.
         out[field.name] = raw === "on" || raw === "true" || raw === true;
         break;
+      case "geo": {
+        // What a person pastes out of a map is one string: "-0.7167, 36.4333".
+        if (raw === "" || raw === undefined || (typeof raw === "object" && raw !== null)) {
+          out[field.name] = raw === "" ? undefined : raw;
+          break;
+        }
+        const parts = String(raw).split(",");
+        const lat = Number(parts[0]);
+        const lng = Number(parts[1]);
+        out[field.name] =
+          parts.length === 2 && Number.isFinite(lat) && Number.isFinite(lng)
+            ? { lat, lng }
+            : // Left as it was so the schema reports it, rather than silently
+              // becoming nothing and reading as "no location given".
+              raw;
+        break;
+      }
       case "state":
         // A declared `initial` that nothing writes is decoration: the row lands
         // with no status, listings show a blank column, and an automation that

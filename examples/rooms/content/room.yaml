@@ -20,3 +20,6 @@ fields:
       - { value: lake, label: Lake }
       - { value: courtyard, label: Courtyard }
   - { name: photo, label: Photo, type: asset, accept: image }
+  # Where the room is. Pasted out of a map — the platform does not geocode,
+  # because geocoding is somebody's paid service with a licence (ADR 0026 §4).
+  - { name: location, label: Where, type: geo }

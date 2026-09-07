@@ -12,6 +12,7 @@ import type { ContentType, Condition, Field, Operand, Query, SiteSpec } from "@f
 
 import { generateSchedule } from "./schedule.js";
 import { generateStay } from "./stay.js";
+import { addDistance } from "./places.js";
 
 /** One row. Shape is the content type's fields; the renderer treats it as data. */
 export type Entry = Record<string, unknown> & { readonly id?: string; readonly slug?: string };
@@ -288,7 +289,13 @@ export function withDerived(
         ? derive(declared.derived, base, source, now, params)
         : base.all(type);
 
-      const enriched = addComputed(declared, addAggregates(declared, rows, source), params);
+      // Distance before computed, so a formula can read it: "price per
+      // kilometre" is a thing an author will want long before we do.
+      const enriched = addComputed(
+        declared,
+        addDistance(declared, addAggregates(declared, rows, source), params),
+        params,
+      );
       cache.set(type, enriched);
       return enriched;
     },

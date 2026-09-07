@@ -33,7 +33,9 @@ blocks:
           where:
             - { field: sleeps, op: gte, value: { param: sleeps } }
             - { field: view, op: eq, value: { param: view } }
-          sort: { param: sort, allow: [price, sleeps], default: price }
+          # `distanceKm` is the platform's, present whenever the visitor says
+          # where they are with `?near=lat,lng` (ADR 0026 §2).
+          sort: { param: sort, allow: [price, sleeps, distanceKm], default: price }
           limit: 12
         item:
           - type: card

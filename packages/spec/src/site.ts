@@ -117,6 +117,21 @@ export interface SpecIssue {
   readonly message: string;
 }
 
+/**
+ * `distanceKm` — computed by the platform on any type with a coordinate.
+ *
+ * Duplicated from `@forinda-cms/render` rather than imported: the spec package
+ * is the bottom of the dependency graph and does not know about the renderer.
+ * The name is part of the contract, so it is asserted in both places.
+ */
+const DISTANCE = "distanceKm";
+
+/** A field the type declares, or one the platform adds to it. */
+function hasField(type: ContentType, name: string): boolean {
+  if (type.fields.some((f) => f.name === name)) return true;
+  return name === DISTANCE && type.fields.some((f) => f.type === "geo");
+}
+
 export function checkReferences(spec: SiteSpec): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const types = new Map(spec.content.map((t) => [t.key, t]));
@@ -320,7 +335,7 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
         const named = "field" in sort ? [sort.field] : sort.allow;
 
         for (const field of named) {
-          if (t && !t.fields.some((f) => f.name === field)) {
+          if (t && !hasField(t, field)) {
             issues.push({
               path: `${here}/data/sort`,
               message: `sorts by "${field}", which "${b.data.from}" does not have`,
@@ -337,6 +352,10 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
 
         const t = types.get(b.data!.from);
         const field = t?.fields.find((f) => f.name === condition.field);
+        // `distanceKm` is the platform's, so it is filterable without being
+        // declared — and there is nothing to index, since it does not exist
+        // until somebody says where they are (ADR 0026 §2).
+        if (t && !field && condition.field === DISTANCE) continue;
         if (t && !field) {
           issues.push({
             path: `${here}/data/where/${c}`,
@@ -455,6 +474,17 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
 
   // A payable type must name an integration that exists and can take money.
   for (const type of spec.content) {
+    // Reserved, and caught here rather than at render: a declared `distanceKm`
+    // would be silently overwritten by the platform's on every request.
+    if (type.fields.some((f) => f.name === DISTANCE && f.type !== "geo")) {
+      if (type.fields.some((f) => f.type === "geo")) {
+        issues.push({
+          path: `/content/${type.key}/fields/${DISTANCE}`,
+          message: `"${DISTANCE}" is computed for any type with a location, so it cannot also be a field`,
+        });
+      }
+    }
+
     if (!type.payment) continue;
     const at = `/content/${type.key}/payment`;
     const integration = integrations.get(type.payment.via);
