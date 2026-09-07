@@ -1,0 +1,65 @@
+# forinda-cms — the whole install.
+#
+#   1. curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/compose.yaml
+#   2. curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/.env.example && mv .env.example .env
+#   3. edit .env — set POSTGRES_PASSWORD and SITE_NAME
+#   4. docker compose up -d
+#
+# There is no migration step and no setup command. The app migrates and
+# provisions itself on boot, so `up` reaches a working site.
+#
+# Two services, on purpose. Doc 14 asks for a small footprint because the target
+# is a 1-2 GB VPS, not a cluster: no Redis, no separate queue, no object store
+# in the default install. Postgres and the app.
+
+name: forinda-cms
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-forinda}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-forinda_cms}
+    volumes:
+      # A named volume, so `docker volume` can back it up without poking around
+      # in bind mounts (doc 09 §4).
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forinda}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # Not published. The app reaches it over the compose network; an operator
+    # tunnels in. A Postgres on the public internet is how a small site becomes
+    # someone else's.
+    expose:
+      - "5432"
+    logging: &logging
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  app:
+    image: ghcr.io/forinda/forinda-cms:${VERSION:-latest}
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-forinda}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-forinda_cms}
+      PORT: "3000"
+      NODE_ENV: production
+      SITE_NAME: ${SITE_NAME:-A new site}
+      SITE_TIMEZONE: ${SITE_TIMEZONE:-UTC}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      # Off unless something in front terminates TLS and sets the header.
+      # Trusting it unconditionally lets a caller pick which site they get once
+      # multi-site exists.
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    ports:
+      - "${HTTP_PORT:-8080}:3000"
+    logging: *logging
+
+volumes:
+  postgres-data:

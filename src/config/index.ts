@@ -35,6 +35,10 @@ const envSchema = fromZod(
 
     /** Absolute base for canonicals and the sitemap (doc 08). */
     PUBLIC_URL: z.string().optional(),
+
+    /** Shown on the starter page a fresh install boots into. */
+    SITE_NAME: z.string().optional(),
+    SITE_TIMEZONE: z.string().default("UTC"),
   }),
 );
 

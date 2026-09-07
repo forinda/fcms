@@ -2,6 +2,7 @@ export * from "./schema.js";
 export * from "./client.js";
 export * from "./scope.js";
 export * from "./planner.js";
+export * from "./migrate.js";
 export * from "./repositories/index.js";
 export * from "./use-cases/index.js";
 export * from "./site.js";
