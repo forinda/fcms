@@ -16,7 +16,7 @@
 import { resolve } from "node:path";
 import { Command, InvalidArgumentError, Option } from "commander";
 
-import { dev, fmt, validate } from "./commands.js";
+import { dev, diff, fmt, validate } from "./commands.js";
 import { dim, yellow } from "./report.js";
 
 function port(value: string): number {
@@ -65,6 +65,13 @@ export function buildProgram(): Command {
     .action((dir: string, options: { check?: boolean }) =>
       process.exit(fmt(resolve(dir), options.check === true)),
     );
+
+  program
+    .command("diff")
+    .argument("<before>", "spec directory as it is now")
+    .argument("<after>", "spec directory with the change applied")
+    .description("describe what changed, in plain language")
+    .action((before: string, after: string) => process.exit(diff(resolve(before), resolve(after))));
 
   program
     .command("dev")

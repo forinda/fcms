@@ -12,11 +12,12 @@
  */
 import { readFileSync, watch, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { diffSpecs, summarise, type EntryCounts } from "@forinda-cms/spec";
 import { splitFiles } from "@forinda-cms/lang";
 import { renderPage, routes } from "@forinda-cms/render";
 
 import { loadProject } from "./project.js";
-import { bold, dim, green, printDiagnostics, rel } from "./report.js";
+import { bold, dim, green, printDiagnostics, rel, yellow } from "./report.js";
 
 export function validate(root: string): number {
   const loaded = loadProject(root);
@@ -211,4 +212,62 @@ function notFoundPage(paths: readonly string[]): string {
     .map((p) => `<li><a href="${escapeHtml(p)}">${escapeHtml(p)}</a></li>`)
     .join("");
   return shell("Not found", `<h1>No page answers that path</h1><ul>${items}</ul>`);
+}
+
+/**
+ * `fcms diff` — what changed, in the owner's vocabulary.
+ *
+ * This is the instrument ADR 0007 test 2 needs. The test is "show a real owner
+ * five changes and ask what each does", and until now nothing could produce
+ * them: a textual diff of YAML is line noise, and doc 13's claim is about
+ * *meaning*, not text.
+ *
+ * Destructive changes print first and loudest. The review question is "is
+ * anything about to be lost", and burying that under six renames is how a
+ * reviewer says yes to something they did not read.
+ */
+export function diff(beforeRoot: string, afterRoot: string): number {
+  const before = loadProject(beforeRoot);
+  if (!before.ok) {
+    console.error(`the "before" spec does not load:`);
+    printDiagnostics(beforeRoot, before.diagnostics);
+    return 1;
+  }
+  const after = loadProject(afterRoot);
+  if (!after.ok) {
+    console.error(`the "after" spec does not load:`);
+    printDiagnostics(afterRoot, after.diagnostics);
+    return 1;
+  }
+
+  // Counted from the "before" side: the question is how much existing data a
+  // change puts at risk, and that is what exists now.
+  const counts: EntryCounts = Object.fromEntries(
+    before.project.spec.content.map((t) => [t.key, before.project.source.all(t.key).length]),
+  );
+
+  const changes = diffSpecs(before.project.spec, after.project.spec, counts);
+  if (changes.length === 0) {
+    console.log(`${green("no changes")}`);
+    return 0;
+  }
+
+  const { total, destructive } = summarise(changes);
+  console.log("");
+  for (const change of changes) {
+    const marker = change.classification === "destructive" ? yellow("!") : green("+");
+    console.log(`  ${marker} ${bold(change.summary)}`);
+    if (change.impact) console.log(`    ${change.impact}`);
+    console.log(dim(`    ${change.path}`));
+    console.log("");
+  }
+
+  console.log(
+    destructive === 0
+      ? `${total} ${total === 1 ? "change" : "changes"}, none destructive.`
+      : `${total} ${total === 1 ? "change" : "changes"}, ${yellow(`${destructive} destructive`)} — read those first.`,
+  );
+  // Non-zero when something would be lost, so `fcms diff` can gate a script the
+  // way `plan` will in Phase 0b.
+  return destructive > 0 ? 2 : 0;
 }

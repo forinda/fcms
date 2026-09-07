@@ -45,3 +45,4 @@ export function validateSpec(input: unknown): ValidationResult {
   return issues.length ? { ok: false, issues } : { ok: true, spec: parsed.data };
 }
 export * from "./jsonschema.js";
+export * from "./diff.js";
