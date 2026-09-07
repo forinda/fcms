@@ -8,7 +8,10 @@ publishable: false
 # the M-Pesa till is a one-line change once the shortcode exists.
 submissions: anyone
 payment:
-  amount: { field: deposit }
+  # The deposit belongs to the service that was chosen, not to the booking: a
+  # booking that copied the number would be a number a form could carry
+  # (ADR 0023 §3, ADR 0028).
+  amount: { field: service.deposit }
   currency: KES
   via: counter
   label: Booking deposit

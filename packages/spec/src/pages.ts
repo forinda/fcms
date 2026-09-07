@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { Condition, When } from "./condition.js";
 import { ActionKey } from "./logic.js";
-import { Key, Label, Note, Path, TemplateString } from "./primitives.js";
+import { FieldName, Key, Label, Note, Path, TemplateString } from "./primitives.js";
 import { Query } from "./query.js";
 import { CustomCss, Layout, StyleProps } from "./style.js";
 
@@ -105,7 +105,15 @@ export const FlowStep = z
      * defining how `flow.service` comes to exist. This is that definition —
      * without it the ADR's own example cannot run.
      */
-    selects: z.object({ from: Key, as: Key }).strict().optional(),
+    /**
+     * `as` is a **field name**, not a key.
+     *
+     * It names the field this choice fills on the entry the flow writes
+     * (ADR 0028 §3), so it follows the same camelCase grammar every other field
+     * name does — `startsAt`, not `starts-at`. It was a `Key` while nothing
+     * bound anything, which made `as: slot` look valid and fill nothing.
+     */
+    selects: z.object({ from: Key, as: FieldName }).strict().optional(),
     blocks: z.array(Block).min(1),
   })
   .strict();

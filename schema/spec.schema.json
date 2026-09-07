@@ -1373,10 +1373,18 @@
                     "type": "object",
                     "properties": {
                       "field": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 64,
-                        "pattern": "^[a-z][a-zA-Z0-9]*$"
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "pattern": "^[a-z][a-zA-Z0-9]*$"
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^[a-z][a-zA-Z0-9]*\\.[a-z][a-zA-Z0-9]*$"
+                          }
+                        ]
                       }
                     },
                     "required": [
@@ -1713,7 +1721,7 @@
                             "type": "string",
                             "minLength": 1,
                             "maxLength": 64,
-                            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                            "pattern": "^[a-z][a-zA-Z0-9]*$"
                           }
                         },
                         "required": [

@@ -18,6 +18,7 @@ import {
 } from "@forinda-cms/db";
 import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
+import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "../payment.repository";
 import { PaymentUseCase } from "../payment.usecase";
@@ -81,7 +82,11 @@ suite("payments", () => {
     entryId = entry!.id;
 
     repository = new PaymentRepository(db, scope);
-    use = new PaymentUseCase(repository, new WorkflowUseCase(db, scope));
+    use = new PaymentUseCase(
+      repository,
+      new WorkflowUseCase(db, scope),
+      new EntryRepository(db, scope),
+    );
   });
 
   afterAll(async () => {
@@ -196,6 +201,56 @@ suite("payments", () => {
       });
       const result = await use.record({ spec: configured, type, entryId, data: { deposit: 10 } });
       expect(result.ok && result.instruction).toBe("Pay the stylist when you arrive.");
+    });
+  });
+  describe("a price that lives on what was chosen", () => {
+    it("follows the reference rather than trusting the row", async () => {
+      // A salon's deposit belongs to the service. A booking that copied the
+      // number would be a number a form could carry.
+      const [service] = await db
+        .insert(entries)
+        .values({
+          siteId: SITE,
+          orgId: ORG,
+          typeKey: "service",
+          slug: "cut",
+          data: { name: "Cut", deposit: 500 },
+          status: "published",
+        })
+        .returning();
+
+      const referring = SiteSpec.parse({
+        ...spec,
+        content: [
+          {
+            key: "service",
+            label: "Service",
+            fields: [
+              { name: "name", label: "Name", type: "text" },
+              { name: "deposit", label: "Deposit", type: "number" },
+            ],
+          },
+          {
+            ...spec.content[0]!,
+            payment: { ...spec.content[0]!.payment!, amount: { field: "service.deposit" } },
+            fields: [
+              ...spec.content[0]!.fields,
+              { name: "service", label: "Service", type: "reference", to: "service" },
+            ],
+          },
+        ],
+      });
+
+      const result = await use.record({
+        spec: referring,
+        type: referring.content[1] as ContentType,
+        entryId,
+        // The form said 1; the service says 500.
+        data: { service: "ref:service/cut", deposit: 1 },
+      });
+
+      expect(result.ok && result.payment.amount).toBe(50000);
+      void service;
     });
   });
 });

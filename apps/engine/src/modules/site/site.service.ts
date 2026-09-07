@@ -18,6 +18,7 @@ import type { SiteSpec } from "@forinda-cms/spec";
 
 import { BLOCKS } from "@/plugins";
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
+import { FlowUseCase } from "@/shared/flows/flow.usecase";
 import { RedirectsUseCase } from "./use-cases/redirects.usecase";
 
 export interface Rendered {
@@ -30,6 +31,7 @@ export class SiteService {
   @Inject(SiteSpecUseCase) private readonly specs!: SiteSpecUseCase;
   @Inject(EntryReadUseCase) private readonly entries!: EntryReadUseCase;
   @Inject(RedirectsUseCase) private readonly moved!: RedirectsUseCase;
+  @Inject(FlowUseCase) private readonly flows!: FlowUseCase;
 
   spec(): Promise<SiteSpec | null> {
     return this.specs.execute();
@@ -75,6 +77,8 @@ export class SiteService {
     params: Readonly<Record<string, string | readonly string[] | undefined>> = {},
     /** The signed-in visitor, from the session cookie. Never from a parameter. */
     viewer?: string | null,
+    /** The journey token, so a flow renders the step this visitor is on. */
+    flowToken?: string | undefined,
   ): Promise<Rendered | null> {
     const resolved = await this.resolve(viewer);
     if (!resolved) return null;
@@ -84,6 +88,13 @@ export class SiteService {
     );
     if (!match) return null;
 
+    // What this visitor has chosen so far, per flow on this page (ADR 0028).
+    // Read here rather than in the renderer, which has no database.
+    const flow: Record<string, Record<string, unknown>> = {};
+    for (const declared of match.page.flows ?? []) {
+      Object.assign(flow, await this.flows.answers(flowToken, match.page.key, declared.key));
+    }
+
     return renderPage(
       match.page,
       {
@@ -92,6 +103,7 @@ export class SiteService {
         registry: BLOCKS,
         params,
         ...(viewer ? { viewer } : {}),
+        ...(Object.keys(flow).length > 0 ? { flow } : {}),
         path,
         ...(canonicalBase ? { canonicalBase } : {}),
       },

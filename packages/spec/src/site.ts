@@ -464,6 +464,38 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     });
   }
 
+  // A flow that binds nothing (ADR 0028 §3).
+  //
+  // A selection fills the field of its own name, and a step may legitimately
+  // choose something purely to narrow the next step — so a *single* selection
+  // filling nothing is fine. A flow where **none** of them fills anything on
+  // the type its form writes is an author expecting a binding that will never
+  // happen, and the symptom is an empty column nobody notices for a week.
+  for (const page of spec.pages) {
+    for (const flow of page.flows ?? []) {
+      const selections = flow.steps.flatMap((s) => (s.selects ? [s.selects] : []));
+      if (selections.length === 0) continue;
+
+      const writes = flow.steps
+        .flatMap((s) => s.blocks)
+        .find((b) => b.type === "form" && typeof b.attrs?.["for"] === "string");
+      const target = writes ? types.get(String(writes.attrs!["for"])) : undefined;
+      if (!target) continue;
+
+      const binds = selections.some((sel) => target.fields.some((f) => f.name === sel.as));
+      if (!binds) {
+        issues.push({
+          path: `/pages/${page.key}/flows/${flow.key}`,
+          message:
+            `nothing this flow chooses fills a field on "${target.key}" — a selection binds to ` +
+            `the field with its own name, and none of ${selections
+              .map((sel) => `"${sel.as}"`)
+              .join(", ")} is one`,
+        });
+      }
+    }
+  }
+
   // Workflows watching a type, and transition triggers naming a real state.
   for (const w of spec.logic) {
     const t = "type" in w.trigger ? w.trigger.type : undefined;
@@ -481,6 +513,37 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
           message: `waits for state "${w.trigger.to}", which "${t}" does not declare`,
         });
       }
+    }
+  }
+
+  // A price that lives on something the row references (ADR 0023 §3, extended
+  // by ADR 0028): `service.deposit` needs the reference to exist and the target
+  // to have the field, which only the whole document can say.
+  for (const type of spec.content) {
+    const amount = type.payment?.amount;
+    if (!amount || !("field" in amount) || !amount.field.includes(".")) continue;
+
+    const [first, second] = amount.field.split(".") as [string, string];
+    const at = `/content/${type.key}/payment/amount/field`;
+    const reference = type.fields.find((f) => f.name === first);
+
+    if (!reference || reference.type !== "reference") {
+      issues.push({
+        path: at,
+        message: `"${first}" is not a reference on "${type.key}", so "${amount.field}" reads nothing`,
+      });
+      continue;
+    }
+
+    const target = types.get(reference.to);
+    const field = target?.fields.find((f) => f.name === second);
+    if (target && !field) {
+      issues.push({ path: at, message: `"${reference.to}" has no field "${second}"` });
+    } else if (field && field.type !== "number" && field.type !== "computed") {
+      issues.push({
+        path: at,
+        message: `"${second}" is a ${field.type} — an amount has to be a number`,
+      });
     }
   }
 
