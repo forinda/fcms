@@ -47,6 +47,14 @@ export const ownerSessions = pgTable(
     createdAt: createdAt(),
     userAgent: text(),
     ipAddress: text(),
+    /**
+     * When this session was last used.
+     *
+     * The column that makes a sessions screen worth having: "signed in from
+     * somewhere on 3 March" is not enough to decide whether a session is yours,
+     * and "last used two minutes ago" is.
+     */
+    lastUsedAt: timestamp({ withTimezone: true }),
   },
   (t) => [
     uniqueIndex("owner_sessions_token").on(t.tokenHash),
@@ -58,3 +66,28 @@ export type OwnerRow = typeof owners.$inferSelect;
 export type NewOwnerRow = typeof owners.$inferInsert;
 export type OwnerSessionRow = typeof ownerSessions.$inferSelect;
 export type NewOwnerSessionRow = typeof ownerSessions.$inferInsert;
+
+/**
+ * Failed sign-in attempts.
+ *
+ * Rate limiting needs to survive a restart and be shared across every process
+ * that answers `/admin/login` — an in-memory counter is neither, and on a
+ * two-container install it is a lock that protects one of them.
+ *
+ * Keyed by what was tried and from where. Both matter: locking only by email
+ * lets one attacker lock a real owner out of their own site, and locking only
+ * by address does nothing to a distributed attempt.
+ */
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id: pk(),
+    /** Lowercased email as submitted — not a foreign key, since it may be nobody. */
+    email: text().notNull(),
+    ipAddress: text(),
+    at: createdAt(),
+  },
+  (t) => [index("login_attempts_email_at").on(t.email, t.at), index("login_attempts_at").on(t.at)],
+);
+
+export type LoginAttemptRow = typeof loginAttempts.$inferSelect;

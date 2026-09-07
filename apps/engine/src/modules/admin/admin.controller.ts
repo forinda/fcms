@@ -6,17 +6,25 @@
  * and its POST (ADR 0008 §4).
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
-import { InvalidCredentialsError, LoginUseCase, LogoutUseCase } from "@/shared/auth/auth.usecase";
+import {
+  InvalidCredentialsError,
+  LoginUseCase,
+  LogoutUseCase,
+  TooManyAttemptsError,
+} from "@/shared/auth/auth.usecase";
 
 import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
 import { PublicAuth } from "@/route-flags";
-import { clientIp, expiredCookie, firstHeader, html, sessionCookie } from "./utils/http";
+import { SessionsUseCase } from "./use-cases/sessions.usecase";
+import { clientIp, expiredCookie, firstHeader, html, redirect, sessionCookie } from "./utils/http";
+import { sessions as sessionsView } from "./utils/sessions.view";
 import { loginForm, page } from "./utils/view";
 
 @Controller()
 export class AdminController {
   @Inject(LoginUseCase) private readonly loginUseCase!: LoginUseCase;
   @Inject(LogoutUseCase) private readonly logoutUseCase!: LogoutUseCase;
+  @Inject(SessionsUseCase) private readonly sessions!: SessionsUseCase;
 
   @Get("/login")
   @PublicAuth
@@ -43,6 +51,17 @@ export class AdminController {
       ctx.res.setHeader("location", "/admin");
       ctx.res.end();
     } catch (error) {
+      // 429 for the lockout, 401 for a bad password. Both say what they are:
+      // a form that keeps answering "wrong password" to someone being
+      // rate-limited is a support call, and the attacker already knows how many
+      // attempts they have made.
+      if (error instanceof TooManyAttemptsError) {
+        return html(
+          ctx,
+          429,
+          page({ title: "Sign in", body: loginForm(error.message), chrome: false }),
+        );
+      }
       if (!(error instanceof InvalidCredentialsError)) throw error;
       // 401 rather than a redirect, so a failed attempt is visible to anything
       // watching for them, and the same message either way.
@@ -60,5 +79,55 @@ export class AdminController {
     ctx.res.statusCode = 303;
     ctx.res.setHeader("location", "/admin/login");
     ctx.res.end();
+  }
+
+  /**
+   * Where a signed-in owner sees every session they have open.
+   *
+   * Including the ones `fcms login` and the MCP server hold: ADR 0015 §4 chose
+   * sessions over an API-key table precisely so a terminal's access could be
+   * revoked from here, and until this screen existed that was a claim rather
+   * than a feature.
+   */
+  @Get("/sessions")
+  async sessionList(ctx: Ctx): Promise<void> {
+    const owner = ctx.require("actor");
+    const token = this.token(ctx);
+
+    html(
+      ctx,
+      200,
+      page({
+        title: "Sessions",
+        trail: [{ label: "Sessions" }],
+        body: sessionsView(await this.sessions.list(owner.id, token)),
+      }),
+    );
+  }
+
+  @Post("/sessions/:id/revoke")
+  async revokeSession(ctx: Ctx): Promise<void> {
+    const owner = ctx.require("actor");
+    await this.sessions.revoke(
+      owner.id,
+      String((ctx.params as Record<string, string>)["id"]),
+      this.token(ctx),
+    );
+    redirect(ctx, "/admin/sessions");
+  }
+
+  /** The button that matters after a laptop goes missing. */
+  @Post("/sessions/revoke-others")
+  async revokeOtherSessions(ctx: Ctx): Promise<void> {
+    const owner = ctx.require("actor");
+    const token = this.token(ctx);
+    if (token) await this.sessions.revokeOthers(owner.id, token);
+    redirect(ctx, "/admin/sessions");
+  }
+
+  /** This request's own session token, so the current row can be marked. */
+  private token(ctx: Ctx): string | undefined {
+    const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
+    return readCookie(firstHeader(headers["cookie"]) ?? undefined, SESSION_COOKIE);
   }
 }

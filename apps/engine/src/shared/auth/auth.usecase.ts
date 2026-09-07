@@ -24,6 +24,36 @@ const DUMMY_HASH = await hashPassword("dummy-password-for-constant-time-checks")
 /** Two weeks. Long enough not to annoy, short enough that a stolen cookie expires. */
 export const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 
+/**
+ * The lockout.
+ *
+ * Ten failures in fifteen minutes, counted per email **and** per address, then
+ * a wait. The numbers are chosen against the two ways this is wrong: too strict
+ * and an owner who mistypes twice on a phone keyboard is locked out of their
+ * own business; too loose and an online guessing attack is merely slowed.
+ *
+ * Ten is above any plausible number of honest typos and far below the volume a
+ * guessing attack needs. The counter clears on a successful sign-in, so a
+ * legitimate owner never carries yesterday's mistakes.
+ */
+export const LOCKOUT_AFTER = 10;
+export const LOCKOUT_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Too many failures. Distinct from `InvalidCredentialsError` on purpose.
+ *
+ * Telling the caller they are locked out reveals nothing an attacker cannot
+ * already measure — they know how many attempts they made — while a login form
+ * that keeps saying "wrong password" to someone being rate-limited is a support
+ * call and a bad afternoon.
+ */
+export class TooManyAttemptsError extends Error {
+  constructor(readonly retryAfterMs: number) {
+    super("Too many sign-in attempts. Wait a few minutes and try again.");
+    this.name = "TooManyAttemptsError";
+  }
+}
+
 export interface LoginInput {
   readonly email: string;
   readonly password: string;
@@ -55,12 +85,27 @@ export class LoginUseCase {
   }
 
   async execute(input: LoginInput): Promise<Session> {
+    const ip = input.ipAddress ?? null;
+
+    // Checked before the password is verified: argon2 is deliberately expensive,
+    // so verifying first would make the lockout itself a way to spend the
+    // server's CPU.
+    const failures = await this.owners.recentFailures(input.email, ip, LOCKOUT_WINDOW_MS);
+    if (failures >= LOCKOUT_AFTER) throw new TooManyAttemptsError(LOCKOUT_WINDOW_MS);
+
     const owner = await this.owners.findByEmail(input.email);
 
     // Verified either way, against the real hash or the dummy, so the work is
     // comparable whether or not the account exists.
     const ok = await verifyPassword(input.password, owner?.passwordHash ?? DUMMY_HASH);
-    if (!owner || !ok) throw new InvalidCredentialsError();
+    if (!owner || !ok) {
+      await this.owners.recordFailure(input.email, ip);
+      throw new InvalidCredentialsError();
+    }
+
+    // Cleared on success, so an owner who mistyped four times and then got it
+    // right does not start tomorrow four attempts down.
+    await this.owners.clearFailures(input.email, ip);
 
     const { token, expiresAt } = await this.owners.openSession(owner.id, SESSION_TTL_MS, {
       userAgent: input.userAgent ?? null,
@@ -96,7 +141,13 @@ export class AuthenticateUseCase {
   async execute(token: string | undefined): Promise<OwnerRow | null> {
     if (!token) return null;
     const found = await this.owners.findBySessionToken(token);
-    return found?.owner ?? null;
+    if (!found) return null;
+
+    // Recorded here because this is the one place every authenticated request
+    // passes through. Throttled inside the repository — the value is "was this
+    // session used recently", not a precise timestamp.
+    await this.owners.touchSession(found.session.id, found.session.lastUsedAt);
+    return found.owner;
   }
 }
 

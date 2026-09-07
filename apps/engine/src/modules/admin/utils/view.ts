@@ -49,6 +49,7 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
   <nav class="crumbs"><a href="/admin">Admin</a>${crumbs ? `<span class="sep">/</span>${crumbs}` : ""}</nav>
   <span class="header-actions">
     <a href="/admin/assist">Assistant</a>
+    <a href="/admin/sessions">Sessions</a>
     <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
   </span>
 </header>`
@@ -210,6 +211,8 @@ th{font-size:.8rem;color:var(--muted);font-weight:600}
 .card{padding:1rem;border:1px solid var(--line);border-radius:8px;background:#fff}
 .card h3{margin:0 0 .25rem;font-size:1rem}
 .header-actions{display:flex;gap:.9rem;align-items:center}
+tr.current td{background:#f5f5f4}
+@media(prefers-color-scheme:dark){tr.current td{background:#292524}}
 ul.changes{margin:.5rem 0 0;padding-left:1.1rem}
 ul.changes li{margin:.35rem 0}
 li.destructive-change{color:var(--bad)}
