@@ -11,6 +11,8 @@ import { Autowired, Controller, Get, Inject, type Ctx, type RequestContext } fro
 import { PublicSite } from "@/route-flags";
 import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
 import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
+import { VisitorUseCase } from "@/shared/visitors/visitor.usecase";
+import { VISITOR_COOKIE } from "./account.controller";
 import { MediaUseCase } from "@/modules/admin/use-cases/media.usecase";
 import { SiteService } from "./site.service";
 
@@ -34,6 +36,16 @@ export class SiteController {
 
   /** Reads uploaded files; see `media` below. */
   @Inject(MediaUseCase) private readonly assets!: MediaUseCase;
+
+  /** Resolves the visitor whose rows a `mine` query may return. */
+  @Inject(VisitorUseCase) private readonly visitors!: VisitorUseCase;
+
+  /** The visitor's session token, if they have one. */
+  private visitorToken(ctx: Ctx): string | undefined {
+    const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
+    const raw = headers["cookie"];
+    return readCookie(Array.isArray(raw) ? raw[0] : raw, VISITOR_COOKIE);
+  }
 
   /** Is this the canvas, run by someone signed in? */
   private async mayPreview(ctx: Ctx): Promise<boolean> {
@@ -150,6 +162,9 @@ export class SiteController {
       this.base(ctx),
       await this.mayPreview(ctx),
       ctx.query as Record<string, string | string[] | undefined>,
+      // Who is signed in, read from the cookie rather than the query string —
+      // a `mine` query is answered from this and nothing else (ADR 0027 §2).
+      (await this.visitors.fromToken(this.visitorToken(ctx)))?.id ?? null,
     );
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");

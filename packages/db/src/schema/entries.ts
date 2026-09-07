@@ -15,8 +15,9 @@
  */
 import { index, jsonb, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
-import { createdAt, pk } from "./_shared.js";
+import { createdAt, fk, pk } from "./_shared.js";
 import { sites } from "./sites.js";
+import { visitors } from "./visitors.js";
 
 export const entries = pgTable(
   "entries",
@@ -38,6 +39,15 @@ export const entries = pgTable(
     slug: text(),
     data: jsonb().$type<Record<string, unknown>>().notNull(),
     status: text().notNull().default("draft"),
+    /**
+     * The visitor who submitted this, when one did (ADR 0027).
+     *
+     * Null for everything an owner, the CLI, MCP or the AI writes — none of
+     * those is a visitor. Set to null rather than cascading on account
+     * deletion: a booking is the *business's* record of a night that was sold,
+     * and closing an account does not un-sell it.
+     */
+    visitorId: fk().references(() => visitors.id, { onDelete: "set null" }),
     createdAt: createdAt(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -46,6 +56,7 @@ export const entries = pgTable(
     index("entries_site_type").on(t.siteId, t.typeKey),
     index("entries_data_gin").using("gin", t.data),
     index("entries_site_type_status").on(t.siteId, t.typeKey, t.status),
+    index("entries_visitor").on(t.siteId, t.visitorId),
   ],
 );
 

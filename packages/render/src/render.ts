@@ -47,6 +47,14 @@ export interface RenderOptions {
   readonly params?: Readonly<Record<string, string | readonly string[] | undefined>>;
   /** The path being rendered, so a filter form and a pager can post back to it. */
   readonly path?: string;
+  /**
+   * The signed-in visitor, when there is one (ADR 0027).
+   *
+   * Supplied by the server from the session cookie. A `mine: true` query is
+   * answered against this and nothing else — there is no parameter that can
+   * name whose rows to return.
+   */
+  readonly viewer?: string | null;
 }
 
 /**
@@ -72,6 +80,8 @@ function className(path: readonly number[]): string {
 
 interface Walk {
   readonly css: string[];
+  /** Who is asking. Threaded to every query on the page. */
+  readonly viewer?: string | null;
   readonly params: Readonly<Record<string, string | readonly string[] | undefined>>;
   readonly path: string;
   /**
@@ -120,7 +130,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
     const result =
       walk.primary && walk.primary.query === block.data
         ? walk.primary.result
-        : runQueryPage(walk.source, block.data, walk.params);
+        : runQueryPage(walk.source, block.data, walk.params, walk.viewer);
     const rows = result.rows;
     children = fragment(
       ...rows.map((row, i) =>
@@ -224,6 +234,7 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   const source = withDerived(spec, options.source, options.now, options.params ?? {});
   const walk: Walk = {
     css: [],
+    ...(options.viewer ? { viewer: options.viewer } : {}),
     registry,
     source,
     locale,
@@ -237,7 +248,7 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   if (primaryQuery) {
     walk.primary = {
       query: primaryQuery,
-      result: runQueryPage(source, primaryQuery, walk.params),
+      result: runQueryPage(source, primaryQuery, walk.params, walk.viewer),
     };
   }
   const scope: Scope = {

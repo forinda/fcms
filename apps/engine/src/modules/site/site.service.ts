@@ -47,10 +47,20 @@ export class SiteService {
    * beats N awaited ones. It is a real ceiling — a site with a large collection
    * will want per-page loading, and `EntrySource` is where that change goes.
    */
-  private async resolve() {
+  private async resolve(viewer?: string | null) {
     const spec = await this.specs.execute();
     if (!spec) return null;
-    const source = await this.entries.source(spec.content.map((t) => t.key));
+    // The viewer reaches the source, not just the renderer: their own drafts
+    // have to be *read* before a `mine` query can show them (ADR 0027 §3).
+    // A derived type's `occupied` rows are read for occupancy, so they are
+    // loaded whatever their status: a booking that is waiting to be approved
+    // still holds the room.
+    const held = spec.content.flatMap((t) => (t.derived ? [t.derived.occupied.type] : []));
+    const source = await this.entries.source(
+      spec.content.map((t) => t.key),
+      viewer,
+      held,
+    );
     return { spec, source };
   }
 
@@ -63,8 +73,10 @@ export class SiteService {
     canonicalBase?: string,
     preview = false,
     params: Readonly<Record<string, string | readonly string[] | undefined>> = {},
+    /** The signed-in visitor, from the session cookie. Never from a parameter. */
+    viewer?: string | null,
   ): Promise<Rendered | null> {
-    const resolved = await this.resolve();
+    const resolved = await this.resolve(viewer);
     if (!resolved) return null;
 
     const match = routes(resolved.spec, resolved.source, { drafts: preview }).find(
@@ -79,6 +91,7 @@ export class SiteService {
         source: resolved.source,
         registry: BLOCKS,
         params,
+        ...(viewer ? { viewer } : {}),
         path,
         ...(canonicalBase ? { canonicalBase } : {}),
       },

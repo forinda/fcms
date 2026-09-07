@@ -63,6 +63,9 @@ export class SubmissionController {
     const result = await this.entries.create(spec, {
       typeKey: key,
       data,
+      // So the person who booked can see what they booked (ADR 0027). Null for
+      // an anonymous submission, which stays anonymous.
+      visitorId: visitor?.id ?? null,
       // Draft, always. Nothing a stranger writes is visible until someone
       // publishes it.
       status: "draft",

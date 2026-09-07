@@ -24,6 +24,13 @@ export interface EntryInput {
   readonly slug?: string | undefined;
   readonly status?: "draft" | "published";
   readonly data: Record<string, unknown>;
+  /**
+   * The visitor who submitted this, when one did (ADR 0027).
+   *
+   * Only ever set by the submission route from a session cookie. An owner, the
+   * CLI, MCP and the AI all leave it null, because none of them is a visitor.
+   */
+  readonly visitorId?: string | null;
 }
 
 export type EntryWriteResult =
@@ -73,6 +80,7 @@ export class EntryWriteUseCase {
           slug: input.slug ?? null,
           data: validation.data!,
           status: input.status ?? "draft",
+          visitorId: input.visitorId ?? null,
         })
         .returning();
 
