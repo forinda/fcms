@@ -1,6 +1,6 @@
-export * from "./migrate.adapter";
+export * from "./database.adapter";
 
-import { MigrateAdapter } from "./migrate.adapter";
+import { DatabaseAdapter } from "./database.adapter";
 
 /** Instances, not factories — `bootstrap({ adapters })` takes the invoked form. */
-export const adapters = [MigrateAdapter()];
+export const adapters = [DatabaseAdapter()];

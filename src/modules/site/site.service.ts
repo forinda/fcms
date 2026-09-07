@@ -1,17 +1,22 @@
 /**
- * Loading and rendering a site.
+ * Turning a request path into rendered HTML.
  *
- * Thin: it resolves a scope into a `Site`, and turns a request path into a page
- * plus the rows behind it. Every decision it used to hold — how a redirect is
- * derived, what counts as destructive — now lives in a use-case in
- * `@forinda-cms/db`, next to the data it reads and testable without an HTTP
- * server. The redirect rule in particular was duplicated here, so its test had
- * to reimplement it to check it.
+ * Thin: it owns the one thing neither the repository nor the renderer can — a
+ * path resolved to a page plus the rows behind it, in a single pass. Every
+ * decision it used to hold lives in a use-case now, next to the data it reads
+ * and testable without an HTTP server.
+ *
+ * It also no longer resolves the site. `CURRENT_SITE` is request-scoped, so this
+ * asks for "the site this request is for" rather than taking a scope through
+ * every method and building one — which is what makes the multi-site switch a
+ * change to one factory instead of to every caller.
  */
-import { Service, getEnv } from "@forinda/kickjs";
-import { Site, createDb, type Db, type Scope } from "@forinda-cms/db";
+import { Inject, Service } from "@forinda/kickjs";
+import type { Site } from "@forinda-cms/db";
 import { renderPage, routes, type Entry } from "@forinda-cms/render";
 import type { SiteSpec } from "@forinda-cms/spec";
+
+import { CURRENT_SITE } from "@/adapters/database.adapter";
 
 export interface Rendered {
   readonly html: string;
@@ -20,26 +25,14 @@ export interface Rendered {
 
 @Service()
 export class SiteService {
-  private readonly db: Db;
+  @Inject(CURRENT_SITE) private readonly site!: Site;
 
-  constructor() {
-    // `getEnv` rather than `@Value`: the parameter-decorator form does not
-    // typecheck under TypeScript 7's decorator signatures. It is typed either
-    // way — `kick typegen` derives `KickEnv` from the Zod schema in
-    // `src/config`, so this is a `string` without anyone saying so.
-    this.db = createDb(getEnv("DATABASE_URL"));
+  spec(): Promise<SiteSpec | null> {
+    return this.site.spec();
   }
 
-  site(scope: Scope): Site {
-    return new Site(this.db, scope);
-  }
-
-  spec(scope: Scope): Promise<SiteSpec | null> {
-    return this.site(scope).spec();
-  }
-
-  redirects(scope: Scope): Promise<Map<string, string>> {
-    return this.site(scope).redirects();
+  redirects(): Promise<Map<string, string>> {
+    return this.site.redirects();
   }
 
   /**
@@ -50,16 +43,15 @@ export class SiteService {
    * beats N awaited ones. It is a real ceiling — a site with a large collection
    * will want per-page loading, and `EntrySource` is where that change goes.
    */
-  private async resolve(scope: Scope) {
-    const site = this.site(scope);
-    const spec = await site.spec();
+  private async resolve() {
+    const spec = await this.site.spec();
     if (!spec) return null;
-    const source = await site.entrySource(spec.content.map((t) => t.key));
+    const source = await this.site.entrySource(spec.content.map((t) => t.key));
     return { spec, source };
   }
 
-  async render(scope: Scope, path: string, canonicalBase?: string): Promise<Rendered | null> {
-    const resolved = await this.resolve(scope);
+  async render(path: string, canonicalBase?: string): Promise<Rendered | null> {
+    const resolved = await this.resolve();
     if (!resolved) return null;
 
     const match = routes(resolved.spec, resolved.source).find((r) => r.path === path);
@@ -73,8 +65,8 @@ export class SiteService {
   }
 
   /** Public, indexable routes. Drafts and noindex pages are excluded (doc 08). */
-  async publicRoutes(scope: Scope): Promise<string[]> {
-    const resolved = await this.resolve(scope);
+  async publicRoutes(): Promise<string[]> {
+    const resolved = await this.resolve();
     if (!resolved) return [];
     return routes(resolved.spec, resolved.source)
       .filter((r) => !r.page.draft && r.page.seo?.noindex !== true)

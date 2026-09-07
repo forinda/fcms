@@ -66,7 +66,9 @@ const PASSWORD = "a-long-enough-password";
 suite("signing in", () => {
   beforeEach(async () => {
     await db.delete(ownerSessions);
-    await db.delete(owners).where(eq(owners.orgId, ORG));
+    // All owners, not just this org: `ProvisionOwnerUseCase` counts globally
+    // because the rule it enforces is "one owner per install".
+    await db.delete(owners);
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "Auth org" });
   });
@@ -133,7 +135,9 @@ afterAll(async () => {
 suite("sessions", () => {
   beforeEach(async () => {
     await db.delete(ownerSessions);
-    await db.delete(owners).where(eq(owners.orgId, ORG));
+    // All owners, not just this org: `ProvisionOwnerUseCase` counts globally
+    // because the rule it enforces is "one owner per install".
+    await db.delete(owners);
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "Auth org" });
     await new ProvisionOwnerUseCase(db).execute({ orgId: ORG, email: EMAIL, password: PASSWORD });

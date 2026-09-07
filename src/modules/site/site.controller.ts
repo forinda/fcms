@@ -46,9 +46,8 @@ export class SiteController {
   /** `sitemap.xml`, generated from the spec and updated by construction (doc 08). */
   @Get("/sitemap.xml")
   async sitemap(ctx: Ctx): Promise<void> {
-    const site = ctx.require("site");
     const base = this.base(ctx) ?? "";
-    const paths = site ? await this.sites.publicRoutes(site) : [];
+    const paths = await this.sites.publicRoutes();
 
     const urls = paths.map((p) => `  <url><loc>${escapeXml(`${base}${p}`)}</loc></url>`).join("\n");
 
@@ -79,24 +78,17 @@ export class SiteController {
 
   @Get("/*path")
   async page(ctx: Ctx): Promise<void> {
-    const site = ctx.require("site");
-    if (!site) {
-      ctx.res.statusCode = 404;
-      ctx.res.end("No site configured.");
-      return;
-    }
-
     const url = (ctx.req.url ?? "/").split("?")[0] ?? "/";
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
 
-    const rendered = await this.sites.render(site, path, this.base(ctx));
+    const rendered = await this.sites.render(path, this.base(ctx));
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");
       ctx.res.end(rendered.html);
       return;
     }
 
-    const target = (await this.sites.redirects(site)).get(path);
+    const target = (await this.sites.redirects()).get(path);
     if (target) {
       // 301, not 302: the move is permanent, and a temporary redirect tells a
       // search engine to keep the old URL — which is the outcome this exists to
