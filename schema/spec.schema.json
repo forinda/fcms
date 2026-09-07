@@ -6,7 +6,7 @@
   "properties": {
     "specVersion": {
       "type": "number",
-      "const": 1
+      "const": 2
     },
     "name": {
       "type": "string",
@@ -1594,9 +1594,7 @@
                     "properties": {
                       "action": {
                         "type": "string",
-                        "minLength": 1,
-                        "maxLength": 64,
-                        "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                        "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"
                       },
                       "params": {
                         "type": "object",
@@ -1768,6 +1766,25 @@
                 "properties": {
                   "on": {
                     "type": "string",
+                    "const": "payment.succeeded"
+                  },
+                  "type": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                  }
+                },
+                "required": [
+                  "on"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "on": {
+                    "type": "string",
                     "const": "schedule"
                   },
                   "cron": {
@@ -1790,9 +1807,7 @@
               "properties": {
                 "action": {
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 64,
-                  "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                  "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$"
                 },
                 "params": {
                   "type": "object",
@@ -1975,7 +1990,8 @@
               "sms",
               "calendar",
               "storage",
-              "analytics"
+              "analytics",
+              "webhook"
             ]
           },
           "label": {

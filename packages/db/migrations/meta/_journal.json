@@ -43,6 +43,13 @@
       "when": 1788803952321,
       "tag": "0005_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788805759126,
+      "tag": "0006_workflow_runs",
+      "breakpoints": true
     }
   ]
 }

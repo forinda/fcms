@@ -9,6 +9,7 @@ import { Inject, Scope as Lifetime, Service, getEnv } from "@forinda/kickjs";
 import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
 import type { PaymentRow } from "@forinda-cms/db";
 
+import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "./payment.repository";
 import { PROVIDERS } from "./index";
 import type { ChargeRequest, PaymentProvider, PaymentStatus } from "./provider";
@@ -37,7 +38,25 @@ const TERMINAL = new Set<PaymentStatus>(["paid", "refunded"]);
 
 @Service({ scope: Lifetime.REQUEST })
 export class PaymentUseCase {
-  constructor(@Inject(PaymentRepository) private readonly payments: PaymentRepository) {}
+  constructor(
+    @Inject(PaymentRepository) private readonly payments: PaymentRepository,
+    @Inject(WorkflowUseCase) private readonly workflows: WorkflowUseCase,
+  ) {}
+
+  /**
+   * Money arriving is an event automations can watch (ADR 0024).
+   *
+   * Fired only from a confirmed payment — the platform's own answer, never a
+   * callback body (ADR 0023 §4), so "confirm the booking once the deposit is
+   * paid" cannot be triggered by a stranger posting JSON.
+   */
+  private async announce(spec: SiteSpec, payment: PaymentRow): Promise<void> {
+    await this.workflows.enqueue(spec, {
+      on: "payment.succeeded",
+      typeKey: payment.typeKey,
+      entryId: payment.entryId,
+    });
+  }
 
   /**
    * The amount, in minor units, from the entry that was just written.
@@ -139,7 +158,11 @@ export class PaymentUseCase {
       ...(result.status === "paid" ? { paidAt: new Date() } : {}),
     });
 
-    return { ok: true, payment: updated ?? payment, instruction: result.instruction };
+    const settled = updated ?? payment;
+    // A provider that settles immediately still announces itself.
+    if (settled.status === "paid") await this.announce(spec, settled);
+
+    return { ok: true, payment: settled, instruction: result.instruction };
   }
 
   /**
@@ -163,13 +186,15 @@ export class PaymentUseCase {
       });
       if (answer.status === payment.status) return payment;
 
-      return (
+      const updated =
         (await this.payments.update(payment.id, {
           status: answer.status,
           detail: answer.detail ?? payment.detail,
           ...(answer.status === "paid" ? { paidAt: new Date() } : {}),
-        })) ?? payment
-      );
+        })) ?? payment;
+
+      if (updated.status === "paid") await this.announce(spec, updated);
+      return updated;
     } catch {
       // A provider that will not answer leaves the payment where it was: an
       // unreachable API is not evidence that a customer did not pay.
@@ -178,15 +203,20 @@ export class PaymentUseCase {
   }
 
   /** An owner saying the cash arrived — the only way a `manual` payment settles. */
-  async settleManually(payment: PaymentRow, actor: string): Promise<PaymentRow> {
+  async settleManually(payment: PaymentRow, actor: string, spec?: SiteSpec): Promise<PaymentRow> {
     if (TERMINAL.has(payment.status as PaymentStatus)) return payment;
-    return (
+
+    const updated =
       (await this.payments.update(payment.id, {
         status: "paid",
         paidAt: new Date(),
         detail: { ...payment.detail, confirmedBy: actor },
-      })) ?? payment
-    );
+      })) ?? payment;
+
+    // Cash in a shop is still money arriving, and an owner automating "confirm
+    // the booking once it is paid" means it whichever way it was paid.
+    if (spec && updated.status === "paid") await this.announce(spec, updated);
+    return updated;
   }
 
   /**

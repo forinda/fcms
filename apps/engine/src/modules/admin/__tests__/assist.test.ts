@@ -15,7 +15,7 @@ import { ApplySpecUseCase } from "../use-cases/apply-spec.usecase";
 import { AssistUseCase } from "../use-cases/assist.usecase";
 
 const spec = SiteSpec.parse({
-  specVersion: 1,
+  specVersion: 2,
   name: "Riverside Salon",
   theme: { colors: { brand: "#1a7f5a" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
   content: [

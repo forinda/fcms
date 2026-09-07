@@ -122,3 +122,37 @@ describe("state and structured field types", () => {
     expect(validateEntry(service, { name: "Cut", price: 1, blurb: "" }).ok).toBe(true);
   });
 });
+
+describe("a state field starts where the type says it starts", () => {
+  const type = ContentType.parse({
+    key: "booking",
+    label: "Booking",
+    fields: [
+      { name: "name", label: "Name", type: "text" },
+      {
+        name: "status",
+        label: "Status",
+        type: "state",
+        initial: "pending",
+        values: ["pending", "confirmed"],
+        transitions: [{ from: "pending", to: ["confirmed"] }],
+      },
+    ],
+  });
+
+  it("fills in `initial` when nothing was submitted", () => {
+    // Without this the row lands with no status at all, and a workflow that
+    // moves it along a transition has nothing to move from.
+    const result = validateEntry(type, { name: "Amina" });
+    expect(result.ok && result.data!["status"]).toBe("pending");
+  });
+
+  it("does not overwrite a state that was given", () => {
+    const result = validateEntry(type, { name: "Amina", status: "confirmed" });
+    expect(result.ok && result.data!["status"]).toBe("confirmed");
+  });
+
+  it("still refuses a state the type does not declare", () => {
+    expect(validateEntry(type, { name: "Amina", status: "invented" }).ok).toBe(false);
+  });
+});

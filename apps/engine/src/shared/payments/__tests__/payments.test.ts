@@ -18,6 +18,7 @@ import {
 } from "@forinda-cms/db";
 import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
+import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "../payment.repository";
 import { PaymentUseCase } from "../payment.usecase";
 
@@ -30,7 +31,7 @@ const SITE = "site_payments";
 const scope = { orgId: ORG, siteId: SITE };
 
 const spec = SiteSpec.parse({
-  specVersion: 1,
+  specVersion: 2,
   name: "Riverside Salon",
   theme: { colors: { brand: "#1a7f5a" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
   wiring: [
@@ -80,7 +81,7 @@ suite("payments", () => {
     entryId = entry!.id;
 
     repository = new PaymentRepository(db, scope);
-    use = new PaymentUseCase(repository);
+    use = new PaymentUseCase(repository, new WorkflowUseCase(db, scope));
   });
 
   afterAll(async () => {

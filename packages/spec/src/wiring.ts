@@ -26,6 +26,15 @@ export const INTEGRATION_KINDS = [
   "calendar",
   "storage",
   "analytics",
+  /**
+   * Somewhere to POST to — another system, an automation tool, a Slack hook.
+   *
+   * A *destination*, declared once, rather than a URL a workflow step carries
+   * (ADR 0024 §5). A step that could name any address is an exfiltration
+   * channel a spec edit can add invisibly; an integration is in the diff, in
+   * one place, and refusable.
+   */
+  "webhook",
 ] as const;
 
 export const Integration = z

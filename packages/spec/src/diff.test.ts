@@ -15,7 +15,7 @@ import { diffSpecs, summarise } from "./diff.js";
 import { SiteSpec } from "./site.js";
 
 const base = SiteSpec.parse({
-  specVersion: 1,
+  specVersion: 2,
   name: "Riverside Salon",
   theme: {
     colors: { brand: "#1a7f5a" },
@@ -47,7 +47,7 @@ const base = SiteSpec.parse({
     {
       key: "notify",
       trigger: { on: "entry.transitioned", type: "booking", to: "confirmed" },
-      steps: [{ action: "sms-send" }],
+      steps: [{ action: "sms.send" }],
     },
   ],
 });
@@ -181,7 +181,7 @@ describe("automations are described as rules, not as data", () => {
       (d["logic"] as unknown[]).push({
         key: "remind",
         trigger: { on: "entry.created", type: "booking" },
-        steps: [{ action: "email-send" }],
+        steps: [{ action: "email.send" }],
       });
     });
     expect(diffSpecs(base, after, counts)[0]!.summary).toMatch(

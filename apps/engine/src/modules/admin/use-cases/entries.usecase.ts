@@ -14,6 +14,7 @@ import { validateEntry, type ContentType, type SiteSpec } from "@forinda-cms/spe
 import { entries, type EntryRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 import { EntryRepository } from "@/shared/repositories";
+import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
 import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
@@ -32,12 +33,14 @@ export type EntryWriteResult =
 @Service({ scope: Lifetime.REQUEST })
 export class EntryWriteUseCase {
   private readonly repo: EntryRepository;
+  private readonly workflows: WorkflowUseCase;
 
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
     this.repo = new EntryRepository(db, scope);
+    this.workflows = new WorkflowUseCase(db, scope);
   }
 
   private typeOf(spec: SiteSpec, key: string): ContentType | undefined {
@@ -73,6 +76,15 @@ export class EntryWriteUseCase {
         })
         .returning();
 
+      // Queued after the write, never inside it (ADR 0024 §1): the row is the
+      // customer's and the automation is the owner's, so a slow webhook must
+      // not make a booking slower and a broken one must not fail it.
+      await this.workflows.enqueue(spec, {
+        on: "entry.created",
+        typeKey: input.typeKey,
+        entryId: row!.id,
+      });
+
       return { ok: true, entry: row! };
     } catch (error) {
       // A taken slug is a field the caller can fix, not a server fault. Left to
@@ -92,6 +104,10 @@ export class EntryWriteUseCase {
 
     const validation = validateEntry(type, input.data);
     if (!validation.ok) return { ok: false, errors: validation.errors ?? {} };
+
+    // Read before write: a transition is a *change*, so the previous state has
+    // to be known before it is overwritten.
+    const was = await this.repo.byId(id);
 
     let row: EntryRow | undefined;
     try {
@@ -113,6 +129,27 @@ export class EntryWriteUseCase {
     }
 
     if (!row) return { ok: false, errors: { _: "That entry no longer exists." } };
+
+    await this.workflows.enqueue(spec, {
+      on: "entry.updated",
+      typeKey: input.typeKey,
+      entryId: row.id,
+    });
+
+    // A `state` field that moved is its own event, and the one an owner
+    // actually automates against: "when a booking becomes confirmed".
+    const state = type.fields.find((f) => f.type === "state");
+    const before = state ? String((was?.data as Record<string, unknown>)?.[state.name] ?? "") : "";
+    const after = state ? String((row.data as Record<string, unknown>)[state.name] ?? "") : "";
+    if (state && before !== after) {
+      await this.workflows.enqueue(spec, {
+        on: "entry.transitioned",
+        typeKey: input.typeKey,
+        entryId: row.id,
+        to: after,
+      });
+    }
+
     return { ok: true, entry: row };
   }
 

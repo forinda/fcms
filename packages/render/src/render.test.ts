@@ -16,7 +16,7 @@ import { runQuery, staticSource } from "./entries.js";
 import { resolve } from "./scope.js";
 
 const spec = SiteSpec.parse({
-  specVersion: 1,
+  specVersion: 2,
   name: "Test Salon",
   theme: {
     colors: { brand: "#1a7f5a", surface: "#f5f5f4" },

@@ -24,7 +24,7 @@ const theme = {
 
 /** A minimal but real spec: a service list bound to a declared type. */
 const base = {
-  specVersion: 1 as const,
+  specVersion: 2 as const,
   name: "Test Salon",
   theme,
   content: [
@@ -244,7 +244,7 @@ describe("patches classify for the gate (doc 03)", () => {
     // flag the migration planner indexes on. Without it the page gets slower as
     // the business grows — the bug an owner cannot see.
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Salon",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -280,7 +280,7 @@ describe("patches classify for the gate (doc 03)", () => {
 
   it("refuses a visitor-chosen sort naming a field the type does not have", () => {
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Salon",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -318,7 +318,7 @@ describe("patches classify for the gate (doc 03)", () => {
     // Silently always null reads as "no reviews yet" forever, which is the kind
     // of wrong that never gets reported.
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Stays",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -353,7 +353,7 @@ describe("patches classify for the gate (doc 03)", () => {
 
   it("refuses an average with nothing named to average", () => {
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Stays",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -392,7 +392,7 @@ describe("patches classify for the gate (doc 03)", () => {
     // Evaluating to null forever reads as "free" on a price, and nobody
     // reports a price of zero as a bug in a formula.
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Stays",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -419,7 +419,7 @@ describe("patches classify for the gate (doc 03)", () => {
 
   it("refuses a formula that refers to itself", () => {
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Stays",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -446,7 +446,7 @@ describe("patches classify for the gate (doc 03)", () => {
 
   it("refuses a subtraction with one operand, where order is the whole meaning", () => {
     const result = validateSpec({
-      specVersion: 1,
+      specVersion: 2,
       name: "Stays",
       theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
       content: [
@@ -607,5 +607,81 @@ describe("payments", () => {
         payable({ amount: { fixed: 1 }, currency: "KES", via: "counter", status: "paid" }),
       ).ok,
     ).toBe(false);
+  });
+});
+
+/**
+ * Automations (ADR 0024).
+ *
+ * A step that names an action nobody implements is a workflow that silently
+ * does nothing, which is the failure the runner exists to prevent — so it is
+ * refused at validation instead.
+ */
+describe("automations", () => {
+  const withLogic = (steps: unknown[], wiring: unknown[] = []) => ({
+    ...base,
+    wiring,
+    content: [
+      {
+        ...base.content[0]!,
+        fields: [
+          ...base.content[0]!.fields,
+          {
+            name: "status",
+            label: "Status",
+            type: "state" as const,
+            initial: "new",
+            values: ["new", "done"],
+            transitions: [{ from: "new", to: ["done"] }],
+          },
+        ],
+      },
+    ],
+    logic: [{ key: "on-new", trigger: { on: "entry.created", type: "service" }, steps }],
+  });
+
+  it("accepts an action core implements", () => {
+    expect(
+      validateSpec(withLogic([{ action: "entry.transition", params: { to: "done" } }])).ok,
+    ).toBe(true);
+  });
+
+  it("catches an action nothing implements", () => {
+    const result = validateSpec(withLogic([{ action: "sms.send", params: {} }]));
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/nothing would run/);
+  });
+
+  it("catches a transition to a state the type does not have", () => {
+    const result = validateSpec(
+      withLogic([{ action: "entry.transition", params: { to: "gone" } }]),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/no state "gone"/);
+  });
+
+  it("makes a webhook name a declared destination, never its own URL", () => {
+    // A step that carries an address is an exfiltration channel a spec edit can
+    // add without a new integration appearing in the diff (ADR 0024 §5).
+    const inline = validateSpec(
+      withLogic([{ action: "webhook.post", params: { to: "https://wherever.example" } }]),
+    );
+    expect(inline.ok === false && inline.issues[0]!.message).toMatch(/unknown integration/);
+
+    const declared = validateSpec(
+      withLogic(
+        [{ action: "webhook.post", params: { to: "crm" } }],
+        [{ key: "crm", kind: "webhook", config: { url: "https://crm.example/hook" } }],
+      ),
+    );
+    expect(declared.ok).toBe(true);
+  });
+
+  it("catches a webhook step pointed at something that is not one", () => {
+    const result = validateSpec(
+      withLogic(
+        [{ action: "webhook.post", params: { to: "post" } }],
+        [{ key: "post", kind: "email" }],
+      ),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/not somewhere to post to/);
   });
 });

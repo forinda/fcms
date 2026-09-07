@@ -15,7 +15,7 @@ import { parseSpec } from "./parse.js";
 import { formatSource, printSpec } from "./print.js";
 
 const SITE = `
-specVersion: 1
+specVersion: 2
 name: Test Salon
 note: Fixture for the language tests. Exercises every site-level section on
   purpose — a round-trip test is only as strong as its fixture, and this one
@@ -52,11 +52,15 @@ pages:
         item:
           - type: card
             attrs: { heading: "{{ item.name }}" }
+wiring:
+  - key: crm
+    kind: webhook
+    config: { url: "https://crm.example/hook" }
 logic:
   - key: notify
     trigger: { on: entry.created, type: service }
     steps:
-      - { action: email-send }
+      - { action: webhook.post, params: { to: crm } }
 `;
 
 describe("the strict profile (ADR 0006)", () => {

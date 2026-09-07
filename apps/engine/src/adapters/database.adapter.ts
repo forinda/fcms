@@ -161,7 +161,7 @@ async function provision(db: Db): Promise<void> {
 function starterSpec(name: string | undefined) {
   const title = name ?? "A new site";
   return {
-    specVersion: 1 as const,
+    specVersion: 2 as const,
     name: title,
     theme: {
       colors: { brand: "#1a7f5a", text: "#1c1917", background: "#ffffff", surface: "#f7f5f2" },

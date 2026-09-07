@@ -36,7 +36,7 @@ const ORG = "org_planner";
 
 const specWith = (fields: unknown[]) =>
   SiteSpec.parse({
-    specVersion: 1,
+    specVersion: 2,
     name: "Test",
     theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
     content: [{ key: "service", label: "Service", fields }],
