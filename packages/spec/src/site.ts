@@ -55,6 +55,38 @@ export const SiteSpec = z
 export type SiteSpec = z.infer<typeof SiteSpec>;
 
 /**
+ * The sections that get their own files (ADR 0006's derived layout).
+ *
+ * **One list, two consumers** — the `SiteFile` schema below omits exactly these,
+ * and the splitter strips exactly these. Adding a site-level field then needs no
+ * change anywhere; adding a new *collection* section is a layout change, and it
+ * fails loudly in both places at once rather than in neither.
+ */
+export const COLLECTION_SECTIONS = ["content", "pages", "logic"] as const;
+export type CollectionSection = (typeof COLLECTION_SECTIONS)[number];
+
+/**
+ * What `site.yaml` holds — everything that is not a collection section.
+ *
+ * **Derived by omission, never hand-listed.** The splitter used to pick fields
+ * one by one, so ADR 0014's `layout` and `note` were added to `SiteSpec` and
+ * silently dropped on the way out: `fcms fmt` deleted a site's header and
+ * footer and nothing complained. Omission cannot forget.
+ *
+ * Stays strict, because this is also the schema an editor validates `site.yaml`
+ * against, and catching a typo'd key there is the point.
+ */
+export const SiteFile = SiteSpec.omit({ content: true, pages: true, logic: true });
+export type SiteFile = z.infer<typeof SiteFile>;
+
+/** Drop the collection sections, leaving exactly what `site.yaml` carries. */
+export function siteFileOf(spec: SiteSpec): SiteFile {
+  const rest: Record<string, unknown> = { ...spec };
+  for (const section of COLLECTION_SECTIONS) delete rest[section];
+  return SiteFile.parse(rest);
+}
+
+/**
  * Cross-section checks Zod cannot express, because they need the whole document.
  *
  * These are the errors that would otherwise reach a customer as a blank section

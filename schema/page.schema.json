@@ -1,159 +1,139 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://forinda-cms.dev/schema/site.schema.json",
-  "title": "forinda-cms site.yaml",
+  "$id": "https://forinda-cms.dev/schema/page.schema.json",
+  "title": "forinda-cms page",
   "type": "object",
   "properties": {
-    "specVersion": {
-      "type": "number",
-      "const": 1
+    "key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
     },
-    "name": {
+    "path": {
+      "type": "string",
+      "pattern": "^\\/([a-z0-9\\-/]*[a-z0-9])?$"
+    },
+    "title": {
       "type": "string",
       "minLength": 1,
       "maxLength": 200
+    },
+    "collection": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+            },
+            "where": {
+              "maxItems": 10,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "field": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "eq",
+                      "ne",
+                      "lt",
+                      "lte",
+                      "gt",
+                      "gte",
+                      "in",
+                      "contains"
+                    ]
+                  },
+                  "value": {
+                    "anyOf": [
+                      {
+                        "type": [
+                          "string",
+                          "number",
+                          "boolean",
+                          "null"
+                        ]
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "field",
+                  "op",
+                  "value"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "from"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "layout": {
+      "type": "string",
+      "const": "none"
     },
     "note": {
       "type": "string",
       "maxLength": 2000
     },
-    "layout": {
+    "seo": {
       "type": "object",
       "properties": {
-        "header": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/__schema0"
-          }
+        "title": {
+          "type": "string"
         },
-        "footer": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/__schema0"
-          }
+        "description": {
+          "type": "string"
+        },
+        "image": {
+          "type": "string",
+          "pattern": "^asset:"
+        },
+        "noindex": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
     },
-    "css": {
-      "type": "string",
-      "maxLength": 20000
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/__schema0"
+      }
     },
-    "theme": {
-      "type": "object",
-      "properties": {
-        "colors": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "type": "string",
-            "pattern": "^#[0-9a-fA-F]{6}$"
-          }
-        },
-        "fonts": {
-          "type": "object",
-          "properties": {
-            "body": {
-              "type": "string"
-            },
-            "heading": {
-              "type": "string"
-            },
-            "mono": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "body"
-          ]
-        },
-        "typeScale": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "radius": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "colors",
-        "fonts",
-        "typeScale"
-      ]
-    },
-    "access": {
-      "default": {},
-      "type": "object",
-      "properties": {
-        "types": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
-          },
-          "additionalProperties": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string",
-              "enum": [
-                "read",
-                "create",
-                "update",
-                "delete",
-                "publish"
-              ]
-            },
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string",
-                "enum": [
-                  "viewer",
-                  "editor",
-                  "manager",
-                  "designer",
-                  "developer"
-                ]
-              }
-            },
-            "required": [
-              "read",
-              "create",
-              "update",
-              "delete",
-              "publish"
-            ]
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "wiring": {
-      "default": [],
+    "flows": {
       "type": "array",
       "items": {
         "type": "object",
@@ -164,63 +144,167 @@
             "maxLength": 64,
             "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
           },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "payment.mpesa",
-              "payment.card",
-              "email",
-              "sms",
-              "calendar",
-              "storage",
-              "analytics"
-            ]
-          },
-          "label": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "config": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": [
-                "string",
-                "number",
-                "boolean"
-              ]
+          "steps": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "requires": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                  }
+                },
+                "when": {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*)*$"
+                    },
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "eq",
+                        "ne",
+                        "lt",
+                        "lte",
+                        "gt",
+                        "gte",
+                        "in",
+                        "contains"
+                      ]
+                    },
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean",
+                            "null"
+                          ]
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": [
+                              "string",
+                              "number",
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "field",
+                    "op",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                "selects": {
+                  "type": "object",
+                  "properties": {
+                    "from": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                    },
+                    "as": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                    }
+                  },
+                  "required": [
+                    "from",
+                    "as"
+                  ],
+                  "additionalProperties": false
+                },
+                "blocks": {
+                  "minItems": 1,
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema0"
+                  }
+                }
+              },
+              "required": [
+                "key",
+                "blocks"
+              ],
+              "additionalProperties": false
             }
           },
-          "secrets": {
-            "type": "object",
-            "propertyNames": {
-              "type": "string"
-            },
-            "additionalProperties": {
-              "type": "string",
-              "pattern": "^secret:[A-Z][A-Z0-9_]*$"
+          "onComplete": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+                },
+                "params": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string"
+                  },
+                  "additionalProperties": {}
+                }
+              },
+              "required": [
+                "action"
+              ],
+              "additionalProperties": false
             }
-          },
-          "enabled": {
-            "default": true,
-            "type": "boolean"
           }
         },
         "required": [
           "key",
-          "kind"
+          "steps"
         ],
         "additionalProperties": false
       }
+    },
+    "css": {
+      "type": "string",
+      "maxLength": 20000
+    },
+    "draft": {
+      "default": false,
+      "type": "boolean"
     }
   },
   "required": [
-    "specVersion",
-    "name",
-    "theme"
+    "key",
+    "path",
+    "title",
+    "blocks"
   ],
   "additionalProperties": false,
   "$defs": {
