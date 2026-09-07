@@ -134,6 +134,9 @@ importers:
       '@forinda-cms/lang':
         specifier: workspace:*
         version: link:../../packages/lang
+      '@forinda-cms/plugin':
+        specifier: workspace:*
+        version: link:../../packages/plugin
       '@forinda-cms/render':
         specifier: workspace:*
         version: link:../../packages/render
@@ -380,6 +383,28 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(zod@4.5.4)
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.5
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
+  packages/plugin:
+    dependencies:
+      '@forinda-cms/render':
+        specifier: workspace:*
+        version: link:../render
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:../spec
       zod:
         specifier: 'catalog:'
         version: 4.5.4

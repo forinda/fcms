@@ -18,6 +18,7 @@
     "@forinda-cms/ai": "workspace:*",
     "@forinda-cms/db": "workspace:*",
     "@forinda-cms/lang": "workspace:*",
+    "@forinda-cms/plugin": "workspace:*",
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "@forinda/kickjs": "catalog:",

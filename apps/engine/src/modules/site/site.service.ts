@@ -16,6 +16,7 @@ import { Inject, Service } from "@forinda/kickjs";
 import { renderPage, routes, type Entry } from "@forinda-cms/render";
 import type { SiteSpec } from "@forinda-cms/spec";
 
+import { BLOCKS } from "@/plugins";
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { RedirectsUseCase } from "./use-cases/redirects.usecase";
 
@@ -76,6 +77,7 @@ export class SiteService {
       {
         spec: resolved.spec,
         source: resolved.source,
+        registry: BLOCKS,
         params,
         path,
         ...(canonicalBase ? { canonicalBase } : {}),
