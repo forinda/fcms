@@ -9,6 +9,8 @@ import { describe, expect, it } from "vitest";
 
 import { formatDiagnostic } from "./errors.js";
 import { joinFiles, splitFiles } from "./layout.js";
+import { COLLECTION_SECTIONS } from "@forinda-cms/spec";
+
 import { parseSpec } from "./parse.js";
 import { formatSource, printSpec } from "./print.js";
 
@@ -50,6 +52,11 @@ pages:
         item:
           - type: card
             attrs: { heading: "{{ item.name }}" }
+logic:
+  - key: notify
+    trigger: { on: entry.created, type: service }
+    steps:
+      - { action: email-send }
 `;
 
 describe("the strict profile (ADR 0006)", () => {
@@ -187,6 +194,7 @@ describe("the derived file layout", () => {
     const files = splitFiles(spec);
     expect(Object.keys(files).sort()).toEqual([
       "content/service.yaml",
+      "logic/notify.yaml",
       "pages/home.yaml",
       "site.yaml",
     ]);
@@ -236,6 +244,38 @@ describe("the derived file layout", () => {
     const joined = joinFiles(files);
     expect(joined.ok).toBe(false);
     if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/treatment/);
+  });
+
+  /**
+   * The guard the last fix should have come with.
+   *
+   * Splitting and rejoining is only lossless while the writer and every reader
+   * agree on which sections get their own files. Fixing `splitFiles` and leaving
+   * `joinFiles` — and two project loaders — with their own copies of the list
+   * would have turned a misplacement bug into a data-loss one: files written and
+   * never read back.
+   *
+   * Asserts the agreement directly, rather than trusting a fixture to happen to
+   * contain every section.
+   */
+  it("writes a file for every declared collection section, and reads them all back", () => {
+    const files = splitFiles(spec);
+    for (const section of COLLECTION_SECTIONS) {
+      const entries = (spec as unknown as Record<string, unknown[]>)[section] ?? [];
+      const written = Object.keys(files).filter((f) => f.startsWith(`${section}/`));
+      // An empty section writing no files is correct; the count check below
+      // covers it either way.
+      expect(written.length, `${section} wrote no files`).toBe(entries.length);
+    }
+
+    const joined = joinFiles(files);
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+    for (const section of COLLECTION_SECTIONS) {
+      const before = (spec as unknown as Record<string, unknown[]>)[section]!;
+      const after = (joined.spec as unknown as Record<string, unknown[]>)[section]!;
+      expect(after.length, `${section} lost entries on the round trip`).toBe(before.length);
+    }
   });
 
   it("says which file is missing", () => {

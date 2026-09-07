@@ -26,7 +26,21 @@ import { parseSpec } from "./parse.js";
  * field to the schema does not silently reorder existing files.
  */
 const KEY_ORDER: Record<string, readonly string[]> = {
-  root: ["specVersion", "name", "theme", "css", "content", "pages", "logic", "access", "wiring"],
+  // `layout` and `note` were added by ADR 0014 and never added here, so they
+  // printed after `wiring` — harmless, but not the order anyone would choose.
+  root: [
+    "specVersion",
+    "name",
+    "note",
+    "theme",
+    "layout",
+    "css",
+    "content",
+    "pages",
+    "logic",
+    "access",
+    "wiring",
+  ],
   block: ["type", "layout", "style", "when", "data", "attrs", "item", "children", "css"],
   page: ["key", "path", "title", "collection", "draft", "seo", "blocks", "flows", "css"],
   contentType: [

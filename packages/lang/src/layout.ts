@@ -16,7 +16,7 @@
  * rather than approximate.
  */
 import { LineCounter, isNode, parseAllDocuments } from "yaml";
-import { siteFileOf, type SiteSpec } from "@forinda-cms/spec";
+import { COLLECTION_SECTIONS, siteFileOf, type SiteSpec } from "@forinda-cms/spec";
 
 import type { Diagnostic } from "./errors.js";
 import { parseSpec } from "./parse.js";
@@ -74,7 +74,13 @@ export function joinFiles(
 
   // Parsed as YAML only — a fragment is a piece of a spec, so it cannot be
   // validated against the whole-document schema until it is assembled.
-  const fragments: Record<string, unknown[]> = { content: [], pages: [], logic: [] };
+  // Keyed off the same constant `splitFiles` writes from, so a new section is
+  // read back the moment it is written — the half of the last fix that was
+  // missing, and the half that would have caused data loss rather than
+  // misplacement.
+  const fragments: Record<string, unknown[]> = Object.fromEntries(
+    COLLECTION_SECTIONS.map((s) => [s, []]),
+  );
   /** Section index → the file it came from, so a diagnostic can be sent home. */
   const origin: Record<string, { file: string; text: string }[]> = {
     content: [],
@@ -83,7 +89,7 @@ export function joinFiles(
   };
   const diagnostics: Diagnostic[] = [];
 
-  for (const section of ["content", "pages", "logic"] as const) {
+  for (const section of COLLECTION_SECTIONS) {
     for (const { path, text } of collect(section)) {
       const parsed = parseFragment(text, path);
       if (parsed.ok) {

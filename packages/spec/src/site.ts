@@ -76,7 +76,11 @@ export type CollectionSection = (typeof COLLECTION_SECTIONS)[number];
  * Stays strict, because this is also the schema an editor validates `site.yaml`
  * against, and catching a typo'd key there is the point.
  */
-export const SiteFile = SiteSpec.omit({ content: true, pages: true, logic: true });
+const OMIT_COLLECTIONS = Object.fromEntries(COLLECTION_SECTIONS.map((k) => [k, true])) as {
+  [K in CollectionSection]: true;
+};
+
+export const SiteFile = SiteSpec.omit(OMIT_COLLECTIONS);
 export type SiteFile = z.infer<typeof SiteFile>;
 
 /** Drop the collection sections, leaving exactly what `site.yaml` carries. */
