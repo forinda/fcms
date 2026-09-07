@@ -12,8 +12,17 @@
  * here), and a server that parsed YAML would be a second parser to keep in step
  * with the printer.
  */
-import { Controller, Get, HttpException, Inject, Post, type Ctx } from "@forinda/kickjs";
-import { SiteSpec } from "@forinda-cms/spec";
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpException,
+  Inject,
+  Patch,
+  Post,
+  type Ctx,
+} from "@forinda/kickjs";
+import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
 import { PublicAuth } from "@/route-flags";
 import { InvalidCredentialsError, LoginUseCase } from "@/shared/auth/auth.usecase";
@@ -22,7 +31,9 @@ import {
   ApplySpecUseCase,
   DestructiveChangeError,
 } from "@/modules/admin/use-cases/apply-spec.usecase";
+import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.usecase";
+import { UndoSpecUseCase } from "@/modules/admin/use-cases/undo-spec.usecase";
 import { clientIp } from "@/modules/admin/utils/http";
 
 @Controller()
@@ -32,6 +43,8 @@ export class ApiController {
   @Inject(EntryReadUseCase) private readonly entries!: EntryReadUseCase;
   @Inject(ApplySpecUseCase) private readonly applySpec!: ApplySpecUseCase;
   @Inject(SiteHistoryUseCase) private readonly changes!: SiteHistoryUseCase;
+  @Inject(UndoSpecUseCase) private readonly undoLast!: UndoSpecUseCase;
+  @Inject(EntryWriteUseCase) private readonly writer!: EntryWriteUseCase;
 
   /**
    * `fcms login`.
@@ -117,15 +130,17 @@ export class ApiController {
   /** `fcms apply` — and a 409 rather than a 500 when the gate refuses. */
   @Post("/apply")
   async apply(ctx: Ctx): Promise<unknown> {
-    const body = (ctx.body ?? {}) as { allowDestructive?: boolean };
+    const body = (ctx.body ?? {}) as { allowDestructive?: boolean; source?: unknown };
     const next = parseSpec(ctx);
 
     try {
       const result = await this.applySpec.execute(next, {
         actor: ctx.require("actor").email,
-        // Recorded, so history says which door a change came through — the
-        // whole point of the column (doc 03).
-        source: "cli",
+        // Which door this came through, from a closed set. History exists to
+        // answer "what did the model change" as a query rather than an
+        // inference (ADR 0015 §5), and it cannot if every API caller is
+        // recorded as the CLI — which is what a hardcoded value did.
+        source: source(body.source),
         allowDestructive: body.allowDestructive === true,
       });
 
@@ -142,6 +157,163 @@ export class ApiController {
       throw new HttpException(409, error.message);
     }
   }
+
+  /** `site_history` — what has happened, so a caller can explain or undo it. */
+  @Get("/history")
+  async history(ctx: Ctx): Promise<unknown> {
+    const limit = Number((ctx.query as Record<string, unknown>)["limit"] ?? 20);
+    const entries = await this.changes.execute(Number.isFinite(limit) ? limit : 20);
+    return {
+      history: entries.map((e) => ({
+        seq: e.seq,
+        actor: e.actor,
+        source: e.source,
+        classification: e.classification,
+        summary: e.summary,
+        at: e.appliedAt.toISOString(),
+        reverted: e.revertedAt !== null,
+      })),
+    };
+  }
+
+  /**
+   * `site_undo` — the last patch, reversed.
+   *
+   * A table lookup, not a replay: the inverse was recorded when the change was
+   * applied (doc 03), which is what makes this cheap enough to offer a model.
+   */
+  @Post("/undo")
+  async undo(): Promise<unknown> {
+    const result = await this.undoLast.execute();
+    if (!result) throw new HttpException(404, "There is nothing to undo.");
+    return result;
+  }
+
+  /**
+   * `entry_list` — rows of one content type.
+   *
+   * Content, which doc 11 §2 gives to MCP and deliberately withholds from the
+   * CLI: two machine doors for one audience is two surfaces to keep in step.
+   */
+  @Get("/entries/:type")
+  async listEntries(ctx: Ctx): Promise<unknown> {
+    const type = await this.contentType(String((ctx.params as Record<string, string>)["type"]));
+    const rows = await this.entries.rows(type.key);
+
+    return {
+      type: type.key,
+      entries: rows.map((row) => ({
+        id: row.id,
+        slug: row.slug,
+        status: row.status,
+        data: row.data,
+        updatedAt: row.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  @Post("/entries/:type")
+  async createEntry(ctx: Ctx): Promise<unknown> {
+    const spec = await this.requireSpec();
+    const type = await this.contentType(String((ctx.params as Record<string, string>)["type"]));
+    const body = (ctx.body ?? {}) as {
+      data?: Record<string, unknown>;
+      slug?: string;
+      status?: string;
+    };
+
+    const result = await this.writer.create(spec, {
+      typeKey: type.key,
+      slug: body.slug,
+      ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
+      data: body.data ?? {},
+    });
+
+    if (!result.ok) throw invalidEntry(result.errors);
+    return { entry: result.entry };
+  }
+
+  @Patch("/entries/:type/:id")
+  async updateEntry(ctx: Ctx): Promise<unknown> {
+    const spec = await this.requireSpec();
+    const params = ctx.params as Record<string, string>;
+    const type = await this.contentType(String(params["type"]));
+    const body = (ctx.body ?? {}) as {
+      data?: Record<string, unknown>;
+      slug?: string;
+      status?: string;
+    };
+
+    const result = await this.writer.update(spec, String(params["id"]), {
+      typeKey: type.key,
+      slug: body.slug,
+      ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
+      data: body.data ?? {},
+    });
+
+    if (!result.ok) throw invalidEntry(result.errors);
+    return { entry: result.entry };
+  }
+
+  @Delete("/entries/:type/:id")
+  async deleteEntry(ctx: Ctx): Promise<unknown> {
+    const id = String((ctx.params as Record<string, string>)["id"]);
+    if (!(await this.writer.delete(id)))
+      throw new HttpException(404, "That entry no longer exists.");
+    return { deleted: id };
+  }
+
+  /** The spec, or a 409 — writing content to a site with no content model. */
+  private async requireSpec(): Promise<SiteSpec> {
+    const spec = await this.specs.execute();
+    if (!spec) throw new HttpException(409, "This site has no spec yet.");
+    return spec;
+  }
+
+  /**
+   * A declared, stored content type.
+   *
+   * 404 for a type nobody declared and 409 for a derived one, rather than a
+   * write that succeeds and is then invisible because nothing reads the table
+   * for it (ADR 0014).
+   */
+  private async contentType(key: string): Promise<ContentType> {
+    const spec = await this.requireSpec();
+    const type = spec.content.find((t) => t.key === key);
+    if (!type) throw new HttpException(404, `No content type named "${key}".`);
+    if (type.derived)
+      throw new HttpException(409, `${type.label} is computed and cannot be edited.`);
+    return type;
+  }
+}
+
+/**
+ * Field-level errors, kept per field rather than flattened into a sentence.
+ *
+ * The third argument, not the second: the message parameter is a string, and an
+ * object passed there is stringified — `"[object Object]"` reached the client
+ * instead of the errors, which is worse than no detail because it looks like a
+ * bug in the caller. `details` serializes into the problem body's `errors`.
+ */
+function invalidEntry(errors: Record<string, string>): HttpException {
+  return new HttpException(
+    422,
+    "That entry is not valid.",
+    Object.entries(errors).map(([path, message]) => ({ path, message })),
+  );
+}
+
+/**
+ * The surface a change came through.
+ *
+ * A closed set, defaulting to `api`: an open string is a column that means
+ * whatever the last caller felt like, and the whole value of recording it is
+ * that a query over it is trustworthy.
+ */
+const SOURCES = new Set(["cli", "mcp", "chat", "canvas", "api"]);
+
+function source(value: unknown): string {
+  return typeof value === "string" && SOURCES.has(value) ? value : "api";
 }
 
 /**
