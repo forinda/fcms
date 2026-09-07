@@ -8,7 +8,7 @@
  * That seam is worth having on day one for the reason ADR 0002 gives about all
  * of them: cheap now, expensive later.
  */
-import type { ContentType, Condition, Query, SiteSpec } from "@forinda-cms/spec";
+import type { ContentType, Condition, Field, Query, SiteSpec } from "@forinda-cms/spec";
 
 import { generateSchedule } from "./schedule.js";
 
@@ -117,6 +117,35 @@ export function runQueryPage(
   return { rows: sorted.slice((page - 1) * size, page * size), total: sorted.length, page, pages };
 }
 
+/**
+ * Rows the query matches with one parameter left out.
+ *
+ * What a facet counts: ticking "4 stars" should not make every other star
+ * rating read zero, so the facet's own filter is excluded from its own counts.
+ */
+export function runQueryExcluding(
+  source: EntrySource,
+  query: Query,
+  params: RequestParams,
+  exclude: string,
+): readonly Entry[] {
+  const conditions = (query.where ?? []).flatMap((c) => {
+    const value = c.value;
+    if (
+      typeof value === "object" &&
+      value !== null &&
+      "param" in value &&
+      value.param === exclude
+    ) {
+      return [];
+    }
+    const resolved = resolveCondition(c, params);
+    return resolved ? [resolved] : [];
+  });
+
+  return source.all(query.from).filter((row) => conditions.every((c) => matches(row, c)));
+}
+
 export function runQuery(
   source: EntrySource,
   query: Query,
@@ -220,15 +249,103 @@ export function withDerived(
   now: Date = new Date(),
 ): EntrySource {
   const cache = new Map<string, readonly Entry[]>();
-  return {
+
+  const source: EntrySource = {
     all(type) {
       const declared = contentTypeOf(spec, type);
-      if (!declared?.derived) return base.all(type);
+      if (!declared) return base.all(type);
+
       const hit = cache.get(type);
       if (hit) return hit;
-      const rows = generateSchedule(base, declared.derived, { now });
-      cache.set(type, rows);
-      return rows;
+
+      // Derived types are generated; stored types are read. Either way the rows
+      // then get their aggregate fields, so a hotel's rating is present whether
+      // the hotel is stored or computed.
+      const rows = declared.derived
+        ? generateSchedule(base, declared.derived, { now })
+        : base.all(type);
+
+      const withAggregates = addAggregates(declared, rows, source);
+      cache.set(type, withAggregates);
+      return withAggregates;
     },
   };
+
+  return source;
+}
+
+/**
+ * Fill in a type's aggregate fields (ADR 0019 §4).
+ *
+ * Computed here rather than in the page, so the value can be sorted on,
+ * filtered by and read in a template like any other field — "sort by rating" is
+ * the whole reason it exists.
+ *
+ * Aggregates over a type that itself aggregates are not supported and cannot
+ * loop: the related rows are read through the same source, and a cycle would
+ * have to be declared in two directions to occur. Worth watching if that
+ * becomes possible.
+ */
+function addAggregates(
+  type: ContentType,
+  rows: readonly Entry[],
+  source: EntrySource,
+): readonly Entry[] {
+  const aggregates = type.fields.filter(
+    (field): field is Extract<Field, { type: "aggregate" }> => field.type === "aggregate",
+  );
+  if (aggregates.length === 0) return rows;
+
+  return rows.map((row) => {
+    const computed: Record<string, unknown> = { ...row };
+
+    for (const field of aggregates) {
+      // Rows of the related type that point back at this one. `id` is what a
+      // reference holds, and the repository merges it in from the column.
+      const related = source
+        .all(field.of)
+        .filter((other) => referencesRow(other[field.on], row["id"]));
+
+      computed[field.name] = aggregate(field, related);
+    }
+
+    return computed;
+  });
+}
+
+/** A reference may hold one id or several (`many: true`). */
+function referencesRow(value: unknown, id: unknown): boolean {
+  if (id === undefined) return false;
+  const target = String(id);
+  if (Array.isArray(value)) return value.some((entry) => String(entry) === target);
+  return value !== undefined && value !== null && String(value) === target;
+}
+
+function aggregate(
+  field: Extract<Field, { type: "aggregate" }>,
+  rows: readonly Entry[],
+): number | null {
+  if (field.fn === "count") return rows.length;
+
+  const numbers = rows
+    .map((row) => (field.field ? row[field.field] : undefined))
+    .filter((value): value is number => typeof value === "number");
+
+  // Null rather than zero for an empty set: a hotel with no reviews has no
+  // rating, and showing it as 0.0 would sort it below the worst-reviewed one.
+  if (numbers.length === 0) return null;
+
+  switch (field.fn) {
+    case "sum":
+      return numbers.reduce((total, value) => total + value, 0);
+    case "min":
+      return Math.min(...numbers);
+    case "max":
+      return Math.max(...numbers);
+    default: {
+      const mean = numbers.reduce((total, value) => total + value, 0) / numbers.length;
+      const factor = 10 ** field.precision;
+      return Math.round(mean * factor) / factor;
+    }
+  }
 }

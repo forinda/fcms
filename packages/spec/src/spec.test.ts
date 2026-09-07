@@ -313,4 +313,78 @@ describe("patches classify for the gate (doc 03)", () => {
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.issues[0]!.message).toMatch(/"rating"/);
   });
+
+  it("refuses an aggregate whose relation does not exist", () => {
+    // Silently always null reads as "no reviews yet" forever, which is the kind
+    // of wrong that never gets reported.
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Stays",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "property",
+          label: "Property",
+          fields: [
+            { name: "name", label: "Name", type: "text" },
+            {
+              name: "rating",
+              label: "Rating",
+              type: "aggregate",
+              of: "review",
+              on: "hotel",
+              field: "score",
+              fn: "avg",
+            },
+          ],
+        },
+        {
+          key: "review",
+          label: "Review",
+          fields: [{ name: "score", label: "Score", type: "number" }],
+        },
+      ],
+      pages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/no field "hotel"/);
+  });
+
+  it("refuses an average with nothing named to average", () => {
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Stays",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "property",
+          label: "Property",
+          fields: [
+            { name: "name", label: "Name", type: "text" },
+            {
+              name: "rating",
+              label: "Rating",
+              type: "aggregate",
+              of: "review",
+              on: "property",
+              fn: "avg",
+            },
+          ],
+        },
+        {
+          key: "review",
+          label: "Review",
+          fields: [
+            { name: "property", label: "Property", type: "reference", to: "property" },
+            { name: "score", label: "Score", type: "number" },
+          ],
+        },
+      ],
+      pages: [],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/needs a field/);
+  });
 });
