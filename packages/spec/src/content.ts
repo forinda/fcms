@@ -9,7 +9,42 @@
  */
 import { z } from 'zod'
 
-import { FieldName, Key, Label, TemplateString } from './primitives.js'
+import { FieldName, Key, Label, Note, TemplateString } from './primitives.js'
+
+/**
+ * A weekly opening-hours field.
+ *
+ * Added because the salon spec needed somewhere to put a stylist's working
+ * hours, and the tempting answer was a generic `json` field. That would have
+ * worked and been wrong: arbitrary JSON is unvalidated structure the AI cannot
+ * reason about and the panel cannot render — precisely the escape hatch ADR 0001
+ * exists to refuse. A declared shape is the same information with none of that.
+ *
+ * Useful past bookings, too: a restaurant's opening hours are the same field.
+ */
+const TIME = /^([01]?\d|2[0-3]):[0-5]\d$/
+
+export const HoursField = z
+  .object({
+    type: z.literal('hours'),
+    required: z.boolean().default(false),
+    help: Label.optional(),
+    note: Note,
+  })
+  .strict()
+
+export const WeekHours = z
+  .object({
+    mon: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    tue: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    wed: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    thu: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    fri: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    sat: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    sun: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+  })
+  .strict()
+export type WeekHours = z.infer<typeof WeekHours>
 
 /**
  * A `state` field (ADR 0009 §4) — declared transitions, so "guide transitions"
@@ -47,6 +82,7 @@ const scalarField = <T extends string>(type: T) =>
       /** Marks the field for a generated column + index (doc 03 §2). */
       filterable: z.boolean().default(false),
       help: Label.optional(),
+      note: Note,
     })
     .strict()
 
@@ -67,6 +103,7 @@ export const Field = z.intersection(
     /** A relation to another content type. Integrity is declared, not implied. */
     scalarField('reference').extend({ to: Key, many: z.boolean().default(false) }),
     StateField,
+    HoursField,
   ]),
 )
 export type Field = z.infer<typeof Field>
@@ -87,6 +124,44 @@ export const JsonLdMapping = z
   })
   .strict()
 
+/**
+ * A **derived** content type: rows computed by the platform, not stored.
+ *
+ * The insight from ADR 0014: availability is not a new kind of query, it is a
+ * content type whose rows are calculated. So `data`, `where`, `sort` and `limit`
+ * work on it unchanged, and the renderer cannot tell the difference — a derived
+ * type is an `EntrySource` that computes instead of reads.
+ *
+ * The spec declares **inputs**; the platform owns the **algorithm**. That is the
+ * same split `flow` already uses, which is why this is a precedent being
+ * followed rather than an exception carved. `kind` comes from a fixed registry,
+ * exactly like blocks and actions.
+ *
+ * What must stay excluded: an author-supplied algorithm, or any expression that
+ * computes a row. A rule `schedule` cannot express is a plugin, not a construct.
+ */
+export const ScheduleSource = z
+  .object({
+    kind: z.literal('schedule'),
+    /** Who or what is being booked, and where their working hours live. */
+    resource: z.object({ type: Key, hours: FieldName }).strict(),
+    /** What occupies time, and how to read a booking's span from it. */
+    occupied: z
+      .object({ type: Key, resource: FieldName, start: FieldName, minutes: FieldName })
+      .strict(),
+    slot: z.object({ minutes: z.number().int().min(1).max(1440), buffer: z.number().int().min(0).default(0) }).strict(),
+    window: z
+      .object({
+        days: z.number().int().min(1).max(365),
+        leadTime: z.object({ hours: z.number().int().min(0) }).strict().optional(),
+      })
+      .strict(),
+  })
+  .strict()
+
+export const DerivedSource = z.discriminatedUnion('kind', [ScheduleSource])
+export type DerivedSource = z.infer<typeof DerivedSource>
+
 export const ContentType = z
   .object({
     key: Key,
@@ -101,6 +176,13 @@ export const ContentType = z
     jsonld: JsonLdMapping.optional(),
     /** Entries can be drafted and published; some types (settings-like) cannot. */
     publishable: z.boolean().default(true),
+    /**
+     * Computed rather than stored (ADR 0014). A derived type is read-only:
+     * writing to one must fail with a clear message rather than silently
+     * doing nothing.
+     */
+    derived: DerivedSource.optional(),
+    note: Note,
   })
   .strict()
   .superRefine((t, ctx) => {

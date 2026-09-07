@@ -6,11 +6,11 @@
  * nothing and a customer's site keeps serving whether or not anyone is paying
  * for inference (doc 13).
  */
-import type { Block, Page, SiteSpec } from '@forinda-cms/spec'
+import { collectionType, type Block, type Page, type SiteSpec } from '@forinda-cms/spec'
 
 import { CORE_BLOCKS, unknownBlock, type BlockType } from './blocks.js'
 import { blockCss, siteCss } from './css.js'
-import { matches, runQuery, type Entry, type EntrySource } from './entries.js'
+import { matches, runQuery, withDerived, type Entry, type EntrySource } from './entries.js'
 import { el, fragment, raw, render as toString, type Html } from './html.js'
 import { buildJsonLd, head, pageSeo } from './seo.js'
 import { DEFAULT_LOCALE, resolveAttrs, type FormatLocale, type Scope } from './scope.js'
@@ -22,6 +22,8 @@ export interface RenderOptions {
   readonly canonicalBase?: string
   /** Defaults to Kenya-first (doc 14). Moves into the spec in Phase 0b. */
   readonly locale?: FormatLocale
+  /** Injected so derived types (ADR 0014) render deterministically in tests. */
+  readonly now?: Date
 }
 
 /**
@@ -40,6 +42,7 @@ interface Walk {
   readonly registry: Record<string, BlockType>
   readonly source: EntrySource
   readonly locale: FormatLocale
+  readonly spec: SiteSpec
 }
 
 function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: Walk): Html {
@@ -70,11 +73,16 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
   const type = walk.registry[block.type]
   if (!type) return unknownBlock(block.type)
 
+  const attrs = resolveAttrs(block.attrs, scope, walk.locale)
+  const forType = typeof attrs['for'] === 'string' ? walk.spec.content.find((t) => t.key === attrs['for']) : undefined
+
   return type.render({
     className: cls,
-    attrs: resolveAttrs(block.attrs, scope, walk.locale),
+    attrs,
     children,
     scope,
+    hasChildren: (block.children?.length ?? 0) > 0,
+    ...(forType ? { contentType: forType } : {}),
   })
 }
 
@@ -103,17 +111,28 @@ export interface RenderedPage {
 }
 
 export function renderPage(page: Page, options: RenderOptions, entry?: Entry): RenderedPage {
-  const { spec, source, registry = CORE_BLOCKS, locale = DEFAULT_LOCALE } = options
-  const walk: Walk = { css: [], registry, source, locale }
+  const { spec, registry = CORE_BLOCKS, locale = DEFAULT_LOCALE } = options
+  // Derived types resolve once here, so every query on the page sees the same
+  // rows. A page showing a slot as free in one place and taken in another would
+  // be worse than either.
+  const source = withDerived(spec, options.source, options.now)
+  const walk: Walk = { css: [], registry, source, locale, spec }
   const scope: Scope = { site: { name: spec.name }, ...(entry ? { entry } : {}) }
 
+  // The site layout wraps every page unless it opts out (ADR 0014, decision 2).
+  // Header and footer indices are offset so their generated class names cannot
+  // collide with the page's own blocks.
+  const layout = page.layout === 'none' ? undefined : spec.layout
   const body = fragment(
+    ...(layout?.header ?? []).map((b, i) => renderBlock(b, scope, [9000 + i], walk)),
     ...page.blocks.map((b, i) => renderBlock(b, scope, [i], walk)),
     ...(page.flows ?? []).map((f, i) => renderFlow(f, scope, [1000 + i], walk)),
+    ...(layout?.footer ?? []).map((b, i) => renderBlock(b, scope, [9500 + i], walk)),
   )
 
   const seo = pageSeo(spec, page, scope)
-  const type = page.collection ? spec.content.find((t) => t.key === page.collection) : undefined
+  const bound = collectionType(page.collection)
+  const type = bound ? spec.content.find((t) => t.key === bound) : undefined
   const jsonld = type && entry ? buildJsonLd(type, entry, spec.name) : undefined
 
   const document = fragment(
@@ -142,14 +161,25 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
 }
 
 /** Every route this spec answers, including one per entry for collection pages. */
-export function routes(spec: SiteSpec, source: EntrySource): { path: string; page: Page; entry?: Entry }[] {
+export function routes(spec: SiteSpec, source: EntrySource, now?: Date): { path: string; page: Page; entry?: Entry }[] {
+  const resolved = withDerived(spec, source, now)
   const out: { path: string; page: Page; entry?: Entry }[] = []
+
   for (const page of spec.pages) {
-    if (!page.collection) {
+    const bound = collectionType(page.collection)
+    if (!bound) {
       out.push({ path: page.path, page })
       continue
     }
-    for (const entry of source.all(page.collection)) {
+    // A collection page may filter which entries get a URL (ADR 0014, decision
+    // 4) — so a retired service can either keep its address or stop resolving,
+    // and the spec says which rather than the renderer deciding.
+    const where = typeof page.collection === 'string' ? undefined : page.collection?.where
+    const rows = resolved
+      .all(bound)
+      .filter((row) => (where ?? []).every((c) => matches(row, c)))
+
+    for (const entry of rows) {
       const slug = String(entry['slug'] ?? entry['id'] ?? '')
       if (slug) out.push({ path: `${page.path.replace(/\/$/, '')}/${slug}`, page, entry })
     }

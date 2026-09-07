@@ -1,7 +1,10 @@
 key: service-detail
 path: /services
 title: Service
-collection: service
+collection:
+  from: service
+  where:
+    - { field: active, op: eq, value: true }
 seo:
   title: "{{ entry.name }} — Riverside Salon"
   description: "{{ entry.blurb }}"

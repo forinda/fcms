@@ -9,10 +9,10 @@
  */
 import { z } from 'zod'
 
-import { Key, Label, Path, TemplateString } from './primitives.js'
+import { Condition, When } from './condition.js'
+import { Key, Label, Note, Path, TemplateString } from './primitives.js'
 import { Query } from './query.js'
 import { CustomCss, Layout, StyleProps } from './style.js'
-import { When } from './condition.js'
 
 /**
  * A block. Recursive, hence `z.lazy`.
@@ -33,6 +33,7 @@ export interface Block {
   item?: Block[]
   children?: Block[]
   css?: string
+  note?: string
 }
 
 export const Block: z.ZodType<Block> = z.lazy(() =>
@@ -48,6 +49,7 @@ export const Block: z.ZodType<Block> = z.lazy(() =>
       children: z.array(Block).optional(),
       /** Tier 3, auto-scoped to this block instance by the renderer (ADR 0004). */
       css: CustomCss.optional(),
+      note: Note,
     })
     .strict()
     .superRefine((b, ctx) => {
@@ -95,6 +97,14 @@ export const FlowStep = z
     /** Steps that must be answered before this one is reachable. */
     requires: z.array(Key).optional(),
     when: When.optional(),
+    /**
+     * What choosing in this step binds into scope (ADR 0014, decision 3).
+     *
+     * ADR 0009 §3 wrote `when: { field: "flow.service.deposit", … }` without
+     * defining how `flow.service` comes to exist. This is that definition —
+     * without it the ADR's own example cannot run.
+     */
+    selects: z.object({ from: Key, as: Key }).strict().optional(),
     blocks: z.array(Block).min(1),
   })
   .strict()
@@ -134,13 +144,37 @@ export const PageSeo = z
   })
   .strict()
 
+/**
+ * Which entries a collection page answers for (ADR 0014, decision 4).
+ *
+ * The string is shorthand for every entry. The object form filters with the same
+ * condition triple used everywhere else — so a retired service can either keep
+ * its URL or stop resolving, and the spec can say which.
+ */
+export const CollectionBinding = z.union([
+  Key,
+  z.object({ from: Key, where: z.array(Condition).max(10).optional() }).strict(),
+])
+
+export function collectionType(binding: z.infer<typeof CollectionBinding> | undefined): string | undefined {
+  if (binding === undefined) return undefined
+  return typeof binding === 'string' ? binding : binding.from
+}
+
 export const Page = z
   .object({
     key: Key,
     path: Path,
     title: Label,
     /** Bind the page to one entry of a type — `/services/{slug}` renders per service. */
-    collection: Key.optional(),
+    collection: CollectionBinding.optional(),
+    /**
+     * `none` opts out of the site layout (ADR 0014, decision 2). There is no
+     * second layout and no composition — those are the increments by which this
+     * becomes a template system.
+     */
+    layout: z.literal('none').optional(),
+    note: Note,
     seo: PageSeo.optional(),
     blocks: z.array(Block),
     flows: z.array(Flow).optional(),

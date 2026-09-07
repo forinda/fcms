@@ -1,0 +1,9 @@
+# One existing booking, so availability has something to exclude.
+- reference: RS-0001
+  service: cut
+  stylist: amina
+  startsAt: "2026-09-08T10:00:00.000Z"
+  minutes: 45
+  customerName: Wanjiru
+  customerPhone: "+254700000001"
+  status: confirmed

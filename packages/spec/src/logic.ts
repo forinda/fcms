@@ -8,7 +8,7 @@
  */
 import { z } from 'zod'
 
-import { Key, Label, TemplateString } from './primitives.js'
+import { Key, Label, Note, TemplateString } from './primitives.js'
 import { When } from './condition.js'
 
 export const Trigger = z.discriminatedUnion('on', [
@@ -38,6 +38,7 @@ export const Workflow = z
     trigger: Trigger,
     steps: z.array(Step).min(1),
     enabled: z.boolean().default(true),
+    note: Note,
   })
   .strict()
 

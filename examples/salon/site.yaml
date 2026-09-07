@@ -25,6 +25,20 @@ theme:
     sm: 4px
     md: 8px
     lg: 16px
+layout:
+  header:
+    - type: nav
+      style: { padding: { y: md, x: lg }, background: token:color.background, border: hairline }
+      attrs:
+        links:
+          - { label: Home, to: / }
+          - { label: Services, to: /#services }
+          - { label: Book, to: /book }
+  footer:
+    - type: footer
+      style: { padding: { y: lg, x: lg }, background: token:color.surface, textAlign: center }
+      attrs: { text: "Riverside Salon · Kilimani, Nairobi · Tuesday to Sunday" }
+
 access: {}
 wiring:
   - key: mpesa

@@ -11,8 +11,8 @@ import { z } from 'zod'
 import { Access } from './access.js'
 import { ContentType } from './content.js'
 import { Workflow } from './logic.js'
-import { Page } from './pages.js'
-import { Key, Label } from './primitives.js'
+import { Block, Page, collectionType } from './pages.js'
+import { Key, Label, Note } from './primitives.js'
 import { CustomCss, Theme } from './style.js'
 import { Wiring } from './wiring.js'
 
@@ -22,10 +22,25 @@ import { Wiring } from './wiring.js'
  */
 export const SPEC_VERSION = 1
 
+/**
+ * Header and footer shared by every page (ADR 0014, decision 2).
+ *
+ * Doc 12 predicted the pressure for includes; it arrived on the second page of
+ * the first real spec. This is the structured answer: **one level, no nesting,
+ * no parameters, no named slots, no inheritance.** Those are the increments by
+ * which a layout becomes a template system, and ADR 0006 already banned YAML
+ * anchors for the same reason.
+ */
+export const SiteLayout = z
+  .object({ header: z.array(Block).optional(), footer: z.array(Block).optional() })
+  .strict()
+
 export const SiteSpec = z
   .object({
     specVersion: z.literal(SPEC_VERSION),
     name: Label,
+    note: Note,
+    layout: SiteLayout.optional(),
     /** Site-level tier-3 CSS. Gated to the `developer` role (ADR 0004/0008). */
     css: CustomCss.optional(),
     theme: Theme,
@@ -71,6 +86,31 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     issues.push({ path: '/pages', message: `two pages both answer "${dup}"` })
   }
 
+  // A derived type's inputs must name real types and real fields — otherwise the
+  // generator fails at request time, on a live page, instead of at validate time.
+  for (const t of types.values()) {
+    if (!t.derived) continue
+    const d = t.derived
+    const resource = types.get(d.resource.type)
+    const occupied = types.get(d.occupied.type)
+    const at = `/content/${t.key}/derived`
+
+    if (!resource) issues.push({ path: `${at}/resource`, message: `unknown content type "${d.resource.type}"` })
+    else if (!resource.fields.some((f) => f.name === d.resource.hours)) {
+      issues.push({ path: `${at}/resource/hours`, message: `"${d.resource.type}" has no field "${d.resource.hours}"` })
+    }
+
+    if (!occupied) issues.push({ path: `${at}/occupied`, message: `unknown content type "${d.occupied.type}"` })
+    else {
+      for (const key of ['resource', 'start', 'minutes'] as const) {
+        const field = d.occupied[key]
+        if (!occupied.fields.some((f) => f.name === field)) {
+          issues.push({ path: `${at}/occupied/${key}`, message: `"${d.occupied.type}" has no field "${field}"` })
+        }
+      }
+    }
+  }
+
   // `reference` fields must point at a declared type.
   for (const t of types.values()) {
     for (const f of t.fields) {
@@ -104,13 +144,25 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     })
   }
 
+  walk(spec.layout?.header ?? [], '/layout/header')
+  walk(spec.layout?.footer ?? [], '/layout/footer')
+
   for (const p of spec.pages) {
     walk(p.blocks, `/pages/${p.key}/blocks`)
-    if (p.collection && !types.has(p.collection)) {
-      issues.push({ path: `/pages/${p.key}`, message: `bound to unknown collection "${p.collection}"` })
+    const bound = collectionType(p.collection)
+    if (bound && !types.has(bound)) {
+      issues.push({ path: `/pages/${p.key}`, message: `bound to unknown collection "${bound}"` })
     }
     for (const f of p.flows ?? []) {
-      f.steps.forEach((s, i) => walk(s.blocks, `/pages/${p.key}/flows/${f.key}/steps/${i}/blocks`))
+      f.steps.forEach((step, i) => {
+        walk(step.blocks, `/pages/${p.key}/flows/${f.key}/steps/${i}/blocks`)
+        if (step.selects && !types.has(step.selects.from)) {
+          issues.push({
+            path: `/pages/${p.key}/flows/${f.key}/steps/${i}/selects`,
+            message: `selects from unknown content type "${step.selects.from}"`,
+          })
+        }
+      })
     }
   }
 
