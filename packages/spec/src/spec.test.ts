@@ -685,3 +685,57 @@ describe("automations", () => {
     expect(result.ok === false && result.issues[0]!.message).toMatch(/not somewhere to post to/);
   });
 });
+
+/**
+ * Places (ADR 0026) — a coordinate is a field, a distance is the platform's.
+ */
+describe("places", () => {
+  const withGeo = (fields: unknown[], data?: unknown) => ({
+    ...base,
+    content: [{ ...base.content[0]!, fields }],
+    pages: data
+      ? [{ ...base.pages[0]!, blocks: [{ type: "list", data, item: [{ type: "card" }] }] }]
+      : base.pages,
+  });
+
+  const geoFields = [
+    { name: "name", label: "Name", type: "text" as const },
+    { name: "location", label: "Where", type: "geo" as const },
+  ];
+
+  it("accepts a coordinate field", () => {
+    expect(validateSpec(withGeo(geoFields)).ok).toBe(true);
+  });
+
+  it("lets a listing sort by distance without declaring it", () => {
+    // The platform computes it, so requiring it to be declared would mean
+    // declaring a field nobody may store.
+    const result = validateSpec(
+      withGeo(geoFields, {
+        from: "service",
+        sort: { param: "sort", allow: ["distanceKm"], default: "distanceKm" },
+        limit: 10,
+      }),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("still refuses sorting by distance on a type with no location", () => {
+    const result = validateSpec(
+      withGeo([{ name: "name", label: "Name", type: "text" as const }], {
+        from: "service",
+        sort: { param: "sort", allow: ["distanceKm"] },
+        limit: 10,
+      }),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/does not have/);
+  });
+
+  it("refuses a type that declares the reserved name itself", () => {
+    // It would be silently overwritten on every request.
+    const result = validateSpec(
+      withGeo([...geoFields, { name: "distanceKm", label: "Distance", type: "number" as const }]),
+    );
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/cannot also be a field/);
+  });
+});

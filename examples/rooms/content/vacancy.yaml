@@ -24,6 +24,7 @@ fields:
       - { value: garden, label: Garden }
       - { value: lake, label: Lake }
       - { value: courtyard, label: Courtyard }
+  - { name: location, label: Where, type: geo }
   - { name: nights, label: Nights, type: number }
   # What the stay costs, worked out by the platform rather than by a template.
   - name: total

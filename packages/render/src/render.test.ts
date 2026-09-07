@@ -337,3 +337,33 @@ describe("components (ADR 0022)", () => {
     expect(html).toContain("cta");
   });
 });
+
+describe("a collection page's own title", () => {
+  const withEntryTitle = SiteSpec.parse({
+    ...spec,
+    pages: [
+      {
+        key: "service-detail",
+        path: "/services",
+        title: "{{ entry.name }}",
+        collection: { from: "service" },
+        blocks: [{ type: "heading", attrs: { text: "{{ entry.name }}" } }],
+      },
+    ],
+  });
+
+  it("resolves against the entry, like every other template", () => {
+    // It did not, so every entry page on every site shared one `<title>`
+    // reading `{{ entry.name }} — Riverside Rooms`, while the `<h1>` beside it
+    // was correct. Doc 08 makes the title most of what a crawler reads.
+    const entry = source.all("service")[0]!;
+    const { html, title } = renderPage(
+      withEntryTitle.pages[0]!,
+      { spec: withEntryTitle, source },
+      entry,
+    );
+
+    expect(title).toBe(`${String(entry["name"])} — Test Salon`);
+    expect(html).not.toContain("{{ entry.name }}");
+  });
+});

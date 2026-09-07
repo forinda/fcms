@@ -206,6 +206,16 @@ export const Field = z.intersection(
     scalarField("asset").extend({
       accept: z.enum(["image", "video", "document", "any"]).default("any"),
     }),
+    /**
+     * One coordinate (ADR 0026).
+     *
+     * A point, not a shape: the businesses this platform is for have an
+     * address, not a boundary, and a polygon is a different storage and query
+     * story. Validated to the ranges that exist rather than accepted as two
+     * numbers, because a swapped pair puts a Nairobi salon in the Indian Ocean
+     * and nothing downstream would notice.
+     */
+    scalarField("geo"),
     scalarField("select").extend({
       options: z.array(z.object({ value: Key, label: Label })).min(1),
     }),

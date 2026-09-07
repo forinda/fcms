@@ -675,6 +675,52 @@
                     },
                     "type": {
                       "type": "string",
+                      "const": "geo"
+                    },
+                    "required": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "unique": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "filterable": {
+                      "default": false,
+                      "type": "boolean"
+                    },
+                    "help": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "note": {
+                      "type": "string",
+                      "maxLength": 2000
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "label",
+                    "type"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "type": {
+                      "type": "string",
                       "const": "select"
                     },
                     "required": {

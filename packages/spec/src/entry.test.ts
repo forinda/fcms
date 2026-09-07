@@ -156,3 +156,38 @@ describe("a state field starts where the type says it starts", () => {
     expect(validateEntry(type, { name: "Amina", status: "invented" }).ok).toBe(false);
   });
 });
+
+describe("a coordinate", () => {
+  const type = ContentType.parse({
+    key: "room",
+    label: "Room",
+    fields: [
+      { name: "name", label: "Name", type: "text" },
+      { name: "location", label: "Where", type: "geo" },
+    ],
+  });
+
+  it("takes what a person pastes out of a map", () => {
+    const result = validateEntry(type, { name: "Lake house", location: "-0.7167, 36.4333" });
+    expect(result.ok && result.data!["location"]).toEqual({ lat: -0.7167, lng: 36.4333 });
+  });
+
+  it("takes a coordinate that is already one", () => {
+    const result = validateEntry(type, { name: "x", location: { lat: 1, lng: 2 } });
+    expect(result.ok && result.data!["location"]).toEqual({ lat: 1, lng: 2 });
+  });
+
+  it("refuses a place that is not on Earth", () => {
+    // A swapped pair puts a Nairobi business in the Indian Ocean, and nothing
+    // downstream would notice.
+    expect(validateEntry(type, { name: "x", location: "91, 36" }).ok).toBe(false);
+    expect(validateEntry(type, { name: "x", location: "somewhere nice" }).ok).toBe(false);
+    expect(validateEntry(type, { name: "x", location: "1" }).ok).toBe(false);
+  });
+
+  it("treats an empty input as no location rather than as an error", () => {
+    const result = validateEntry(type, { name: "x", location: "" });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data!["location"]).toBeUndefined();
+  });
+});

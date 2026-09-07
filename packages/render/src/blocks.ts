@@ -14,6 +14,7 @@
 import type { ContentType, Query } from "@forinda-cms/spec";
 
 import { el, esc, fragment, raw, type Html } from "./html.js";
+import { pointOf } from "./places.js";
 import type { Scope } from "./scope.js";
 
 export interface BlockContext {
@@ -548,6 +549,59 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
               "button",
               { type: "submit", "aria-label": String(attrs["label"] ?? "Keep this") },
               raw(esc(String(attrs["label"] ?? "♥"))),
+            ),
+          ),
+        );
+      },
+    }),
+    define({
+      name: "map",
+      summary: "Where this is, on a map.",
+      attrs: ["at", "zoom", "title"],
+      render: ({ className, attrs, scope }) => {
+        // The coordinate comes from the row, not from the author typing numbers
+        // into a block: `at` names the field, the same way `for` names a type.
+        const field = str(attrs["at"], "location");
+        const entry = (scope["entry"] ?? scope["item"]) as Record<string, unknown> | undefined;
+        const point = pointOf(entry?.[field]);
+        if (!point) return raw("");
+
+        const zoom = Math.min(19, Math.max(1, Number(attrs["zoom"]) || 15));
+        // Roughly a few streets at zoom 15, and the box is what OSM's embed
+        // takes. Wider zoom, wider box.
+        const span = 0.02 * 2 ** (15 - zoom);
+        const box = [
+          point.lng - span,
+          point.lat - span / 2,
+          point.lng + span,
+          point.lat + span / 2,
+        ].join(",");
+        const at = `${point.lat},${point.lng}`;
+
+        return el(
+          "div",
+          { class: `fx-map ${className}` },
+          fragment(
+            el("iframe", {
+              // OpenStreetMap's own embed: no key, no account, no script, and
+              // nothing that stops working when a free tier ends (ADR 0026 §3).
+              src: `https://www.openstreetmap.org/export/embed.html?bbox=${box}&marker=${at}`,
+              title: str(attrs["title"], "Map"),
+              loading: "lazy",
+              // The frame is a third party's: it gets no more than the page it
+              // is on, and cannot navigate the page that embedded it.
+              referrerpolicy: "no-referrer",
+              sandbox: "allow-scripts allow-popups",
+            }),
+            el(
+              "a",
+              {
+                class: "fx-map-link",
+                href: `https://www.openstreetmap.org/?mlat=${point.lat}&mlon=${point.lng}#map=${zoom}/${point.lat}/${point.lng}`,
+                target: "_blank",
+                rel: "noopener noreferrer",
+              },
+              "Open in a map",
             ),
           ),
         );
