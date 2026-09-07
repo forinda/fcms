@@ -8,7 +8,7 @@
     "dev": "kick dev",
     "build": "kick build",
     "start": "kick start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "kick typegen && tsc --noEmit",
     "test": "vitest run",
     "schema": "tsx scripts/emit-schema.ts",
     "schema:check": "tsx scripts/emit-schema.ts --check",
