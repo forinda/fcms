@@ -76,13 +76,14 @@ ${
 }
 
 <h2>Pages</h2>
-<p class="muted">Pages are a tree of blocks. Editing one in a form would be worse than
-not editing it, so they are edited in the spec until the visual editor lands.</p>
+<p class="muted">Pages are a tree of blocks — edited on the canvas, where the page you
+are changing is the page you are looking at.</p>
 <table><tbody>${spec.pages
           .map(
             (p) =>
               `<tr><td>${esc(p.title)}</td><td class="muted">${esc(p.path)}</td>
-               <td><a href="${esc(p.path)}">view</a></td></tr>`,
+               <td><a href="/admin/pages/${esc(p.key)}">edit</a> ·
+                   <a href="${esc(p.path)}">view</a></td></tr>`,
           )
           .join("")}</tbody></table>`,
       }),

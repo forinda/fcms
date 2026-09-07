@@ -223,6 +223,7 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
 @media(prefers-color-scheme:dark){
   body{background:#1c1917;color:#e7e5e4}
+  .node.selected{background:#064e3b}
   header,.card,input,select,textarea{background:#292524;border-color:#44403c}
   :root{--line:#44403c;--muted:#a8a29e}
 }
