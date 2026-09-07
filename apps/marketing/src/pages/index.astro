@@ -1,103 +1,144 @@
 ---
 /**
- * The one page that has to be true.
+ * The front door.
  *
- * Every claim here is something the repo can demonstrate today — the install is
- * two files, the spec is the source of truth, undo is a table lookup, export is
- * a `pg_dump`. Nothing about the AI layer, which is Phase 1 and not shipped:
- * doc 12's technical reader checks, and a marketing page that oversells the
- * unbuilt half is the fastest way to lose them.
+ * Two rules it is written to. Every picture is the running software rather than
+ * an illustration of it — a CMS with a visual editor that shows no pictures is
+ * asking to be taken on faith, and the argument here is that you do not have
+ * to. And the unfinished half is on the page rather than behind a click,
+ * because doc 12's reader checks, and a claim they can disprove costs every
+ * claim they cannot.
  */
 import Page from '../layouts/Page.astro'
+import Shot from '../components/Shot.astro'
+import Snippet from '../components/Snippet.astro'
+
+const install = `mkdir my-site && cd my-site
+curl -O https://forinda-cms.dev/install/compose.yaml
+curl -o .env https://forinda-cms.dev/install/env.example
+docker compose up -d`
 ---
 
 <Page
   title="forinda-cms — a CMS you own, that an AI can drive"
   description="Self-hostable CMS built on a declarative site spec. Two files to install, every change reversible, your data exportable with one command."
+  width="wide"
 >
-  <h1>A CMS you own, that an AI can drive.</h1>
+  <section class="hero">
+    <span class="badge"><b>Self-hosted</b> · one command · your database</span>
+    <h1>A CMS you own, that an AI can drive.</h1>
+    <p class="lede">
+      Your site is a <strong>spec</strong> — content types, pages, logic, access — not a pile
+      of plugins and a database nobody can read. That is what makes it editable by a person,
+      a command line, or a model, without three implementations of the same rules.
+    </p>
 
-  <p class="lede">
-    Your site is a <strong>spec</strong> — content types, pages, logic, access — not a pile of
-    plugins and a database nobody can read. That is what makes the whole thing editable by a
-    person, by a command line, or by a model, without three implementations of the same rules.
-  </p>
+    <Snippet label="install" copy={install}>{install}</Snippet>
 
-  <div class="ctas">
-    <a class="cta" href="/docs/install/">Install it — free</a>
-    <a class="cta secondary" href="/features/">See what it does</a>
+    <div class="ctas">
+      <a class="cta" href="/docs/install/">Install it — free</a>
+      <a class="cta secondary" href="/features/">See what it does</a>
+    </div>
+  </section>
+
+  <Shot
+    src="/shots/canvas.png"
+    alt="The visual canvas: a block tree on the left, the live page in the middle, and a generated properties panel on the right."
+    caption="The canvas edits the real page — same styles, same layout, no preview that disagrees with the site."
+    eager
+  />
+
+  <div class="feature">
+    <div>
+      <p class="eyebrow">Automations</p>
+      <h2>Say what should happen, then watch it happen</h2>
+      <p>
+        Confirm the booking when the deposit lands. Text the customer when it is confirmed.
+        Post enquiries to your chat at nine every morning.
+      </p>
+      <p>
+        Press <strong>Try it</strong> and every step that would touch the outside world tells
+        you what it <em>would</em> have done instead of doing it — and every real run is
+        listed afterwards, including the ones that failed and why.
+      </p>
+      <p><a href="/docs/automations/">How automations work →</a></p>
+    </div>
+    <Shot
+      src="/shots/automations.png"
+      alt="The automation builder: pipeline steps on the left, a generated panel for the selected step on the right, and past runs in the middle."
+      caption="Steps on the left, what each one needs on the right, what it would do in the middle."
+    />
   </div>
 
-  <h2>Install it in two files</h2>
-
-  <pre><code>mkdir my-site && cd my-site
-curl -O https://forinda-cms.dev/install/compose.yaml
-curl -o .env https://forinda-cms.dev/install/env.example
-docker compose up -d</code></pre>
-
-  <p>
-    No migration step, no setup command. The app migrates and provisions itself on boot, so
-    <code>up</code> reaches a working site rather than a 404 and an instruction — then your
-    dashboard is at <code>/admin</code>. <a href="/docs/install/">The full walkthrough</a>.
-  </p>
-
-  <h2>What that buys you</h2>
-
-  <div class="cards">
-    <div class="card">
-      <h3>Every change is reversible</h3>
-      <p>Each edit is stored with its inverse, so undo is a table lookup — whether it came from a
-        form, the CLI, or something automated.</p>
-    </div>
-    <div class="card">
-      <h3>Destructive changes ask first</h3>
-      <p>Removing a field that holds data is refused unless you confirm it, and the warning says
-        how many rows are affected.</p>
-    </div>
-    <div class="card">
-      <h3>Your data leaves whenever</h3>
-      <p>One command writes a plain <code>pg_dump</code> any Postgres can read. No export queue, no
-        account, no paywall.</p>
-    </div>
-    <div class="card">
-      <h3>SEO is structural</h3>
-      <p>Server-rendered pages, clean permalinks, a sitemap that updates itself, and an automatic
-        301 when a page moves.</p>
+  <div class="strip">
+    <div class="inner">
+      <div>
+        <h3>Every change is reversible</h3>
+        <p>Each edit is stored with its inverse, so undo is a table lookup — from a form, the
+          CLI, or something automated.</p>
+      </div>
+      <div>
+        <h3>Destructive changes ask first</h3>
+        <p>Removing a field that holds data is refused unless you confirm, and the warning
+          says how many rows it costs.</p>
+      </div>
+      <div>
+        <h3>Your data leaves whenever</h3>
+        <p>One command writes a plain <code>pg_dump</code> any Postgres can read. No export
+          queue, no account, no paywall.</p>
+      </div>
+      <div>
+        <h3>SEO is structural</h3>
+        <p>Server-rendered pages, clean permalinks, a sitemap that maintains itself, and a 301
+          when a page moves.</p>
+      </div>
     </div>
   </div>
 
-  <h2>Two ways in, one set of rules</h2>
+  <div class="prose">
+    <h2>Two ways in, one set of rules</h2>
 
-  <p>
-    Non-technical owners get forms and a plain-language diff before anything lands. Developers get
-    a spec directory under version control:
-  </p>
+    <p>
+      Non-technical owners get forms and a plain-language diff before anything lands.
+      Developers get a spec directory under version control:
+    </p>
 
-  <pre><code>fcms link https://my-site.example
+    <Snippet label="terminal">fcms link https://my-site.example
 fcms login
 fcms plan      # what would change, in words
-fcms apply     # destructive changes need --yes</code></pre>
+fcms apply     # destructive changes need --yes</Snippet>
 
-  <p>
-    Both go through the same validation, the same destructive gate, and the same history. There is
-    no privileged door.
-  </p>
+    <p>
+      Both go through the same validation, the same destructive gate and the same history.
+      There is no privileged door — and an agent driving the MCP server goes through it too.
+    </p>
 
-  <h2>Where it is</h2>
+    <h2>Where it is</h2>
 
-  <p>
-    Self-hostable and doing real work: the spec and the language, the renderer, the admin and its
-    visual canvas, the CLI, an MCP server, the assistant, and the install above. On top of that, a
-    business that takes bookings has the whole path — search by date or distance, a multi-step
-    journey, a deposit, automations that confirm and notify, and each visitor seeing their own
-    bookings and nobody else's.
-  </p>
+    <p>
+      Self-hostable and doing real work: the spec and the language, the renderer, the admin
+      and its canvas, the CLI, an MCP server, the assistant, and the install above. On top of
+      those, a business that takes bookings has the whole path — search by date or distance,
+      a multi-step journey, a deposit, automations that confirm and notify, and each visitor
+      seeing their own bookings and nobody else's.
+    </p>
 
-  <p>
-    What is <em>not</em> done, said plainly, because finding out later is worse: the M-Pesa and
-    messaging providers are written against their documented APIs and have never been run against a
-    live account — the product says so where you would use them, and taking payment at the counter
-    works today with no account at all. Plugins have a contract but no marketplace, and installing
-    one is a deploy rather than a button. There is no hosted service yet; this is software you run.
-  </p>
+    <div class="warn">
+      <p><strong>What is not done</strong>, because finding out later is worse:</p>
+      <ul>
+        <li>M-Pesa and the messaging providers are written against their documented APIs and
+          have <strong>never been run against a live account</strong>. The product says so
+          where you would use them, and taking payment at the counter works today with no
+          account at all.</li>
+        <li>Plugins have a contract but no marketplace: installing one is a dependency and a
+          deploy, reviewed, rather than a button.</li>
+        <li>There is no hosted service. This is software you run.</li>
+      </ul>
+    </div>
+
+    <div class="ctas">
+      <a class="cta" href="/docs/install/">Install it — free</a>
+      <a class="cta secondary" href="/docs/">Read the docs</a>
+    </div>
+  </div>
 </Page>

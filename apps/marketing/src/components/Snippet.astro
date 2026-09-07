@@ -1,0 +1,26 @@
+---
+/**
+ * A code block with a label and a copy button.
+ *
+ * The label matters more than it looks: a reader scanning a page needs to know
+ * whether a block is a shell command, a file, or something a server answered,
+ * before deciding to read it. The copy button is the one piece of JavaScript on
+ * this site, it is inline, and the block works without it.
+ */
+interface Props {
+  /** `bash`, `site.yaml`, `what it answers` — whatever tells a reader what this is. */
+  label: string
+  /** The text a copy button puts on the clipboard. Omit for blocks nobody copies. */
+  copy?: string
+}
+
+const { label, copy } = Astro.props
+---
+
+<div class="snippet">
+  <header>
+    <span>{label}</span>
+    {copy && <button class="copy" type="button" data-copy={copy}>Copy</button>}
+  </header>
+  <pre><slot /></pre>
+</div>

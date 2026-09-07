@@ -1,0 +1,24 @@
+---
+/**
+ * A screenshot of the actual product.
+ *
+ * Every image on this site is the running software, captured from it. A
+ * marketing site for a CMS with a visual editor that shows no pictures is
+ * asking to be taken on faith, and the whole argument here is that you do not
+ * have to.
+ */
+interface Props {
+  src: string
+  alt: string
+  caption?: string
+  /** Set for the image above the fold, which should not wait for lazy loading. */
+  eager?: boolean
+}
+
+const { src, alt, caption, eager } = Astro.props
+---
+
+<figure class="shot">
+  <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
