@@ -72,4 +72,9 @@ When generating or modifying code in this project, stay aligned with the v4 conv
 - **Thin entry file**: aggregate `modules`, `middlewares`, `plugins`, `adapters` in their own folders (`src/modules/index.ts`, `src/middleware/index.ts`, …) and pass them by name to `bootstrap()` — never inline the lists in `src/index.ts`.
 - **Refresh these files**: `kick g agents -f` regenerates `CLAUDE.md` at the project root and `.agents/AGENTS.md` + `.agents/GEMINI.md` + `.agents/COPILOT.md` + every `.agents/skills/<name>/SKILL.md` from the latest CLI templates. Hand-edited content is overwritten — keep customisation in `.agents/AGENTS.local.md` or per-skill `SKILL.local.md` files alongside.
 
+**`.agents/AGENTS.local.md`** holds the conventions this project learned from
+its own bugs — time belonging to the database, and verifying a fix against the
+symptom rather than the diff. It survives `kick g agents -f`; `AGENTS.md` does
+not.
+
 For everything else (controllers, services, modules, RequestContext API, generators, CLI commands, package additions, env wiring, troubleshooting) → `.agents/AGENTS.md`.

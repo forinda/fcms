@@ -452,6 +452,25 @@ suite("workflows", () => {
       expect(await use.enqueueDue(nightly("30 9 * * *"), new Date("2026-09-08T09:30:00Z"))).toBe(1);
     });
 
+    it("names the minute the way the database does", async () => {
+      // Two instances with skewed clocks either side of a boundary would
+      // otherwise compute different dedupe keys, both unique, and a schedule
+      // that should run once runs twice. Asked without a time, this reads the
+      // database's — so every instance agrees what to call the minute.
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
+      try {
+        const everyMinute = nightly("* * * * *");
+        expect(await use.enqueueDue(everyMinute)).toBe(1);
+
+        const [run] = await db.select().from(workflowRuns);
+        // Not the year 2000: the database said what time it is.
+        expect(run!.dedupe?.startsWith("2000")).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("queues nothing when it is not due", async () => {
       expect(await use.enqueueDue(nightly("30 9 * * *"), new Date("2026-09-07T09:31:00Z"))).toBe(0);
     });
