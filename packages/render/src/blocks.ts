@@ -408,6 +408,117 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       },
     }),
     define({
+      name: "account",
+      summary: "Sign in, register, or sign out — for the site's own visitors.",
+      attrs: ["mode", "submit"],
+      render: ({ className, attrs, request }) => {
+        const mode = String(attrs["mode"] ?? "signin");
+        const here = request?.path ?? "/";
+
+        if (mode === "signout") {
+          return el(
+            "form",
+            { class: `fx-account ${className}`, method: "post", action: "/account/signout" },
+            fragment(
+              el("input", { type: "hidden", name: "from", value: here }),
+              el("button", { type: "submit" }, raw(esc(String(attrs["submit"] ?? "Sign out")))),
+            ),
+          );
+        }
+
+        const registering = mode === "register";
+        const error = (() => {
+          const value = request?.params["account_error"];
+          return typeof value === "string" ? value : Array.isArray(value) ? value[0] : undefined;
+        })();
+
+        return el(
+          "form",
+          {
+            class: `fx-account ${className}`,
+            method: "post",
+            action: registering ? "/account/register" : "/account/signin",
+          },
+          fragment(
+            error ? el("p", { class: "fx-error", role: "alert" }, raw(esc(error))) : raw(""),
+            el("input", { type: "hidden", name: "from", value: here }),
+            registering
+              ? el(
+                  "div",
+                  { class: "fx-field" },
+                  fragment(
+                    el("label", { for: "account-name" }, raw(esc("Your name"))),
+                    el("input", { id: "account-name", name: "name", autocomplete: "name" }),
+                  ),
+                )
+              : raw(""),
+            el(
+              "div",
+              { class: "fx-field" },
+              fragment(
+                el("label", { for: "account-email" }, raw(esc("Email"))),
+                el("input", {
+                  id: "account-email",
+                  name: "email",
+                  type: "email",
+                  required: "required",
+                  autocomplete: "email",
+                }),
+              ),
+            ),
+            el(
+              "div",
+              { class: "fx-field" },
+              fragment(
+                el("label", { for: "account-password" }, raw(esc("Password"))),
+                el("input", {
+                  id: "account-password",
+                  name: "password",
+                  type: "password",
+                  required: "required",
+                  // The browser offers to make one on a register form and to
+                  // fill it on a sign-in form; the wrong hint gets both wrong.
+                  autocomplete: registering ? "new-password" : "current-password",
+                }),
+              ),
+            ),
+            el(
+              "button",
+              { type: "submit" },
+              raw(esc(String(attrs["submit"] ?? (registering ? "Create account" : "Sign in")))),
+            ),
+          ),
+        );
+      },
+    }),
+    define({
+      name: "save-button",
+      summary: "Lets a signed-in visitor keep this entry.",
+      attrs: ["for", "label", "saved"],
+      render: ({ className, attrs, scope, request }) => {
+        // The row being rendered — this block belongs inside a list's `item`,
+        // where `item.id` is the entry it is about.
+        const item = (scope as { item?: Record<string, unknown> }).item;
+        const id = item?.["id"];
+        if (id === undefined) return raw("");
+
+        return el(
+          "form",
+          { class: `fx-save ${className}`, method: "post", action: "/account/save" },
+          fragment(
+            el("input", { type: "hidden", name: "entry", value: String(id) }),
+            el("input", { type: "hidden", name: "type", value: String(attrs["for"] ?? "") }),
+            el("input", { type: "hidden", name: "from", value: request?.path ?? "/" }),
+            el(
+              "button",
+              { type: "submit", "aria-label": String(attrs["label"] ?? "Keep this") },
+              raw(esc(String(attrs["label"] ?? "♥"))),
+            ),
+          ),
+        );
+      },
+    }),
+    define({
       name: "divider",
       summary: "A horizontal rule.",
       attrs: [],

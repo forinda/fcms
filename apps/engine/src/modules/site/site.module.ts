@@ -13,6 +13,7 @@
  */
 import { defineModule } from "@forinda/kickjs";
 
+import { AccountController } from "./account.controller";
 import { SiteController } from "./site.controller";
 
 // Eagerly import every file in the module so decorators run and register in
@@ -28,7 +29,12 @@ export const SiteModule = defineModule({
     // The mount prefix lives here, not on `@Controller()` — v4 moved it, and
     // the decorator's path argument is OpenAPI metadata only.
     routes() {
-      return { path: "/", controller: SiteController };
+      // Accounts before the site's catch-all, which answers `/*path` and would
+      // otherwise swallow them.
+      return [
+        { path: "/", controller: AccountController },
+        { path: "/", controller: SiteController },
+      ];
     },
   }),
 });
