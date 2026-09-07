@@ -5,12 +5,15 @@
  * the access to it. Every method returns a typed row, so a caller can read
  * `patch.inverse[0]?.value` with the compiler checking it rather than casting.
  */
+import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { Classification, PatchOp } from "@forinda-cms/spec";
 
-import type { Db, Executor } from "../client.js";
-import type { Scope } from "../scope.js";
-import { specPatches, type SpecPatchRow } from "../schema/index.js";
+import { specPatches, type SpecPatchRow } from "@forinda-cms/db";
+import type { Db, Executor, Scope } from "@forinda-cms/db";
+
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface RecordPatch {
   readonly ops: PatchOp[];
@@ -22,10 +25,11 @@ export interface RecordPatch {
   readonly harness?: string | undefined;
 }
 
+@Repository({ scope: Lifetime.REQUEST })
 export class PatchRepository {
   constructor(
-    private readonly db: Db,
-    private readonly scope: Scope,
+    @Inject(DB) private readonly db: Db,
+    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {

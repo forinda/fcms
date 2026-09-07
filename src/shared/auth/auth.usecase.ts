@@ -5,10 +5,12 @@
  * testable without an HTTP server and cannot be quietly skipped by a second
  * caller.
  */
-import type { Db } from "../client.js";
-import type { OwnerRow } from "../schema/index.js";
-import { OwnerRepository } from "./owner.repository.js";
-import { hashPassword, verifyPassword } from "./passwords.js";
+import { Inject, Service } from "@forinda/kickjs";
+import type { Db, OwnerRow } from "@forinda-cms/db";
+import { OwnerRepository } from "@/shared/repositories/owner.repository";
+import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
+
+import { DB } from "@/shared/db";
 
 /**
  * A hash of a value nobody will supply.
@@ -44,10 +46,11 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
+@Service()
 export class LoginUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(db: Db) {
+  constructor(@Inject(DB) db: Db) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -68,10 +71,11 @@ export class LoginUseCase {
   }
 }
 
+@Service()
 export class LogoutUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(db: Db) {
+  constructor(@Inject(DB) db: Db) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -81,10 +85,11 @@ export class LogoutUseCase {
   }
 }
 
+@Service()
 export class AuthenticateUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(db: Db) {
+  constructor(@Inject(DB) db: Db) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -102,10 +107,11 @@ export class AuthenticateUseCase {
  * silently add a second account — and so a compromised env var cannot mint one
  * on an install that is already running.
  */
+@Service()
 export class ProvisionOwnerUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(db: Db) {
+  constructor(@Inject(DB) db: Db) {
     this.owners = new OwnerRepository(db);
   }
 

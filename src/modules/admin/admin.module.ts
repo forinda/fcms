@@ -7,21 +7,30 @@
  */
 import { defineModule } from "@forinda/kickjs";
 
-import { Actor } from "@/contributors";
 import { AdminController } from "./admin.controller";
+import { ContentController } from "./content.controller";
 
-import.meta.glob(["./**/*.controller.ts", "./**/*.service.ts"], { eager: true });
+// Eagerly import every file in the module so decorators run and register in
+// the container. Broad by design, the way `kick g module` generates it: a
+// suffix list only covers the names that existed when it was written, and the
+// `*.usecase.ts` files added later registered nothing — which surfaces as
+// `No provider for X` at the first request, not at boot.
+import.meta.glob(["./**/*.ts", "!./**/*.test.ts", "!./**/*.d.ts"], { eager: true });
 
 export const AdminModule = defineModule({
   name: "AdminModule",
   build: () => ({
-    contributors: () => [Actor.registration],
     routes() {
       // Its own prefix, not `/`. The site module answers `/*path`, so anything
       // sharing its mount is swallowed by the catch-all — and a prefix is the
       // honest expression of ADR 0008 §4's split anyway: one tree is public,
       // one denies, and the URL says which.
-      return { path: "/admin", controller: AdminController };
+      return [
+        // Auth first: its `/login` must not be shadowed by the content
+        // controller's `/:type` parameter route.
+        { path: "/admin", controller: AdminController },
+        { path: "/admin", controller: ContentController },
+      ];
     },
   }),
 });

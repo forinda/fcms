@@ -14,7 +14,7 @@
 import { defineHttpContextDecorator, HttpException } from "@forinda/kickjs";
 import type { OwnerRow } from "@forinda-cms/db";
 
-import { AUTHENTICATE } from "@/adapters/database.adapter";
+import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
 
 export const SESSION_COOKIE = "fcms_session";
 
@@ -46,10 +46,11 @@ export const Actor = defineHttpContextDecorator({
   // The public site has no caller to identify; the login form is how a caller
   // becomes one. Everything else needs a session.
   skipWhen: ["site.public", "auth.public"],
-  // The use-case, not the connection. This runs on every authenticated request,
-  // and a contributor that knows how to build its collaborators is a contributor
-  // nothing can substitute.
-  deps: { authenticate: AUTHENTICATE },
+  // The use-case class *is* the token — `@Service` registered it, so there is
+  // no separate token to keep in step with it. This runs on every authenticated
+  // request, and a contributor that builds its own collaborators is one nothing
+  // can substitute.
+  deps: { authenticate: AuthenticateUseCase },
   async resolve(ctx, { authenticate }): Promise<OwnerRow> {
     const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
     const raw = headers["cookie"];

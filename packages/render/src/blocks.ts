@@ -290,8 +290,14 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
   ].map((b) => [b.name, b]),
 );
 
-/** Map a declared field type onto an input type the browser validates natively. */
-function inputTypeFor(fieldType: string): string {
+/**
+ * Map a declared field type onto an input type the browser validates natively.
+ *
+ * Exported because the admin generates the same inputs from the same
+ * declarations. Two copies of this mapping would drift, and the drift would show
+ * up as a form that accepts what the schema rejects.
+ */
+export function inputTypeFor(fieldType: string): string {
   switch (fieldType) {
     case "email":
       return "email";

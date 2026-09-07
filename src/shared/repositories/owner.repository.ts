@@ -3,9 +3,9 @@
  */
 import { and, eq, gt, lt } from "drizzle-orm";
 
-import type { Db } from "../client.js";
-import { ownerSessions, owners, type OwnerRow, type OwnerSessionRow } from "../schema/index.js";
-import { hashToken, newSessionToken } from "./tokens.js";
+import { ownerSessions, owners, type OwnerRow, type OwnerSessionRow } from "@forinda-cms/db";
+import type { Db } from "@forinda-cms/db";
+import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 
 export class OwnerRepository {
   constructor(private readonly db: Db) {}

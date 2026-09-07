@@ -15,7 +15,13 @@
  *     site (health) is not forced to invent one. A route that needs a site says
  *     so by calling `ctx.require`.
  */
-import { defineHttpContextDecorator, getEnv } from "@forinda/kickjs";
+import {
+  createToken,
+  defineHttpContextDecorator,
+  getEnv,
+  type InjectionToken,
+} from "@forinda/kickjs";
+import type { Scope } from "@forinda-cms/db";
 
 export interface SiteScope {
   readonly orgId: string;
@@ -40,6 +46,19 @@ function pickHost(
   const value = Array.isArray(raw) ? raw[0] : raw;
   return value ?? null;
 }
+
+/**
+ * The scope this request is for — `{ orgId, siteId }`, and nothing else.
+ *
+ * Declared beside the contributor that resolves it, so the token and the value
+ * it depends on move together. It used to bind a `Site` facade holding every
+ * operation; the operations are now request-scoped use-cases that inject this,
+ * which is what lets each one be resolved, substituted and tested on its own.
+ *
+ * **Request-scoped**: a singleton would be a site chosen at boot, which is the
+ * shape multi-site has to break anyway (doc 03 §4).
+ */
+export const CURRENT_SCOPE: InjectionToken<Scope> = createToken("app/Site/scope");
 
 export const ResolveSite = defineHttpContextDecorator({
   key: "site",

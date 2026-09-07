@@ -27,10 +27,15 @@ function schemaForField(field: Field): z.ZodType {
   const base = ((): z.ZodType => {
     switch (field.type) {
       case "text":
-      case "richtext":
-        return "max" in field && typeof field.max === "number"
-          ? z.string().max(field.max)
-          : z.string();
+      case "richtext": {
+        // A required text field must reject `""`. An empty box is exactly what
+        // `required` exists to catch, and a bare `z.string()` accepts it — so
+        // saving an entry with every text field blank succeeded, and the form
+        // that submitted nothing got a 303.
+        let t = required ? z.string().min(1, "This is required.") : z.string();
+        if ("max" in field && typeof field.max === "number") t = t.max(field.max);
+        return t;
+      }
       case "email":
         return z.email();
       case "url":

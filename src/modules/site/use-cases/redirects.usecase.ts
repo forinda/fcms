@@ -7,17 +7,21 @@
  * data it reads — the first version duplicated the rule into the HTTP layer,
  * where the test had to reimplement it to check it.
  */
+import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { valueOf } from "@forinda-cms/spec";
 
-import type { Db } from "../client.js";
-import { PatchRepository, SpecRepository } from "../repositories/index.js";
-import type { Scope } from "../scope.js";
+import type { Db, Scope } from "@forinda-cms/db";
+import { PatchRepository, SpecRepository } from "@/shared/repositories";
 
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
+
+@Service({ scope: Lifetime.REQUEST })
 export class RedirectsUseCase {
   private readonly specs: SpecRepository;
   private readonly patches: PatchRepository;
 
-  constructor(db: Db, scope: Scope) {
+  constructor(@Inject(DB) db: Db, @Inject(CURRENT_SCOPE) scope: Scope) {
     this.specs = new SpecRepository(db, scope);
     this.patches = new PatchRepository(db, scope);
   }

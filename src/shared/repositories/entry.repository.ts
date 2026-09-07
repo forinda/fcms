@@ -6,21 +6,34 @@
  * Postgres enforces no types inside `jsonb`, which doc 03 §2 accepted as the
  * cost of not using EAV.
  */
+import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, eq, sql } from "drizzle-orm";
 import type { Entry } from "@forinda-cms/render";
 
-import type { Db } from "../client.js";
-import type { Scope } from "../scope.js";
-import { entries, type EntryRow } from "../schema/index.js";
+import { entries, type EntryRow } from "@forinda-cms/db";
+import type { Db, Scope } from "@forinda-cms/db";
 
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
+
+@Repository({ scope: Lifetime.REQUEST })
 export class EntryRepository {
   constructor(
-    private readonly db: Db,
-    private readonly scope: Scope,
+    @Inject(DB) private readonly db: Db,
+    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {
     return and(eq(entries.orgId, this.scope.orgId), eq(entries.siteId, this.scope.siteId));
+  }
+
+  async byId(id: string): Promise<EntryRow | null> {
+    const [row] = await this.db
+      .select()
+      .from(entries)
+      .where(and(this.scoped, eq(entries.id, id)))
+      .limit(1);
+    return row ?? null;
   }
 
   async rowsOfType(typeKey: string): Promise<EntryRow[]> {

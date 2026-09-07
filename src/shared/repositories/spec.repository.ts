@@ -6,17 +6,21 @@
  * had one class doing loading, diffing, destructive gating, migration and
  * history, which made every one of those untestable without the others.
  */
+import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, eq } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import type { Db, Executor } from "../client.js";
-import type { Scope } from "../scope.js";
-import { siteSpecs, type SiteSpecRow } from "../schema/index.js";
+import { siteSpecs, type SiteSpecRow } from "@forinda-cms/db";
+import type { Db, Executor, Scope } from "@forinda-cms/db";
 
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
+
+@Repository({ scope: Lifetime.REQUEST })
 export class SpecRepository {
   constructor(
-    private readonly db: Db,
-    private readonly scope: Scope,
+    @Inject(DB) private readonly db: Db,
+    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {
