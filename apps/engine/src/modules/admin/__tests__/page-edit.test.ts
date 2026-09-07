@@ -176,6 +176,65 @@ describe("adding and removing", () => {
   });
 });
 
+describe("editing text on the page", () => {
+  it("changes only the words, keeping the rest of the block", async () => {
+    const { edits, applied } = editor();
+    await edits.setText(spec, "home", [0], "First", INPUT);
+
+    // A double-click sends text and nothing else. Replacing the whole attribute
+    // set would drop a heading's `level` and a button's `to` — a data loss the
+    // editor would never mention.
+    expect(applied[0]!.pages[0]!.blocks[0]!.attrs).toEqual({ text: "First" });
+  });
+
+  it("writes to the attribute the block actually uses for its words", async () => {
+    const withButton = SiteSpec.parse({
+      ...spec,
+      pages: [
+        {
+          ...spec.pages[0]!,
+          blocks: [{ type: "button", attrs: { label: "Book", to: "/book" } }],
+        },
+      ],
+    });
+
+    const { edits, applied } = editor();
+    await edits.setText(withButton, "home", [0], "Book now", INPUT);
+
+    expect(applied[0]!.pages[0]!.blocks[0]!.attrs).toEqual({ label: "Book now", to: "/book" });
+  });
+});
+
+describe("dragging", () => {
+  it("moves a block several places in one edit", async () => {
+    // One patch, not five: dragging is a single decision and undo should treat
+    // it as one.
+    const { edits, applied } = editor();
+    await edits.reorder(spec, "home", [0], 2, INPUT);
+
+    expect(outline(applied[0]!)).toEqual([
+      "section",
+      "  text:Inside",
+      "heading:Three",
+      "heading:One",
+    ]);
+  });
+
+  it("clamps a drop past the end rather than losing the block", async () => {
+    const { edits, applied } = editor();
+    await edits.reorder(spec, "home", [0], 99, INPUT);
+    expect(outline(applied[0]!).at(-1)).toBe("heading:One");
+  });
+
+  it("does nothing when a block is dropped where it already is", async () => {
+    const { edits, applied } = editor();
+    expect((await edits.reorder(spec, "home", [1], 1, INPUT)).ok).toBe(true);
+    // Still applied — the caller asked — but the tree is unchanged, so the diff
+    // reports no change and no patch says "No visible change".
+    expect(outline(applied[0]!)).toEqual(outline(spec));
+  });
+});
+
 describe("the inspector's save", () => {
   it("replaces attributes rather than merging them", async () => {
     // The form submits every field it shows, so a merge would make clearing a

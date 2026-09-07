@@ -41,28 +41,50 @@ import { esc } from "./view";
  */
 const SCALE = ["", "none", "xs", "sm", "md", "lg", "xl"];
 
+/**
+ * The panel's sections, in the order someone works.
+ *
+ * Content first because it is why they opened the block; then where it sits,
+ * then how the words read, then how it looks. A flat list of fourteen selects
+ * is a list nobody scans — grouping is what makes "make this heading bigger"
+ * a two-second job instead of a search.
+ */
+type Group = "Content" | "Layout" | "Text" | "Appearance";
+
+const GROUPS: readonly Group[] = ["Content", "Layout", "Text", "Appearance"];
+
 interface Control {
   readonly label: string;
   readonly options: readonly string[];
   /** Layout blocks only — `gap` on a heading means nothing (ADR 0004). */
   readonly layoutOnly?: boolean;
-  readonly group: "Box" | "Surface" | "Type";
+  readonly group: Exclude<Group, "Content">;
 }
 
 const STYLE_CONTROLS: Record<string, Control> = {
-  padding: { label: "Padding", options: SCALE, group: "Box" },
-  gap: { label: "Gap between children", options: SCALE, layoutOnly: true, group: "Box" },
-  width: { label: "Width", options: ["", "full", "container", "narrow"], group: "Box" },
-  align: { label: "Align", options: ["", "start", "center", "end", "stretch"], group: "Box" },
-  justify: { label: "Justify", options: ["", "start", "center", "end", "between"], group: "Box" },
-  background: { label: "Background", options: [], group: "Surface" },
-  textColor: { label: "Text colour", options: [], group: "Surface" },
-  radius: { label: "Corner radius", options: SCALE, group: "Surface" },
-  border: { label: "Border", options: ["", "none", "hairline", "strong"], group: "Surface" },
-  shadow: { label: "Shadow", options: ["", "none", "sm", "md"], group: "Surface" },
-  textAlign: { label: "Text align", options: ["", "left", "center", "right"], group: "Type" },
-  fontSize: { label: "Text size", options: [], group: "Type" },
-  fontWeight: { label: "Weight", options: ["", "regular", "medium", "bold"], group: "Type" },
+  // Layout — where the block sits and how it holds its children.
+  width: { label: "Width", options: ["", "full", "container", "narrow"], group: "Layout" },
+  padding: { label: "Padding", options: SCALE, group: "Layout" },
+  gap: { label: "Gap between children", options: SCALE, layoutOnly: true, group: "Layout" },
+  align: { label: "Align", options: ["", "start", "center", "end", "stretch"], group: "Layout" },
+  justify: {
+    label: "Justify",
+    options: ["", "start", "center", "end", "between"],
+    group: "Layout",
+  },
+
+  // Text — everything about the words, together, because that is how someone
+  // asks for it: "make this bigger and centred" is one thought.
+  fontSize: { label: "Size", options: [], group: "Text" },
+  fontWeight: { label: "Weight", options: ["", "regular", "medium", "bold"], group: "Text" },
+  textAlign: { label: "Alignment", options: ["", "left", "center", "right"], group: "Text" },
+  textColor: { label: "Colour", options: [], group: "Text" },
+
+  // Appearance — the surface the block draws.
+  background: { label: "Background", options: [], group: "Appearance" },
+  radius: { label: "Corner radius", options: SCALE, group: "Appearance" },
+  border: { label: "Border", options: ["", "none", "hairline", "strong"], group: "Appearance" },
+  shadow: { label: "Shadow", options: ["", "none", "sm", "md"], group: "Appearance" },
 };
 
 export interface InspectorOptions {
@@ -112,25 +134,46 @@ export function inspector(options: InspectorOptions): string {
   const variants = type.variants ?? [];
   const style = (block.style ?? {}) as Record<string, unknown>;
 
-  const controls = Object.entries(STYLE_CONTROLS)
-    .filter(([, control]) => !control.layoutOnly || type.layout === true)
-    .map(([name, control]) => {
-      // A fixed enum where ADR 0004 gives one, otherwise this site's own tokens
-      // — so the colours offered are the theme's, not a guess at a palette.
-      const choices = control.options.length > 0 ? control.options : tokenOptions(name, options);
-      return select(`style__${name}`, control.label, choices, valueOf(style[name]));
-    })
+  const controls = (group: Group): string =>
+    Object.entries(STYLE_CONTROLS)
+      .filter(([, control]) => control.group === group)
+      .filter(([, control]) => !control.layoutOnly || type.layout === true)
+      .map(([name, control]) => {
+        // A fixed enum where ADR 0004 gives one, otherwise this site's own
+        // tokens — so the colours offered are the theme's, not a guess.
+        const choices = control.options.length > 0 ? control.options : tokenOptions(name, options);
+        return select(`style__${name}`, control.label, choices, valueOf(style[name]));
+      })
+      .join("\n");
+
+  const content = [
+    attrFields,
+    variants.length > 0
+      ? select("style__variant", "Variant", ["", ...variants], valueOf(style["variant"]))
+      : "",
+  ]
+    .filter((part) => part.trim() !== "")
     .join("\n");
+
+  const sections = GROUPS.map((group) => {
+    const body = group === "Content" ? content : controls(group);
+    // An empty group is not shown: a "Text" heading on a divider is noise that
+    // makes the real sections harder to find.
+    return body.trim() === ""
+      ? ""
+      : `<section class="group"><h4>${esc(group)}</h4>${body}</section>`;
+  }).join("\n");
 
   return `${error ? `<p class="error">${esc(error)}</p>` : ""}
 <form method="post" action="${esc(action)}" class="inspector">
   <input type="hidden" name="path" value="${esc(path.join("-"))}">
   <h3>${esc(type.name)}</h3>
   <p class="help">${esc(type.summary)}</p>
-  ${attrFields}
-  ${variants.length > 0 ? select("style__variant", "Variant", ["", ...variants], valueOf(style["variant"])) : ""}
-  ${controls}
-  <div class="actions"><button type="submit">Save</button></div>
+  ${sections}
+  <div class="actions">
+    <span class="help saved">Changes are saved as you make them.</span>
+    <button type="submit" class="link">Save now</button>
+  </div>
 </form>`;
 }
 

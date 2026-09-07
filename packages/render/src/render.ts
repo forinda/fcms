@@ -189,15 +189,33 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
 }
 
 /** Every route this spec answers, including one per entry for collection pages. */
+export interface RouteOptions {
+  /** Injected so derived types render deterministically in tests. */
+  readonly now?: Date;
+  /**
+   * Include pages marked `draft`.
+   *
+   * False everywhere except the admin's preview. `draft` has been in the schema
+   * since the first version and nothing read it, so an unpublished page was
+   * served to the public exactly like any other — the same defect entries had,
+   * one level up.
+   */
+  readonly drafts?: boolean;
+}
+
 export function routes(
   spec: SiteSpec,
   source: EntrySource,
-  now?: Date,
+  options: RouteOptions | Date = {},
 ): { path: string; page: Page; entry?: Entry }[] {
-  const resolved = withDerived(spec, source, now);
+  // A `Date` third argument is the old signature, kept working because the
+  // renderer's tests and the CLI both call it that way.
+  const settings: RouteOptions = options instanceof Date ? { now: options } : options;
+  const resolved = withDerived(spec, source, settings.now);
   const out: { path: string; page: Page; entry?: Entry }[] = [];
 
   for (const page of spec.pages) {
+    if (page.draft && settings.drafts !== true) continue;
     const bound = collectionType(page.collection);
     if (!bound) {
       out.push({ path: page.path, page });

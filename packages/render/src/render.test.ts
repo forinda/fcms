@@ -278,4 +278,22 @@ describe("determinism", () => {
       expect(Array.isArray(block.attrs), name).toBe(true);
     }
   });
+
+  it("keeps a draft page off the public site, and shows it in a preview", () => {
+    // `draft` sat in the schema from the first version and nothing read it, so
+    // an unpublished page was served exactly like a published one.
+    const withDraft = SiteSpec.parse({
+      ...spec,
+      pages: [
+        ...spec.pages,
+        { key: "secret", path: "/secret", title: "Secret", draft: true, blocks: [] },
+      ],
+    });
+
+    const paths = (drafts: boolean) =>
+      routes(withDraft, source, { drafts }).map((route) => route.path);
+
+    expect(paths(false)).not.toContain("/secret");
+    expect(paths(true)).toContain("/secret");
+  });
 });
