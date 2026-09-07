@@ -24,20 +24,62 @@ export interface WorkflowsConfig {
   readonly enabled?: boolean;
 }
 
+/**
+ * Which application owns the schedule, across module reloads.
+ *
+ * A closure-local flag cannot answer this. Under `kick dev` a reload replaces
+ * the module graph, and an interval created in the *previous* graph keeps its
+ * own copy of every variable in this file — it cannot see a newer application
+ * start, and it goes on calling code whose imports the reload has since
+ * replaced. That is what produced `migrateSpec is not a function` on a timer,
+ * repeating forever, from a file nobody was editing.
+ *
+ * `Symbol.for` puts the counter on the process rather than in a module, so a
+ * tick from a superseded graph can see that it has been superseded — and stops
+ * itself the moment it fires.
+ */
+const GENERATION = Symbol.for("forinda-cms.workflows.generation");
+
+function claim(): number {
+  const host = globalThis as unknown as Record<symbol, number | undefined>;
+  const mine = (host[GENERATION] ?? 0) + 1;
+  host[GENERATION] = mine;
+  return mine;
+}
+
+function owns(generation: number): boolean {
+  return (globalThis as unknown as Record<symbol, number | undefined>)[GENERATION] === generation;
+}
+
 export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
   name: "WorkflowsAdapter",
   defaults: { every: 15, enabled: true },
   build: (config) => {
     let timer: NodeJS.Timeout | undefined;
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = undefined;
+    };
 
     return {
       async afterStart() {
+        // Both halves matter: this clears the timer *this* module made, and the
+        // generation stops the ones an earlier module graph made.
+        stop();
+        const generation = claim();
         if (config.enabled === false || getEnv("NODE_ENV") === "test") return;
 
         const db = createDb(getEnv("DATABASE_URL"));
         const orgId = getEnv("ORG_ID");
 
         const tick = async () => {
+          // A tick that has been superseded does nothing, and takes its own
+          // timer with it.
+          if (!owns(generation)) {
+            clearInterval(started);
+            return;
+          }
+
           try {
             // Every site on this install, because a schedule belongs to a site
             // and nothing has made a request to tell us which one.
@@ -57,15 +99,20 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
           }
         };
 
-        timer = setInterval(tick, (config.every ?? 15) * 1000);
+        const started = setInterval(tick, (config.every ?? 15) * 1000);
         // Never the reason a process stays alive.
-        timer.unref();
+        started.unref();
+        timer = started;
+
         void tick();
       },
 
       async shutdown() {
-        if (timer) clearInterval(timer);
+        stop();
       },
     };
   },
 });
+
+/** Exported for the test that pins the generation rule. */
+export const workflowsTicker = { claim, owns, GENERATION };
