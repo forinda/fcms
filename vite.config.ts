@@ -25,6 +25,19 @@ export default defineConfig({
     rollupOptions: {
       input: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
       output: { format: 'esm' },
+      // Packages with native bindings cannot be bundled — the loader reaches
+      // for a `.node` binary that is not JavaScript, and the build fails with
+      // "stream did not contain valid UTF-8", which reads like a corrupt file
+      // rather than what it is.
+      //
+      // They stay external and are resolved from node_modules at runtime, which
+      // is why the Dockerfile ships a real dependency tree rather than only the
+      // bundle.
+      // Only the packages that genuinely cannot be bundled. `postgres` is pure
+      // JavaScript and bundles fine; externalising it as well meant the bundle
+      // reached for a package the root does not directly depend on, which pnpm's
+      // strict layout does not expose.
+      external: [/^@node-rs\//],
     },
   },
 })

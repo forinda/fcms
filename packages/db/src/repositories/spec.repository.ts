@@ -11,7 +11,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import type { Db, Executor } from "../client.js";
 import type { Scope } from "../scope.js";
-import { siteSpecs, type SiteSpecRow } from "../schema.js";
+import { siteSpecs, type SiteSpecRow } from "../schema/index.js";
 
 export class SpecRepository {
   constructor(

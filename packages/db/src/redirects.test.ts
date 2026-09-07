@@ -20,7 +20,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import { createDb } from "./client.js";
 import { Site } from "./site.js";
-import { organizations, siteSpecs, sites, specPatches } from "./schema.js";
+import { organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;

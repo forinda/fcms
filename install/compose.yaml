@@ -51,6 +51,9 @@ services:
       PORT: "3000"
       NODE_ENV: production
       SITE_NAME: ${SITE_NAME:-A new site}
+      OWNER_EMAIL: ${OWNER_EMAIL:-}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:-}
+      SECURE_COOKIES: ${SECURE_COOKIES:-false}
       SITE_TIMEZONE: ${SITE_TIMEZONE:-UTC}
       PUBLIC_URL: ${PUBLIC_URL:-}
       # Off unless something in front terminates TLS and sets the header.

@@ -19,7 +19,7 @@ import { renderPage, routes } from "@forinda-cms/render";
 import { closeAllPools, createDb } from "./client.js";
 import { Site } from "./site.js";
 import { DestructiveChangeError } from "./use-cases/index.js";
-import { entries, organizations, siteSpecs, sites, specPatches } from "./schema.js";
+import { entries, organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;

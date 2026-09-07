@@ -11,7 +11,7 @@ import type { Entry } from "@forinda-cms/render";
 
 import type { Db } from "../client.js";
 import type { Scope } from "../scope.js";
-import { entries, type EntryRow } from "../schema.js";
+import { entries, type EntryRow } from "../schema/index.js";
 
 export class EntryRepository {
   constructor(

@@ -8,7 +8,7 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
-import * as schema from "./schema.js";
+import * as schema from "./schema/index.js";
 
 const pools = new Map<string, postgres.Sql>();
 

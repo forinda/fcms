@@ -16,7 +16,14 @@
  */
 import { defineAdapter, getEnv } from "@forinda/kickjs";
 import { SiteSpec } from "@forinda-cms/spec";
-import { Site, createDb, organizations, runMigrations, sites } from "@forinda-cms/db";
+import {
+  ProvisionOwnerUseCase,
+  Site,
+  createDb,
+  organizations,
+  runMigrations,
+  sites,
+} from "@forinda-cms/db";
 
 export interface MigrateConfig {
   /** Set false to boot against a database someone else migrates. */
@@ -53,6 +60,16 @@ export const MigrateAdapter = defineAdapter<MigrateConfig>({
           timezone: getEnv("SITE_TIMEZONE"),
         })
         .onConflictDoNothing();
+
+      // The first owner, once. `ProvisionOwnerUseCase` refuses if any owner
+      // exists, so a restart with the env still set cannot add a second — and a
+      // leaked env var cannot mint one on a running install.
+      const email = getEnv("OWNER_EMAIL");
+      const password = getEnv("OWNER_PASSWORD");
+      if (email && password) {
+        const created = await new ProvisionOwnerUseCase(db).execute({ orgId, email, password });
+        if (created) console.log(`[install] created the first owner: ${created.email}`);
+      }
 
       const site = new Site(db, { orgId, siteId });
       if (!(await site.spec())) {
