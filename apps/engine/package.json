@@ -1,0 +1,49 @@
+{
+  "name": "@forinda-cms/engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The HTTP engine: the public site, the admin, and the management API.",
+  "type": "module",
+  "scripts": {
+    "dev": "kick dev",
+    "build": "kick build",
+    "start": "kick start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "schema": "tsx scripts/emit-schema.ts",
+    "schema:check": "tsx scripts/emit-schema.ts --check",
+    "seed:salon": "tsx scripts/seed-salon.ts"
+  },
+  "dependencies": {
+    "@forinda-cms/db": "workspace:*",
+    "@forinda-cms/lang": "workspace:*",
+    "@forinda-cms/render": "workspace:*",
+    "@forinda-cms/spec": "workspace:*",
+    "@forinda/kickjs": "catalog:",
+    "@forinda/kickjs-schema": "catalog:",
+    "@forinda/kickjs-swagger": "catalog:",
+    "@node-rs/argon2": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express": "catalog:",
+    "reflect-metadata": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@forinda-cms/spec": "workspace:*",
+    "@forinda/kickjs-cli": "catalog:",
+    "@forinda/kickjs-testing": "catalog:",
+    "@forinda/kickjs-vite": "catalog:",
+    "@swc/core": "catalog:",
+    "@types/express": "catalog:",
+    "@types/node": "catalog:",
+    "@types/supertest": "catalog:",
+    "supertest": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "unplugin-swc": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

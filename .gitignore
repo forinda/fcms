@@ -8,3 +8,5 @@ coverage/
 .DS_Store
 *.tsbuildinfo
 .kickjs/
+# Astro's generated types and build output.
+.astro/

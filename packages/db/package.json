@@ -19,15 +19,17 @@
   "dependencies": {
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
-    "@node-rs/argon2": "^2.2.0",
-    "drizzle-orm": "^0.45.2",
-    "postgres": "^3.4.9",
-    "uuidv7": "^1.2.1"
+    "@node-rs/argon2": "catalog:",
+    "drizzle-orm": "catalog:",
+    "postgres": "catalog:",
+    "uuidv7": "catalog:"
   },
   "devDependencies": {
-    "drizzle-kit": "^0.31.10",
-    "tsx": "^4.23.13",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

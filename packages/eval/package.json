@@ -16,14 +16,15 @@
     "eval:record": "tsx src/cli.ts --record"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.71.0",
+    "@anthropic-ai/sdk": "catalog:",
     "@forinda-cms/lang": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
-    "yaml": "^2.8.1"
+    "yaml": "catalog:"
   },
   "devDependencies": {
-    "tsx": "^4.23.13",
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

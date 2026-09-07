@@ -1,0 +1,85 @@
+---
+/**
+ * The shell every page uses.
+ *
+ * One layout, no framework, no client JavaScript. A marketing site that ships a
+ * hydration runtime to say what a product is has already lost the argument it
+ * is making about weight — and doc 14's reader is on a phone, on a network that
+ * charges by the megabyte.
+ */
+interface Props {
+  title: string
+  description: string
+}
+
+const { title, description } = Astro.props
+const canonical = new URL(Astro.url.pathname, Astro.site)
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <style is:global>
+      :root {
+        color-scheme: light dark;
+        --ink: #1c1917;
+        --muted: #57534e;
+        --line: #e7e5e4;
+        --brand: #1a7f5a;
+        --bg: #fafaf9;
+        --card: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --ink: #e7e5e4;
+          --muted: #a8a29e;
+          --line: #44403c;
+          --bg: #1c1917;
+          --card: #292524;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font: 17px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main { max-width: 46rem; margin: 0 auto; padding: 4rem 1.25rem 6rem; }
+      h1 { font-size: clamp(2rem, 6vw, 3rem); line-height: 1.1; margin: 0 0 1rem; letter-spacing: -0.02em; }
+      h2 { font-size: 1.35rem; margin: 3rem 0 0.75rem; letter-spacing: -0.01em; }
+      p { margin: 0 0 1rem; }
+      .lede { font-size: 1.2rem; color: var(--muted); }
+      a { color: var(--brand); }
+      code, pre { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 0.9em; }
+      pre {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 1rem;
+        overflow-x: auto;
+      }
+      .cards { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin-top: 1rem; }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem; }
+      .card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+      .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+      footer { border-top: 1px solid var(--line); margin-top: 4rem; padding-top: 1.5rem; color: var(--muted); font-size: 0.9rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <slot />
+      <footer>
+        <p>Self-hostable. Your database, your export, no account required.</p>
+      </footer>
+    </main>
+  </body>
+</html>

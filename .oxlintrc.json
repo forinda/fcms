@@ -13,7 +13,9 @@
     "dist",
     "node_modules",
     ".kickjs",
-    "examples"
+    "examples",
+    ".astro",
+    ".output"
   ],
   "rules": {
     "no-console": "off",

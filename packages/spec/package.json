@@ -15,10 +15,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }
