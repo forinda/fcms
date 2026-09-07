@@ -8,10 +8,10 @@ blocks:
     style: { padding: { y: xl, x: lg }, background: token:color.surface }
     children:
       - type: heading
-        attrs: { text: Good hair, booked in a minute., level: 1 }
+        attrs: { text: "Good hair, booked in a minute.", level: 1 }
         style: { fontSize: xl, textAlign: center, textColor: token:color.text }
       - type: text
-        attrs: { text: Riverside Salon, Kilimani. Open Tuesday to Sunday. }
+        attrs: { text: "Riverside Salon, Kilimani. Open Tuesday to Sunday." }
         style: { textAlign: center }
       - type: button
         attrs: { label: Book now, to: /book, variant: primary }

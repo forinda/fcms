@@ -1,0 +1,47 @@
+key: home
+path: /
+title: Riverside Rooms
+seo:
+  description: Four rooms on the lake at Naivasha. Pick your dates and see what is free.
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg }, background: token:color.surface }
+    children:
+      - type: heading
+        attrs: { text: Rooms on the lake., level: 1 }
+        style: { fontSize: xl, textAlign: center }
+      - type: text
+        attrs: { text: "Naivasha. Four rooms, a long veranda, and nothing to do." }
+        style: { textAlign: center }
+      # The two date inputs are named by the vacancy type's own declaration —
+      # the block writes them, not the author (ADR 0025 §6).
+      - type: filters
+        attrs: { for: vacancy, submit: See what is free }
+
+  - type: section
+    style: { padding: { y: xl, x: lg } }
+    children:
+      - type: results-count
+        attrs:
+          for: vacancy
+          one: "{{ results.total }} room free for those nights"
+          many: "{{ results.total }} rooms free for those nights"
+      - type: list
+        style: { cols: { base: 1, md: 2 }, gap: lg }
+        data:
+          from: vacancy
+          where:
+            - { field: sleeps, op: gte, value: { param: sleeps } }
+            - { field: view, op: eq, value: { param: view } }
+          sort: { param: sort, allow: [price, sleeps], default: price }
+          limit: 12
+        item:
+          - type: card
+            style: { padding: md, border: hairline, radius: md }
+            attrs:
+              heading: "{{ item.name }}"
+              body: "{{ item.blurb }}"
+              meta: "{{ item.total | currency }} for {{ item.nights }} nights · sleeps {{ item.sleeps }}"
+              to: "/rooms/{{ item.slug }}"
+      - type: pager
+        attrs: { for: vacancy }

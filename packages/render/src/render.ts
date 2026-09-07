@@ -240,7 +240,14 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
       result: runQueryPage(source, primaryQuery, walk.params),
     };
   }
-  const scope: Scope = { site: { name: spec.name }, ...(entry ? { entry } : {}) };
+  const scope: Scope = {
+    site: { name: spec.name },
+    // What the page's own query found, so any block can say it: a heading
+    // reading "{{ results.total }} rooms free" needs no bespoke placeholder,
+    // and `results-count`'s `{n}` stops being the only way to show a number.
+    ...(walk.primary ? { results: walk.primary.result } : {}),
+    ...(entry ? { entry } : {}),
+  };
 
   // The site layout wraps every page unless it opts out (ADR 0014, decision 2).
   // Header and footer indices are offset so their generated class names cannot

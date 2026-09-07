@@ -1,0 +1,29 @@
+key: booking
+label: Booking
+labelPlural: Bookings
+titleField: reference
+publishable: false
+submissions: anyone
+# The deposit is a night's rate, and the amount is read from the row the
+# platform just wrote — never from the form (ADR 0023 §3).
+payment:
+  amount: { field: deposit }
+  currency: KES
+  via: reception
+  label: Booking deposit
+fields:
+  - { name: reference, label: Reference, type: text, required: true, unique: true }
+  - { name: room, label: Room, type: reference, to: room, required: true }
+  - { name: checkIn, label: Check in, type: date, required: true, filterable: true }
+  - { name: checkOut, label: Check out, type: date, required: true }
+  - { name: guestName, label: Name, type: text, required: true }
+  - { name: guestEmail, label: Email, type: email, required: true }
+  - { name: deposit, label: Deposit, type: number }
+  - name: status
+    label: Status
+    type: state
+    initial: held
+    values: [held, confirmed, arrived, cancelled]
+    transitions:
+      - { from: held, to: [confirmed, cancelled] }
+      - { from: confirmed, to: [arrived, cancelled] }

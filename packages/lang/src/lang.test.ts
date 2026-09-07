@@ -288,3 +288,34 @@ describe("the derived file layout", () => {
     if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/site\.yaml/);
   });
 });
+
+describe("a sentence that lost its quotes", () => {
+  it("is caught rather than rendered truncated", () => {
+    // Valid YAML, and it means something nobody wrote: the flow scalar ends at
+    // the comma and the rest becomes a key with no value. `attrs` is an open
+    // record, so without this check it validates and the page silently shows
+    // half the sentence.
+    const r = parseSpec(
+      `${SITE.replace(
+        'attrs: { heading: "{{ item.name }}" }',
+        "attrs: { heading: Four rooms, a long veranda and nothing to do }",
+      )}`,
+    );
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.diagnostics[0]!.message).toMatch(/lost its quotes/);
+      expect(r.diagnostics[0]!.hint).toMatch(/Quote the value/);
+    }
+  });
+
+  it("leaves a properly quoted sentence alone", () => {
+    const r = parseSpec(
+      SITE.replace(
+        'attrs: { heading: "{{ item.name }}" }',
+        'attrs: { heading: "Four rooms, a long veranda and nothing to do" }',
+      ),
+    );
+    expect(r.ok).toBe(true);
+  });
+});

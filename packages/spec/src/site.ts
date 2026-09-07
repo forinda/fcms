@@ -148,20 +148,27 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     const occupied = types.get(d.occupied.type);
     const at = `/content/${t.key}/derived`;
 
-    if (!resource)
+    if (!resource) {
       issues.push({ path: `${at}/resource`, message: `unknown content type "${d.resource.type}"` });
-    else if (!resource.fields.some((f) => f.name === d.resource.hours)) {
+    } else if (d.kind === "schedule" && !resource.fields.some((f) => f.name === d.resource.hours)) {
       issues.push({
         path: `${at}/resource/hours`,
         message: `"${d.resource.type}" has no field "${d.resource.hours}"`,
       });
     }
 
-    if (!occupied)
+    if (!occupied) {
       issues.push({ path: `${at}/occupied`, message: `unknown content type "${d.occupied.type}"` });
-    else {
-      for (const key of ["resource", "start", "minutes"] as const) {
-        const field = d.occupied[key];
+    } else {
+      // Each kind reads its own fields off the occupying row: a schedule needs a
+      // start and a duration, a stay needs the two nights it spans.
+      const named =
+        d.kind === "schedule"
+          ? (["resource", "start", "minutes"] as const)
+          : (["resource", "from", "to"] as const);
+
+      for (const key of named) {
+        const field = (d.occupied as Record<string, string>)[key]!;
         if (!occupied.fields.some((f) => f.name === field)) {
           issues.push({
             path: `${at}/occupied/${key}`,
