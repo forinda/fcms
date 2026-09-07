@@ -238,4 +238,79 @@ describe("patches classify for the gate (doc 03)", () => {
       ]),
     ).toBe("destructive");
   });
+
+  it("refuses a request-driven filter on a field with no index", () => {
+    // ADR 0019 §1: a visitor-driven filter must be `filterable`, which is the
+    // flag the migration planner indexes on. Without it the page gets slower as
+    // the business grows — the bug an owner cannot see.
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Salon",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "service",
+          label: "Service",
+          fields: [{ name: "name", label: "Name", type: "text" }],
+        },
+      ],
+      pages: [
+        {
+          key: "find",
+          path: "/find",
+          title: "Find",
+          blocks: [
+            {
+              type: "list",
+              data: {
+                from: "service",
+                where: [{ field: "name", op: "contains", value: { param: "q" } }],
+                limit: 10,
+              },
+              item: [{ type: "text", attrs: { text: "{{ item.name }}" } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/not marked filterable/);
+  });
+
+  it("refuses a visitor-chosen sort naming a field the type does not have", () => {
+    const result = validateSpec({
+      specVersion: 1,
+      name: "Salon",
+      theme: { colors: { brand: "#000000" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "service",
+          label: "Service",
+          fields: [{ name: "name", label: "Name", type: "text" }],
+        },
+      ],
+      pages: [
+        {
+          key: "find",
+          path: "/find",
+          title: "Find",
+          blocks: [
+            {
+              type: "list",
+              data: {
+                from: "service",
+                sort: { param: "sort", allow: ["name", "rating"] },
+                limit: 10,
+              },
+              item: [{ type: "text", attrs: { text: "{{ item.name }}" } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.issues[0]!.message).toMatch(/"rating"/);
+  });
 });

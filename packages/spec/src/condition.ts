@@ -29,14 +29,37 @@ export const FieldPath = z
   .string()
   .regex(/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$/, "a dotted property path");
 
+/**
+ * A value the visitor supplies, named rather than interpolated.
+ *
+ * `{ param: city }` and not `{{ query.city }}`: a template string inside a
+ * comparison is an expression language arriving through the back door, and the
+ * whole argument above is that a condition must stay data (ADR 0019 §1).
+ *
+ * Absent parameter, no condition — a search page has to work before anything is
+ * typed. A `default` opts out of that where the filter is structural.
+ */
+export const ParamValue = z
+  .object({
+    param: z.string().regex(/^[a-z][a-z0-9_]*$/, "a lowercase parameter name"),
+    default: Scalar.optional(),
+  })
+  .strict();
+
+export type ParamValue = z.infer<typeof ParamValue>;
+
 export const Condition = z
   .object({
     field: FieldPath,
     op: Operator,
-    value: z.union([Scalar, z.array(Scalar)]),
+    value: z.union([Scalar, z.array(Scalar), ParamValue]),
   })
   .strict()
   .superRefine((c, ctx) => {
+    // A parameter's arity is unknown until the request arrives, so the check
+    // below cannot apply to it.
+    if (typeof c.value === "object" && c.value !== null && "param" in c.value) return;
+
     // `in` takes a list; everything else takes a scalar. Catching this here beats
     // a renderer silently matching nothing.
     const isList = Array.isArray(c.value);

@@ -57,7 +57,12 @@ export class SiteService {
    * @param preview Include draft pages. Only ever true for a signed-in owner
    *   looking at the canvas — a draft is unpublished, not merely unlinked.
    */
-  async render(path: string, canonicalBase?: string, preview = false): Promise<Rendered | null> {
+  async render(
+    path: string,
+    canonicalBase?: string,
+    preview = false,
+    params: Readonly<Record<string, string | readonly string[] | undefined>> = {},
+  ): Promise<Rendered | null> {
     const resolved = await this.resolve();
     if (!resolved) return null;
 
@@ -68,7 +73,13 @@ export class SiteService {
 
     return renderPage(
       match.page,
-      { spec: resolved.spec, source: resolved.source, ...(canonicalBase ? { canonicalBase } : {}) },
+      {
+        spec: resolved.spec,
+        source: resolved.source,
+        params,
+        path,
+        ...(canonicalBase ? { canonicalBase } : {}),
+      },
       match.entry as Entry | undefined,
     );
   }

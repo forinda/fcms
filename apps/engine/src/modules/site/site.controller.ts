@@ -104,7 +104,15 @@ export class SiteController {
     const url = (ctx.req.url ?? "/").split("?")[0] ?? "/";
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
 
-    const rendered = await this.sites.render(path, this.base(ctx), await this.mayPreview(ctx));
+    // The query string is what a visitor's filters, sort and page arrive in
+    // (ADR 0019). Passed as-is; the query resolver decides what any of it means,
+    // and ignores anything that does not name a filterable field.
+    const rendered = await this.sites.render(
+      path,
+      this.base(ctx),
+      await this.mayPreview(ctx),
+      ctx.query as Record<string, string | string[] | undefined>,
+    );
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");
       // The framework sends `X-Frame-Options: DENY` on everything, which is

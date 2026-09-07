@@ -6,11 +6,24 @@
  * nothing and a customer's site keeps serving whether or not anyone is paying
  * for inference (doc 13).
  */
-import { collectionType, type Block, type Page, type SiteSpec } from "@forinda-cms/spec";
+import {
+  collectionType,
+  type Block,
+  type Page,
+  type Query,
+  type SiteSpec,
+} from "@forinda-cms/spec";
 
 import { CORE_BLOCKS, unknownBlock, type BlockType } from "./blocks.js";
 import { blockCss, siteCss } from "./css.js";
-import { matches, runQuery, withDerived, type Entry, type EntrySource } from "./entries.js";
+import {
+  matches,
+  runQueryPage,
+  withDerived,
+  type Entry,
+  type EntrySource,
+  type QueryResult,
+} from "./entries.js";
 import { el, fragment, raw, render as toString, type Html } from "./html.js";
 import { buildJsonLd, head, pageSeo } from "./seo.js";
 import { DEFAULT_LOCALE, resolveAttrs, type FormatLocale, type Scope } from "./scope.js";
@@ -24,6 +37,15 @@ export interface RenderOptions {
   readonly locale?: FormatLocale;
   /** Injected so derived types (ADR 0014) render deterministically in tests. */
   readonly now?: Date;
+  /**
+   * What the visitor asked for (ADR 0019).
+   *
+   * Queries read it through `{ param }` conditions; the `filters`, `pager` and
+   * `results-count` blocks read it to show what is applied and where you are.
+   */
+  readonly params?: Readonly<Record<string, string | readonly string[] | undefined>>;
+  /** The path being rendered, so a filter form and a pager can post back to it. */
+  readonly path?: string;
 }
 
 /**
@@ -33,12 +55,33 @@ export interface RenderOptions {
  * produces byte-identical output — which is what lets `fcms dev` diff a page and
  * what makes the eventual static-render path cacheable.
  */
+/** The first query in the tree, depth-first — the one the page is *about*. */
+function firstQuery(blocks: readonly Block[]): Query | undefined {
+  for (const block of blocks) {
+    if (block.data && block.item) return block.data;
+    const nested = firstQuery(block.children ?? []);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
 function className(path: readonly number[]): string {
   return `b${path.join("-")}`;
 }
 
 interface Walk {
   readonly css: string[];
+  readonly params: Readonly<Record<string, string | readonly string[] | undefined>>;
+  readonly path: string;
+  /**
+   * The page's main query, run once before anything renders.
+   *
+   * A count or a filter form sits *above* the list it describes, so resolving
+   * this while walking the tree meant those blocks rendered before the query
+   * existed and reported nothing. One page, one primary query — which is also
+   * what a listing page means by "451 properties found".
+   */
+  primary?: { query: Query; result: QueryResult };
   readonly registry: Record<string, BlockType>;
   readonly source: EntrySource;
   readonly locale: FormatLocale;
@@ -58,7 +101,13 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
   // schema guarantees the two travel together, so neither branch is partial.
   let children: Html;
   if (block.data && block.item) {
-    const rows = runQuery(walk.source, block.data);
+    // Reuse the pre-computed result where this is the page's primary query, so
+    // it runs once rather than once per render pass.
+    const result =
+      walk.primary && walk.primary.query === block.data
+        ? walk.primary.result
+        : runQueryPage(walk.source, block.data, walk.params);
+    const rows = result.rows;
     children = fragment(
       ...rows.map((row, i) =>
         fragment(
@@ -86,6 +135,11 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
   return type.render({
     className: cls,
     attrs,
+    request: {
+      params: walk.params,
+      path: walk.path,
+      ...(walk.primary ? { result: walk.primary.result, query: walk.primary.query } : {}),
+    },
     children,
     scope,
     hasChildren: (block.children?.length ?? 0) > 0,
@@ -139,7 +193,24 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   // rows. A page showing a slot as free in one place and taken in another would
   // be worse than either.
   const source = withDerived(spec, options.source, options.now);
-  const walk: Walk = { css: [], registry, source, locale, spec };
+  const walk: Walk = {
+    css: [],
+    registry,
+    source,
+    locale,
+    spec,
+    params: options.params ?? {},
+    path: options.path ?? page.path,
+  };
+
+  // The page's own query, before any block renders — see `Walk.primary`.
+  const primaryQuery = firstQuery(page.blocks);
+  if (primaryQuery) {
+    walk.primary = {
+      query: primaryQuery,
+      result: runQueryPage(source, primaryQuery, walk.params),
+    };
+  }
   const scope: Scope = { site: { name: spec.name }, ...(entry ? { entry } : {}) };
 
   // The site layout wraps every page unless it opts out (ADR 0014, decision 2).
