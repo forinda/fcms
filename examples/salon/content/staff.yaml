@@ -1,0 +1,10 @@
+key: staff
+label: Stylist
+labelPlural: Stylists
+titleField: name
+fields:
+  - { name: slug, label: Slug, type: text, required: true, unique: true, filterable: true }
+  - { name: name, label: Name, type: text, required: true }
+  - { name: role, label: Role, type: text }
+  - { name: photo, label: Photo, type: asset, accept: image }
+  - { name: active, label: Taking bookings, type: boolean, filterable: true }

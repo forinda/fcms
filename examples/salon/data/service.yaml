@@ -1,0 +1,5 @@
+- { slug: cut, name: Cut and finish, blurb: Wash, cut and blow-dry., price: 1500, minutes: 45, deposit: 0, active: true }
+- { slug: colour, name: Full colour, blurb: Single-process colour with a gloss finish., price: 4500, minutes: 120, deposit: 1000, active: true }
+- { slug: braids, name: Braids, blurb: Knotless braids, any length., price: 3500, minutes: 180, deposit: 1000, active: true }
+- { slug: treatment, name: Deep treatment, blurb: Protein and moisture treatment., price: 1200, minutes: 40, deposit: 0, active: true }
+- { slug: relaxer, name: Relaxer, blurb: Discontinued., price: 2000, minutes: 60, deposit: 0, active: false }

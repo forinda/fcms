@@ -1,0 +1,41 @@
+# A real bookings business, hand-authored — ADR 0007 test 1.
+#
+# The question this file answers is not "does the renderer work" but "can A2
+# express a business a real owner would run" (ADR 0001). Anything that had to be
+# left out belongs on the list ADR 0007 asks for.
+specVersion: 1
+name: Riverside Salon
+theme:
+  colors:
+    brand: "#1a7f5a"
+    accent: "#c2410c"
+    surface: "#f7f5f2"
+    text: "#1c1917"
+    border: "#e7e5e4"
+    background: "#ffffff"
+  fonts:
+    body: Inter
+    heading: Fraunces
+  typeScale:
+    sm: 0.875rem
+    md: 1rem
+    lg: 1.5rem
+    xl: 2.5rem
+  radius:
+    sm: 4px
+    md: 8px
+    lg: 16px
+access: {}
+wiring:
+  - key: mpesa
+    kind: payment.mpesa
+    label: M-Pesa
+    config: { shortcode: "174379", accountRef: RIVERSIDE }
+    secrets:
+      consumerKey: secret:MPESA_CONSUMER_KEY
+      consumerSecret: secret:MPESA_CONSUMER_SECRET
+  - key: notify
+    kind: sms
+    config: { sender: RIVERSIDE }
+    secrets:
+      apiKey: secret:AT_API_KEY
