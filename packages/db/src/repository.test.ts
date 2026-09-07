@@ -17,8 +17,8 @@ import { SiteSpec } from "@forinda-cms/spec";
 import { renderPage, routes } from "@forinda-cms/render";
 
 import { closeAllPools, createDb } from "./client.js";
-import { loadEntrySource } from "./entries.js";
-import { DestructiveChangeError, SiteRepository } from "./repository.js";
+import { Site } from "./site.js";
+import { DestructiveChangeError } from "./use-cases/index.js";
 import { entries, organizations, siteSpecs, sites, specPatches } from "./schema.js";
 
 const url = process.env["DATABASE_URL"];
@@ -71,7 +71,7 @@ const withoutBlurb = SiteSpec.parse({
 });
 
 suite("SiteRepository", () => {
-  const repo = () => new SiteRepository(db, { orgId: ORG, siteId: SITE });
+  const repo = () => new Site(db, { orgId: ORG, siteId: SITE });
 
   beforeEach(async () => {
     await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
@@ -94,7 +94,7 @@ suite("SiteRepository", () => {
   describe("the patch spine (doc 03)", () => {
     it("stores a spec and reads it back parsed, not cast", async () => {
       await repo().applySpec(spec, { actor: "test", source: "cli" });
-      const loaded = await repo().loadSpec();
+      const loaded = await repo().spec();
       // Parsed on the way out, so a document written by an older version cannot
       // reach the renderer unvalidated.
       expect(loaded).toEqual(spec);
@@ -120,11 +120,11 @@ suite("SiteRepository", () => {
     it("undoes the last change and leaves the history intact", async () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
       await repo().applySpec({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
-      expect((await repo().loadSpec())!.name).toBe("Renamed");
+      expect((await repo().spec())!.name).toBe("Renamed");
 
-      const undone = await repo().undo("a");
+      const undone = await repo().undo();
       expect(undone!.seq).toBe(2);
-      expect((await repo().loadSpec())!.name).toBe("Riverside Salon");
+      expect((await repo().spec())!.name).toBe("Riverside Salon");
 
       // Append-only: "what happened to my site last Tuesday" survives an undo.
       const history = await repo().history();
@@ -134,8 +134,8 @@ suite("SiteRepository", () => {
 
     it("undoes back to nothing when the first patch is reverted", async () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
-      await repo().undo("a");
-      expect(await repo().loadSpec()).toBeUndefined();
+      await repo().undo();
+      expect(await repo().spec()).toBeNull();
     });
   });
 
@@ -146,7 +146,7 @@ suite("SiteRepository", () => {
       await expect(
         repo().applySpec(withoutBlurb, { actor: "a", source: "chat" }),
       ).rejects.toBeInstanceOf(DestructiveChangeError);
-      expect((await repo().loadSpec())!.content[0]!.fields.length).toBe(3);
+      expect((await repo().spec())!.content[0]!.fields.length).toBe(3);
     });
 
     it("names what would be lost, and how much", async () => {
@@ -183,7 +183,7 @@ suite("SiteRepository", () => {
         allowDestructive: true,
       });
       expect(changes.some((c) => c.classification === "destructive")).toBe(true);
-      expect((await repo().loadSpec())!.content[0]!.fields.length).toBe(2);
+      expect((await repo().spec())!.content[0]!.fields.length).toBe(2);
     });
 
     it("marks the stored patch destructive so history reads honestly", async () => {
@@ -196,8 +196,8 @@ suite("SiteRepository", () => {
   describe("scoping (ADR 0002 seam 1)", () => {
     it("never reads another site's spec", async () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
-      const other = new SiteRepository(db, { orgId: ORG, siteId: OTHER_SITE });
-      expect(await other.loadSpec()).toBeUndefined();
+      const other = new Site(db, { orgId: ORG, siteId: OTHER_SITE });
+      expect(await other.spec()).toBeNull();
     });
 
     it("never reads another site's entries", async () => {
@@ -219,14 +219,14 @@ suite("SiteRepository", () => {
           data: { name: "Theirs" },
         },
       ]);
-      const rows = await repo().allEntries("service");
+      const rows = await repo().entries.allOfType("service");
       expect(rows.map((r) => r["name"])).toEqual(["Mine"]);
     });
 
     it("never reads another org's data even at the same site id", async () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
-      const wrongOrg = new SiteRepository(db, { orgId: "org_other", siteId: SITE });
-      expect(await wrongOrg.loadSpec()).toBeUndefined();
+      const wrongOrg = new Site(db, { orgId: "org_other", siteId: SITE });
+      expect(await wrongOrg.spec()).toBeNull();
     });
   });
 
@@ -244,8 +244,8 @@ suite("SiteRepository", () => {
         },
       ]);
 
-      const loaded = (await repo().loadSpec())!;
-      const source = await loadEntrySource(repo(), ["service"]);
+      const loaded = (await repo().spec())!;
+      const source = await repo().entrySource(["service"]);
 
       // The renderer cannot tell these rows came from Postgres rather than from
       // `data/*.yaml` — which is the entire point of drawing the seam in 0a.

@@ -54,3 +54,17 @@ export type Patch = z.infer<typeof Patch>;
 export function classify(ops: readonly PatchOp[]): Classification {
   return ops.some((o) => o.op === "remove" || o.op === "move") ? "destructive" : "additive";
 }
+
+/**
+ * The value a `set` or `insert` carries, or `null` for the ops that carry none.
+ *
+ * `PatchOp` is a discriminated union and `remove`/`move` have no `value`, so
+ * reading `ops[0].value` does not typecheck. That is the type system doing its
+ * job — the first version of the database layer cast the column to `unknown[]`
+ * and lost the distinction, which meant an inverse built from a `remove` would
+ * have read as `undefined` at runtime with nothing to catch it.
+ */
+export function valueOf(op: PatchOp | undefined): unknown {
+  if (!op) return null;
+  return op.op === "set" || op.op === "insert" ? op.value : null;
+}

@@ -8,6 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@forinda-cms/db':
+        specifier: workspace:*
+        version: link:packages/db
+      '@forinda-cms/lang':
+        specifier: workspace:*
+        version: link:packages/lang
+      '@forinda-cms/render':
+        specifier: workspace:*
+        version: link:packages/render
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:packages/spec
       '@forinda/kickjs':
         specifier: ^8.3.1
         version: 8.3.1(dotenv@17.4.2)(express@5.2.1)(serve-static@2.2.1)(zod@4.5.4)
@@ -26,13 +38,13 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
+      yaml:
+        specifier: ^2.8.1
+        version: 2.9.0
       zod:
         specifier: ^4.3.6
         version: 4.5.4
     devDependencies:
-      '@forinda-cms/spec':
-        specifier: workspace:*
-        version: link:packages/spec
       '@forinda/kickjs-cli':
         specifier: ^8.1.5
         version: 8.1.5(dotenv@17.4.2)(express@5.2.1)(serve-static@2.2.1)(typescript@7.0.2)(zod@4.5.4)

@@ -1,11 +1,27 @@
 import "reflect-metadata";
-// Side-effect import — registers the extended env schema with kickjs
-// **before** any controller / service / @Value gets resolved. Without
-// this line ConfigService.get('YOUR_KEY') returns undefined because the
-// cached schema would still be the base shape. See guide/configuration.
+// Side-effect import, and it must come first: it registers the env schema
+// before any `@Value` or `ConfigService.get` resolves. Without it those return
+// undefined and Zod's coercion and defaults are silently skipped.
 import "./config";
 import { bootstrap, expressRuntime } from "@forinda/kickjs";
+
 import { modules } from "./modules";
 
-// Export the app for the Vite plugin (dev mode)
-export const app = await bootstrap({ modules, runtime: expressRuntime() });
+/**
+ * A website, not an API.
+ *
+ * KickJS defaults to mounting routes at `/{apiPrefix}/v{version}/{path}` —
+ * sensible for the API it is usually used to build, and wrong here: a public
+ * site cannot live under `/api/v1`, and neither can `robots.txt` or
+ * `sitemap.xml`, which crawlers only ever look for at the root.
+ *
+ * So both are switched off. A future admin or MCP surface can opt *into*
+ * versioning per module, which is the right way round — the thing with an
+ * external contract versions itself, the public pages do not.
+ */
+export const app = await bootstrap({
+  modules,
+  runtime: expressRuntime(),
+  apiPrefix: "",
+  defaultVersion: false,
+});

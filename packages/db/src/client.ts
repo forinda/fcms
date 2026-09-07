@@ -27,6 +27,19 @@ export function createDb(url: string) {
 
 export type Db = ReturnType<typeof createDb>;
 
+/**
+ * A database *or* a transaction.
+ *
+ * Drizzle's transaction callback receives a `PgTransaction`, which is not a
+ * `Db` — it has no `$client`. Repositories that accept an optional `tx` were
+ * casting it back with `as Db`, which is a lie the compiler was talked out of
+ * rather than a type.
+ *
+ * Derived from `transaction`'s own callback signature, so it stays correct if
+ * Drizzle changes shape, and nothing has to cast.
+ */
+export type Executor = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
+
 /** For tests and graceful shutdown. */
 export async function closeAllPools(): Promise<void> {
   const open = [...pools.values()];

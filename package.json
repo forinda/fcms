@@ -17,12 +17,17 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test"
   },
   "dependencies": {
+    "@forinda-cms/db": "workspace:*",
+    "@forinda-cms/lang": "workspace:*",
+    "@forinda-cms/render": "workspace:*",
+    "@forinda-cms/spec": "workspace:*",
     "@forinda/kickjs": "^8.3.1",
     "@forinda/kickjs-schema": "^0.1.4",
     "@forinda/kickjs-swagger": "^7.2.1",
     "dotenv": "^17.3.1",
     "express": "^5.1.0",
     "reflect-metadata": "^0.2.2",
+    "yaml": "^2.8.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

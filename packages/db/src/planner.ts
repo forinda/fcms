@@ -27,6 +27,8 @@
  * field definition.
  */
 import { sql } from "drizzle-orm";
+
+import type { Executor } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
 import type { Classification } from "@forinda-cms/spec";
@@ -77,7 +79,15 @@ function indexExpression(field: Field): string {
       return `(${json})::boolean`;
     case "date":
     case "datetime":
-      return `(${json})::timestamptz`;
+      // Text, deliberately. `::timestamptz` is **not IMMUTABLE** — it depends on
+      // the session's TimeZone — so Postgres refuses it in an index expression
+      // (42P17). ISO-8601 sorts lexicographically in the same order it sorts
+      // chronologically, so plain text gives correct ordering for free.
+      //
+      // The caveat: that holds only while values share a format and offset.
+      // Timestamps must therefore be normalised to UTC on write, which they
+      // should be regardless — the same gap ADR 0014 recorded for `schedule`.
+      return json;
     default:
       return json;
   }
@@ -115,6 +125,11 @@ export function planMigration(
     `site_id = '${siteId}' AND type_key = '${assertSafe(typeKey, "content type key")}'`;
 
   for (const [typeKey, type] of afterTypes) {
+    // A derived type has no stored rows (ADR 0014) — its entries are computed on
+    // demand — so indexing it is not merely wasteful, it is indexing a table
+    // that will never contain the data. Skipped entirely.
+    if (type.derived) continue;
+
     const wasFields = fieldsOf(beforeTypes.get(typeKey));
     const nowFields = fieldsOf(type);
 
@@ -182,7 +197,7 @@ export function planMigration(
   }
 
   for (const [typeKey, type] of beforeTypes) {
-    if (afterTypes.has(typeKey)) continue;
+    if (afterTypes.has(typeKey) || type.derived) continue;
     for (const field of type.fields) {
       if (!filterable(field)) continue;
       steps.push({
@@ -207,10 +222,6 @@ export function planMigration(
   );
 }
 
-export interface ExecutorLike {
-  execute(query: ReturnType<typeof sql.raw>): Promise<unknown>;
-}
-
 /**
  * Run a plan.
  *
@@ -219,7 +230,7 @@ export interface ExecutorLike {
  * declined a deletion should still get their new index.
  */
 export async function runMigration(
-  tx: ExecutorLike,
+  tx: Executor,
   steps: readonly MigrationStep[],
   options: { allowDestructive?: boolean } = {},
 ): Promise<{ applied: MigrationStep[]; skipped: MigrationStep[] }> {

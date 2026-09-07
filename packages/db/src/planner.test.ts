@@ -14,7 +14,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 import { closeAllPools, createDb } from "./client.js";
 import { indexName, planMigration, runMigration } from "./planner.js";
 import { entries, organizations, siteSpecs, sites, specPatches } from "./schema.js";
-import { SiteRepository } from "./repository.js";
+import { Site } from "./site.js";
 
 const SITE = "site_planner";
 const ORG = "org_planner";
@@ -112,7 +112,7 @@ const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
 
 suite("executing a plan (needs a database)", () => {
-  const repo = () => new SiteRepository(db, { orgId: ORG, siteId: SITE });
+  const repo = () => new Site(db, { orgId: ORG, siteId: SITE });
 
   const reset = async () => {
     await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
