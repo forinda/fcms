@@ -17,8 +17,8 @@ a spec is worth nothing until the spec renders a site a real business would use.
 
 ```bash
 mkdir my-site && cd my-site
-curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/compose.yaml
-curl -o .env https://raw.githubusercontent.com/forinda/forinda-cms/main/install/.env.example
+curl -O https://forinda-cms.dev/install/compose.yaml
+curl -o .env https://forinda-cms.dev/install/env.example
 # edit .env — POSTGRES_PASSWORD, OWNER_EMAIL, OWNER_PASSWORD
 docker compose up -d
 ```
