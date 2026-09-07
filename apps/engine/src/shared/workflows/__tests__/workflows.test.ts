@@ -121,6 +121,27 @@ suite("workflows", () => {
     });
   });
 
+  describe("when a run is due", () => {
+    it("is decided by the database's clock, not this process's", async () => {
+      // The CI failure this fixes: `runAt` is stamped by the database on
+      // insert, so comparing it against a `Date` from here means two clocks
+      // decide, and a database a few milliseconds ahead makes a row that was
+      // just enqueued invisible. Locally both clocks are the same one.
+      const pipeline = spec([{ action: "entry.transition", params: { to: "confirmed" } }]);
+      await use.enqueue(pipeline, event());
+
+      // The whole process five seconds behind the database — `shouldAdvanceTime`
+      // so awaited work still runs.
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.setSystemTime(new Date(Date.now() - 5_000));
+      try {
+        expect(await use.runDue(pipeline)).toHaveLength(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("running", () => {
     it("queues on the event and runs on the tick, not in between", async () => {
       const posted: string[] = [];

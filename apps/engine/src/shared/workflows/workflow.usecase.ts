@@ -175,7 +175,13 @@ export class WorkflowUseCase {
           and(
             eq(workflowRuns.siteId, this.scope.siteId),
             eq(workflowRuns.status, "pending"),
-            lte(workflowRuns.runAt, new Date()),
+            // The database's clock, not this process's. `runAt` is stamped by
+            // `defaultNow()` on insert, so comparing it against a `Date` from
+            // here means two clocks decide whether a run is due — and a
+            // database a few milliseconds ahead makes a row that was just
+            // enqueued invisible. It passed locally, where both clocks are the
+            // same one, and failed in CI, where they are not.
+            lte(workflowRuns.runAt, sql`now()`),
           ),
         )
         .orderBy(workflowRuns.runAt)
@@ -307,7 +313,10 @@ export class WorkflowUseCase {
         attempts,
         lastError: error,
         detail: { steps },
-        runAt: new Date(Date.now() + wait * 1000),
+        // Also the database's clock, for the same reason the claim uses it:
+        // one clock decides when a run is due, and it is the one that stamped
+        // the row.
+        runAt: sql`now() + make_interval(secs => ${wait})`,
         updatedAt: new Date(),
       })
       .where(eq(workflowRuns.id, run.id))
