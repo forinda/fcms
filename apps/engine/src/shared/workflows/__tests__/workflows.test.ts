@@ -238,6 +238,118 @@ suite("workflows", () => {
     });
   });
 
+  describe("a pipeline", () => {
+    const piped = (steps: unknown[], wiring: unknown[] = []) =>
+      SiteSpec.parse({
+        ...spec([{ action: "webhook.post", params: { to: "crm" } }]),
+        wiring: [
+          { key: "crm", kind: "webhook", config: { url: "https://crm.example/hook" } },
+          { key: "billing", kind: "api", config: { url: "https://billing.example" } },
+          ...wiring,
+        ],
+        logic: [{ key: "on-booking", trigger: { on: "entry.created", type: "booking" }, steps }],
+      });
+
+    it("passes what one step produced to the next", async () => {
+      const posted: unknown[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (url: string, init?: { body?: string }) => {
+          posted.push({ url, body: init?.body });
+          return { ok: true, status: 200, text: async () => JSON.stringify({ id: "cus_42" }) };
+        }),
+      );
+
+      const pipeline = piped([
+        { key: "customer", action: "http.request", params: { to: "billing", path: "/customers" } },
+        { action: "webhook.post", params: { to: "crm", note: "{{ steps.customer.body.id }}" } },
+      ]);
+
+      await use.enqueue(pipeline, event());
+      const [run] = await use.runDue(pipeline);
+
+      expect(run!.status).toBe("done");
+      expect(run!.detail).toMatchObject({
+        steps: [
+          "customer: called GET https://billing.example/customers (200)",
+          "webhook.post: posted to crm (200)",
+        ],
+      });
+    });
+
+    it("resolves a parameter against the entry that triggered it", async () => {
+      let sent: Record<string, unknown> = {};
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_url: string, init?: { body?: string }) => {
+          sent = JSON.parse(init?.body ?? "{}") as Record<string, unknown>;
+          return { ok: true, status: 200, text: async () => "" };
+        }),
+      );
+
+      const pipeline = piped([
+        {
+          key: "call",
+          action: "http.request",
+          params: { to: "billing", path: "/x", method: "POST", body: "{{ entry.customerName }}" },
+        },
+      ]);
+
+      await use.enqueue(pipeline, event());
+      await use.runDue(pipeline);
+      expect(sent).toEqual({});
+      // The body is the resolved template, sent as-is.
+      expect(vi.mocked(fetch).mock.calls[0]![1]).toMatchObject({ body: "Amina" });
+    });
+
+    it("refuses to call an address the integration does not own", async () => {
+      const pipeline = piped(
+        [{ key: "call", action: "http.request", params: { to: "internal", path: "/" } }],
+        [{ key: "internal", kind: "api", config: { url: "http://169.254.169.254" } }],
+      );
+
+      await use.enqueue(pipeline, event());
+      const [run] = await use.runDue(pipeline);
+      expect(run!.lastError).toMatch(/no address this may call/);
+    });
+  });
+
+  describe("trying one without doing it", () => {
+    it("reports what each step would have done, and touches nothing", async () => {
+      const fetched = vi.fn();
+      vi.stubGlobal("fetch", fetched);
+
+      const pipeline = SiteSpec.parse({
+        ...spec([{ action: "webhook.post", params: { to: "crm" } }]),
+        logic: [
+          {
+            key: "on-booking",
+            trigger: { on: "entry.created", type: "booking" },
+            steps: [
+              { action: "entry.transition", params: { to: "confirmed" } },
+              { action: "webhook.post", params: { to: "crm" } },
+            ],
+          },
+        ],
+      });
+
+      const run = await use.test(pipeline, "on-booking", entryId);
+
+      expect(run!.status).toBe("done");
+      expect(run!.detail).toMatchObject({
+        test: true,
+        steps: [
+          "entry.transition: would have moved from pending to confirmed",
+          "webhook.post: would have posted to crm",
+        ],
+      });
+      // Nothing left the building, and the row did not move.
+      expect(fetched).not.toHaveBeenCalled();
+      const [row] = await db.select().from(entries).where(eq(entries.id, entryId));
+      expect((row!.data as Record<string, unknown>)["status"]).toBe("pending");
+    });
+  });
+
   describe("schedules", () => {
     const nightly = (cron: string) =>
       spec([{ action: "webhook.post", params: { to: "crm" } }], { on: "schedule", cron });

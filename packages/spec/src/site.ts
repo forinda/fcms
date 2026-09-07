@@ -443,6 +443,24 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
         }
       }
 
+      if (step.action === "http.request") {
+        const to = step.params?.["to"];
+        const integration = typeof to === "string" ? integrations.get(to) : undefined;
+        if (typeof to !== "string") {
+          issues.push({
+            path: `${at}/params/to`,
+            message: "needs `to`, naming an api integration",
+          });
+        } else if (!integration) {
+          issues.push({ path: `${at}/params/to`, message: `unknown integration "${to}"` });
+        } else if (integration.kind !== "api") {
+          issues.push({
+            path: `${at}/params/to`,
+            message: `"${to}" is a ${integration.kind} integration, which is not something to call`,
+          });
+        }
+      }
+
       if (step.action === "entry.transition") {
         const to = step.params?.["to"];
         if (typeof to !== "string") {
@@ -461,6 +479,29 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
           });
         }
       }
+    });
+  }
+
+  // A step reading an output no earlier step produces (ADR 0029 §2).
+  //
+  // `{{ steps.customer.body.id }}` with no step keyed `customer` before it
+  // resolves to nothing, and the automation runs with a hole in it — the
+  // failure this whole file exists to catch.
+  for (const w of spec.logic) {
+    const produced = new Set<string>();
+    w.steps.forEach((step, i) => {
+      for (const value of Object.values(step.params ?? {})) {
+        if (typeof value !== "string") continue;
+        for (const [, named] of value.matchAll(/\{\{\s*steps\.([a-z][a-z0-9-]*)/g)) {
+          if (!produced.has(named!)) {
+            issues.push({
+              path: `/logic/${w.key}/steps/${i}/params`,
+              message: `reads "steps.${named}", which no earlier step produces`,
+            });
+          }
+        }
+      }
+      if (step.key) produced.add(step.key);
     });
   }
 

@@ -29,6 +29,13 @@ export const ACTIONS = [
   "entry.transition",
   /** Post the trigger's entry to a `webhook` integration. */
   "webhook.post",
+  /**
+   * Call a declared `api` integration and keep what it answered (ADR 0029 §4).
+   *
+   * The address is the integration's, never the step's: a step carrying its own
+   * URL is an exfiltration channel a spec edit adds invisibly.
+   */
+  "http.request",
 ] as const;
 
 export type ActionName = (typeof ACTIONS)[number];
@@ -66,8 +73,23 @@ export const ActionKey = z
 
 export const Step = z
   .object({
+    /**
+     * A name for this step's output, so a later one can read it (ADR 0029 §2).
+     *
+     * Optional, because a step nothing reads needs none — the two-step
+     * automation from ADR 0024 keeps working without growing ceremony.
+     */
+    key: Key.optional(),
     action: ActionKey,
-    /** Values interpolate via the weak template language — `{{ entry.email }}`. */
+    /**
+     * Values interpolate via the weak template language — `{{ entry.email }}`,
+     * `{{ steps.customer.body.id }}`.
+     *
+     * The same evaluator the renderer uses, with the same ceiling ADR 0001 set:
+     * property access and one formatter, no expressions and no calls. Every
+     * automation tool eventually grows a mapping language; the ones that grew
+     * it by accident are the ones nobody can sandbox afterwards.
+     */
     params: z
       .record(z.string(), z.union([TemplateString, z.number(), z.boolean(), z.null()]))
       .optional(),
