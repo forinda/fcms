@@ -10,19 +10,56 @@ import postgres from "postgres";
 
 import * as schema from "./schema/index.js";
 
-const pools = new Map<string, postgres.Sql>();
+/**
+ * The pool, and how many holders it has.
+ *
+ * The count is what makes a cached pool safe to hand out twice. Under `kick
+ * dev` two applications overlap for a moment on every save — the reloaded one
+ * builds while the previous one shuts down — and they share this map, so a
+ * shutdown that simply ended the pool ended the *new* app's connection with
+ * it. Every request after a file save then failed with `write
+ * CONNECTION_ENDED`, and the fix looked like restarting the dev server.
+ *
+ * One number rather than a per-application pool, because sharing is the point:
+ * N sites on one instance share one pool (doc 09 §7).
+ */
+interface Pool {
+  readonly sql: postgres.Sql;
+  holders: number;
+}
+
+const pools = new Map<string, Pool>();
 
 function poolFor(url: string): postgres.Sql {
-  let sql = pools.get(url);
-  if (!sql) {
-    sql = postgres(url, { max: 10, onnotice: () => {} });
-    pools.set(url, sql);
+  let pool = pools.get(url);
+  if (!pool) {
+    pool = { sql: postgres(url, { max: 10, onnotice: () => {} }), holders: 0 };
+    pools.set(url, pool);
   }
-  return sql;
+  pool.holders += 1;
+  return pool.sql;
 }
 
 export function createDb(url: string) {
   return drizzle(poolFor(url), { schema, casing: "snake_case" });
+}
+
+/**
+ * Let go of one holder's pool, closing it only when nobody is left.
+ *
+ * What an application calls on shutdown. `closeAllPools` stays for tests and
+ * for the end of the process, where "nobody else can be using it" is true by
+ * construction.
+ */
+export async function releaseDb(url: string): Promise<void> {
+  const pool = pools.get(url);
+  if (!pool) return;
+
+  pool.holders -= 1;
+  if (pool.holders > 0) return;
+
+  pools.delete(url);
+  await pool.sql.end({ timeout: 5 });
 }
 
 export type Db = ReturnType<typeof createDb>;
@@ -44,5 +81,5 @@ export type Executor = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
 export async function closeAllPools(): Promise<void> {
   const open = [...pools.values()];
   pools.clear();
-  await Promise.all(open.map((sql) => sql.end({ timeout: 5 })));
+  await Promise.all(open.map((pool) => pool.sql.end({ timeout: 5 })));
 }

@@ -18,14 +18,7 @@
  * what makes these tokens substitutable in a test.
  */
 import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
-import {
-  closeAllPools,
-  createDb,
-  organizations,
-  runMigrations,
-  sites,
-  type Db,
-} from "@forinda-cms/db";
+import { createDb, organizations, releaseDb, runMigrations, sites, type Db } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { Actor, CURRENT_SCOPE, ResolveSite } from "@/contributors";
@@ -47,7 +40,18 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
   name: "DatabaseAdapter",
   defaults: { migrate: true },
   build: (config) => {
-    const db = createDb(getEnv("DATABASE_URL"));
+    /**
+     * Taken in `beforeStart`, not here.
+     *
+     * `build` runs once per adapter *object*, and the adapter list is built at
+     * module scope — so under `kick dev` a reloaded application reuses this
+     * closure while the previous one shuts down and releases the pool. A client
+     * captured here would be the one that was just closed, and every request
+     * after a file save failed with `write CONNECTION_ENDED` until the dev
+     * server was restarted by hand. Acquiring per *application start* pairs the
+     * hold with the release that matches it.
+     */
+    let db: Db;
 
     return {
       /**
@@ -62,6 +66,8 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
       contributors: () => [ResolveSite.registration, Actor.registration],
 
       async beforeStart({ container }) {
+        db = createDb(getEnv("DATABASE_URL"));
+
         // Two bindings, and everything else is a decorated class the container
         // finds on its own: the repositories and use-cases live under `src/`
         // now, so the module glob eagerly imports them and their decorators
@@ -94,7 +100,11 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
       },
 
       async shutdown() {
-        await closeAllPools();
+        // This application's hold on the pool, not every pool: under `kick dev`
+        // the reloaded application is already up and sharing it (see
+        // `releaseDb`), and closing it here ended the new one's connection on
+        // every file save.
+        await releaseDb(getEnv("DATABASE_URL"));
       },
     };
   },
