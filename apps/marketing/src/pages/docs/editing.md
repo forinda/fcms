@@ -30,6 +30,16 @@ The form is generated from what the type declares, so it validates the way the s
 
 A new entry starts as a <strong>draft</strong> — written, saved, and not visible to the public. Publish it from the list when it is ready, and unpublish it to take it down without deleting it. The dashboard says how many of each type are waiting.
 
+## What a type holds
+
+A content type is the shape of a thing your site stores — a Service has a name, a price and a duration; a Booking has a customer, a date and a status. Under <em>Types</em> you can see every one your site has, and change what it holds.
+
+Open a type and the fields are on the left, in the order they appear on the form. Select one to set its label, its help text, whether it is required, and whether the site can filter and sort by it. Add one by naming it and saying what it holds — a line of text, a number, a date, a file, a link to another entry, or a status that moves between values.
+
+Two things are fixed once created: the type's key and a field's name. Those appear in addresses and in your pages, so renaming one is a change with your data inside it — the label above it is free to change whenever you like.
+
+Removing a field removes what is stored in it. You are told exactly what that costs before anything happens — <em>"Whatever is stored in it for 6 existing services will be deleted"</em> — and nothing is removed until you press the second button. Either way it lands in <a href="/docs/operating/">history</a>, so it can be undone.
+
 ## Pages — the canvas
 
 Pages are edited on a canvas, not in a form. Open one and you get three panes: the structure on the left, <strong>your actual page</strong> in the middle, and the settings for whatever you have selected on the right.

@@ -68,7 +68,8 @@ export class ContentController {
       page({
         title: `${spec.name} — Admin`,
         body: `<h1>${esc(spec.name)}</h1>
-<p class="muted">${spec.pages.length} pages · <a href="/admin/history">history</a></p>
+<p class="muted">${spec.pages.length} pages · <a href="/admin/types">content types</a> ·
+  <a href="/admin/history">history</a></p>
 
 <h2>Content</h2>
 <div class="cards">${stored.map(card).join("")}</div>
