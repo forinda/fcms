@@ -9,24 +9,22 @@
  * is a set of patch operations an actor may propose, so every authoring surface
  * inherits the check without its own copy of it.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { Key } from './primitives.js'
+import { Key } from "./primitives.js";
 
-export const SITE_ROLES = ['viewer', 'editor', 'manager', 'designer', 'developer'] as const
-export const SiteRole = z.enum(SITE_ROLES)
-export type SiteRole = (typeof SITE_ROLES)[number]
+export const SITE_ROLES = ["viewer", "editor", "manager", "designer", "developer"] as const;
+export const SiteRole = z.enum(SITE_ROLES);
+export type SiteRole = (typeof SITE_ROLES)[number];
 
-export const CONTENT_ACTIONS = ['read', 'create', 'update', 'delete', 'publish'] as const
-export const ContentAction = z.enum(CONTENT_ACTIONS)
+export const CONTENT_ACTIONS = ["read", "create", "update", "delete", "publish"] as const;
+export const ContentAction = z.enum(CONTENT_ACTIONS);
 
 export const Access = z
   .object({
     /** Content type key → the roles allowed each action. Absent means platform default. */
-    types: z
-      .record(Key, z.record(ContentAction, z.array(SiteRole)))
-      .optional(),
+    types: z.record(Key, z.record(ContentAction, z.array(SiteRole))).optional(),
   })
-  .strict()
+  .strict();
 
-export type Access = z.infer<typeof Access>
+export type Access = z.infer<typeof Access>;

@@ -1,0 +1,60 @@
+# CI for forinda-cms.
+#
+# One job running one command. `pnpm verify` is what a contributor runs before
+# pushing, so CI failing means the same thing locally — no CI-only step to
+# discover after the fact.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a PR cancels the previous run. Nothing here is a deploy, so an
+# in-flight run for a superseded commit is only burning minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # `--frozen-lockfile` so a PR that changed a dependency without updating
+      # the lockfile fails here rather than resolving something different from
+      # what anyone reviewed. The supply-chain settings in pnpm-workspace.yaml
+      # (doc 09 §1) apply on top: build scripts run only for allowlisted
+      # packages, and `minimumReleaseAge` quarantines brand-new releases.
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm verify
+
+  # The salon spec is ADR 0007 test 1's artifact and the fixture several test
+  # suites run against. Checking that the CLI still validates and renders it
+  # catches a regression that unit tests would not: the language losing the
+  # ability to express a real business.
+  salon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: validate the reference spec
+        run: pnpm --filter @forinda-cms/cli exec tsx src/bin.ts validate examples/salon
+        env:
+          NO_COLOR: '1'

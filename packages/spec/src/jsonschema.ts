@@ -11,9 +11,9 @@
  * one generator serves both audiences. That is the doc 04 pattern again: one
  * governed surface, many doors.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { SiteSpec } from './site.js'
+import { SiteSpec } from "./site.js";
 
 /**
  * `io: 'input'` matters. Several fields carry `.default()`, so the *output* type
@@ -23,8 +23,8 @@ import { SiteSpec } from './site.js'
  */
 export function siteSpecJsonSchema(): Record<string, unknown> {
   return z.toJSONSchema(SiteSpec, {
-    io: 'input',
-    unrepresentable: 'any',
-    $refStrategy: 'none',
-  } as Parameters<typeof z.toJSONSchema>[1]) as Record<string, unknown>
+    io: "input",
+    unrepresentable: "any",
+    $refStrategy: "none",
+  } as Parameters<typeof z.toJSONSchema>[1]) as Record<string, unknown>;
 }

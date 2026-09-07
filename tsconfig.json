@@ -26,6 +26,7 @@
   },
   "include": [
     "src",
+    "scripts",
     ".kickjs/types/**/*.d.ts",
     ".kickjs/types/**/*.ts"
   ]

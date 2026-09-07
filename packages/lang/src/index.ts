@@ -10,8 +10,8 @@
  * Kept separate from `@forinda-cms/spec` so the admin app can validate a spec
  * in the browser without shipping a YAML parser.
  */
-export * from './errors.js'
-export * from './parse.js'
-export * from './print.js'
-export * from './layout.js'
-export { STRICT_PARSE_OPTIONS } from './profile.js'
+export * from "./errors.js";
+export * from "./parse.js";
+export * from "./print.js";
+export * from "./layout.js";
+export { STRICT_PARSE_OPTIONS } from "./profile.js";

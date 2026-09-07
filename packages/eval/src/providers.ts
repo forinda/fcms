@@ -10,38 +10,38 @@
  * must stay fully usable at zero AI spend, and a test suite that cannot run
  * without a key would be the first thing to violate that.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import Anthropic from '@anthropic-ai/sdk'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import Anthropic from "@anthropic-ai/sdk";
 
 export interface Provider {
-  readonly name: string
-  complete(system: string, user: string, id: string): Promise<string>
+  readonly name: string;
+  complete(system: string, user: string, id: string): Promise<string>;
 }
 
-export const FIXTURE_DIR = join(import.meta.dirname, 'fixtures')
+export const FIXTURE_DIR = join(import.meta.dirname, "fixtures");
 
 /** Replays a recorded response. The default, so CI needs no key and no budget. */
 export function replayProvider(): Provider {
   return {
-    name: 'replay',
+    name: "replay",
     async complete(_system, _user, id) {
-      const path = join(FIXTURE_DIR, `${id}.txt`)
+      const path = join(FIXTURE_DIR, `${id}.txt`);
       if (!existsSync(path)) {
         throw new Error(
           `no recording for "${id}". Run \`pnpm eval:record\` with an API key to create one, ` +
             `or pass --only to skip this task.`,
-        )
+        );
       }
-      return readFileSync(path, 'utf8')
+      return readFileSync(path, "utf8");
     },
-  }
+  };
 }
 
 export interface LiveOptions {
-  readonly model?: string
+  readonly model?: string;
   /** Write each response to `fixtures/` so CI can replay it later. */
-  readonly record?: boolean
+  readonly record?: boolean;
 }
 
 /**
@@ -53,8 +53,8 @@ export interface LiveOptions {
  * language, not to handicap it.
  */
 export function liveProvider(options: LiveOptions = {}): Provider {
-  const client = new Anthropic()
-  const model = options.model ?? 'claude-opus-5'
+  const client = new Anthropic();
+  const model = options.model ?? "claude-opus-5";
 
   return {
     name: model,
@@ -67,24 +67,24 @@ export function liveProvider(options: LiveOptions = {}): Provider {
         // adaptive — and the installed SDK's types predate the `adaptive`
         // literal. Omitting keeps the behaviour and the types honest at once.
         system,
-        messages: [{ role: 'user', content: user }],
-      })
-      const message = await stream.finalMessage()
+        messages: [{ role: "user", content: user }],
+      });
+      const message = await stream.finalMessage();
 
       // A refusal is a legitimate outcome to record rather than an error: on a
       // trap task it may even be the right answer.
       const text = message.content
-        .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
-        .join('')
+        .join("");
 
       if (options.record) {
-        mkdirSync(FIXTURE_DIR, { recursive: true })
-        writeFileSync(join(FIXTURE_DIR, `${id}.txt`), text, 'utf8')
+        mkdirSync(FIXTURE_DIR, { recursive: true });
+        writeFileSync(join(FIXTURE_DIR, `${id}.txt`), text, "utf8");
       }
-      return text
+      return text;
     },
-  }
+  };
 }
 
 /**
@@ -96,11 +96,11 @@ export function liveProvider(options: LiveOptions = {}): Provider {
  * authenticate, rather than silently replaying stale recordings.
  */
 export function chooseProvider(argv: readonly string[]): Provider {
-  const record = argv.includes('--record')
-  const live = record || argv.includes('--live')
-  if (!live) return replayProvider()
+  const record = argv.includes("--record");
+  const live = record || argv.includes("--live");
+  if (!live) return replayProvider();
 
-  const modelFlag = argv.indexOf('--model')
-  const model = modelFlag === -1 ? undefined : argv[modelFlag + 1]
-  return liveProvider({ ...(model ? { model } : {}), record })
+  const modelFlag = argv.indexOf("--model");
+  const model = modelFlag === -1 ? undefined : argv[modelFlag + 1];
+  return liveProvider({ ...(model ? { model } : {}), record });
 }

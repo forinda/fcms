@@ -15,19 +15,19 @@
  * The pressure to accept the second form will be constant. Accepting it ends
  * round-tripping and therefore the projection model (research/11 §1).
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { Scalar } from './primitives.js'
+import { Scalar } from "./primitives.js";
 
 /** Fixed set. Adding one is a deliberate vocabulary decision, not a convenience. */
-export const OPERATORS = ['eq', 'ne', 'lt', 'lte', 'gt', 'gte', 'in', 'contains'] as const
-export const Operator = z.enum(OPERATORS)
-export type Operator = (typeof OPERATORS)[number]
+export const OPERATORS = ["eq", "ne", "lt", "lte", "gt", "gte", "in", "contains"] as const;
+export const Operator = z.enum(OPERATORS);
+export type Operator = (typeof OPERATORS)[number];
 
 /** A dotted path into the current scope: `item.price`, `flow.service.deposit`, `site.locale`. */
 export const FieldPath = z
   .string()
-  .regex(/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$/, 'a dotted property path')
+  .regex(/^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$/, "a dotted property path");
 
 export const Condition = z
   .object({
@@ -39,16 +39,16 @@ export const Condition = z
   .superRefine((c, ctx) => {
     // `in` takes a list; everything else takes a scalar. Catching this here beats
     // a renderer silently matching nothing.
-    const isList = Array.isArray(c.value)
-    if (c.op === 'in' && !isList) {
-      ctx.addIssue({ code: 'custom', message: '`in` needs a list of values' })
+    const isList = Array.isArray(c.value);
+    if (c.op === "in" && !isList) {
+      ctx.addIssue({ code: "custom", message: "`in` needs a list of values" });
     }
-    if (c.op !== 'in' && isList) {
-      ctx.addIssue({ code: 'custom', message: `\`${c.op}\` takes a single value, not a list` })
+    if (c.op !== "in" && isList) {
+      ctx.addIssue({ code: "custom", message: `\`${c.op}\` takes a single value, not a list` });
     }
-  })
+  });
 
-export type Condition = z.infer<typeof Condition>
+export type Condition = z.infer<typeof Condition>;
 
 /**
  * `when` is **one** condition per block, never a list.
@@ -57,4 +57,4 @@ export type Condition = z.infer<typeof Condition>
  * `when` readable in a diff and stops it growing into an expression grammar by
  * the usual route — first a list, then nesting, then operators between groups.
  */
-export const When = Condition
+export const When = Condition;

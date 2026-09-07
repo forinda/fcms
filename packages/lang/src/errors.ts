@@ -11,26 +11,26 @@
 
 export interface Diagnostic {
   /** Where in the spec, as a slash path: `/pages/1/blocks/0/data/limit`. */
-  readonly path: string
-  readonly message: string
+  readonly path: string;
+  readonly message: string;
   /** 1-based, so it matches what an editor shows. Absent if it could not be located. */
-  readonly line?: number
-  readonly col?: number
+  readonly line?: number;
+  readonly col?: number;
   /** Which file, once a multi-file layout is in play. */
-  readonly file?: string
+  readonly file?: string;
   /** A concrete next action, when there is an obvious one. */
-  readonly hint?: string
+  readonly hint?: string;
 }
 
 export function formatDiagnostic(d: Diagnostic): string {
-  const where = [d.file, d.line, d.col].filter((x) => x !== undefined).join(':')
-  const head = where ? `${where}` : d.path
-  const lines = [`${head}  ${d.message}`]
-  if (where && d.path !== '/') lines.push(`  at ${d.path}`)
-  if (d.hint) lines.push(`  hint: ${d.hint}`)
-  return lines.join('\n')
+  const where = [d.file, d.line, d.col].filter((x) => x !== undefined).join(":");
+  const head = where ? `${where}` : d.path;
+  const lines = [`${head}  ${d.message}`];
+  if (where && d.path !== "/") lines.push(`  at ${d.path}`);
+  if (d.hint) lines.push(`  hint: ${d.hint}`);
+  return lines.join("\n");
 }
 
 export function formatDiagnostics(ds: readonly Diagnostic[]): string {
-  return ds.map(formatDiagnostic).join('\n\n')
+  return ds.map(formatDiagnostic).join("\n\n");
 }

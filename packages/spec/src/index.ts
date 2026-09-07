@@ -5,23 +5,23 @@
  * (ADR 0006) is surface syntax over these types, which is what keeps the syntax
  * swappable and this package foundational.
  */
-export * from './primitives.js'
-export * from './style.js'
-export * from './condition.js'
-export * from './query.js'
-export * from './content.js'
-export * from './pages.js'
-export * from './logic.js'
-export * from './access.js'
-export * from './wiring.js'
-export * from './patch.js'
-export * from './site.js'
+export * from "./primitives.js";
+export * from "./style.js";
+export * from "./condition.js";
+export * from "./query.js";
+export * from "./content.js";
+export * from "./pages.js";
+export * from "./logic.js";
+export * from "./access.js";
+export * from "./wiring.js";
+export * from "./patch.js";
+export * from "./site.js";
 
-import { SiteSpec, checkReferences, type SpecIssue } from './site.js'
+import { SiteSpec, checkReferences, type SpecIssue } from "./site.js";
 
 export type ValidationResult =
-  | { readonly ok: true; readonly spec: import('./site.js').SiteSpec }
-  | { readonly ok: false; readonly issues: readonly SpecIssue[] }
+  | { readonly ok: true; readonly spec: import("./site.js").SiteSpec }
+  | { readonly ok: false; readonly issues: readonly SpecIssue[] };
 
 /**
  * Validate a parsed document: shape first, then the cross-section references.
@@ -31,17 +31,17 @@ export type ValidationResult =
  * renders an empty section on a live page. `fcms validate` is this function.
  */
 export function validateSpec(input: unknown): ValidationResult {
-  const parsed = SiteSpec.safeParse(input)
+  const parsed = SiteSpec.safeParse(input);
   if (!parsed.success) {
     return {
       ok: false,
       issues: parsed.error.issues.map((i) => ({
-        path: '/' + i.path.join('/'),
+        path: "/" + i.path.join("/"),
         message: i.message,
       })),
-    }
+    };
   }
-  const issues = checkReferences(parsed.data)
-  return issues.length ? { ok: false, issues } : { ok: true, spec: parsed.data }
+  const issues = checkReferences(parsed.data);
+  return issues.length ? { ok: false, issues } : { ok: true, spec: parsed.data };
 }
-export * from './jsonschema.js'
+export * from "./jsonschema.js";

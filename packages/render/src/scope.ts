@@ -9,15 +9,15 @@
  * Scopes are added by the constructs that introduce them: `item.*` inside a
  * `data` block, `flow.<step>.*` inside a flow (ADR 0009).
  */
-import { parseTemplate, type Formatter } from '@forinda-cms/spec'
+import { parseTemplate, type Formatter } from "@forinda-cms/spec";
 
-export type Scope = Record<string, unknown>
+export type Scope = Record<string, unknown>;
 
 function lookup(scope: Scope, path: string): unknown {
-  return path.split('.').reduce<unknown>((acc, key) => {
-    if (acc === null || typeof acc !== 'object') return undefined
-    return (acc as Record<string, unknown>)[key]
-  }, scope)
+  return path.split(".").reduce<unknown>((acc, key) => {
+    if (acc === null || typeof acc !== "object") return undefined;
+    return (acc as Record<string, unknown>)[key];
+  }, scope);
 }
 
 /**
@@ -29,29 +29,43 @@ function lookup(scope: Scope, path: string): unknown {
  * 0b this reads from there instead of from the caller.
  */
 export interface FormatLocale {
-  readonly locale: string
-  readonly currency: string
+  readonly locale: string;
+  readonly currency: string;
 }
 
-export const DEFAULT_LOCALE: FormatLocale = { locale: 'en-KE', currency: 'KES' }
+export const DEFAULT_LOCALE: FormatLocale = { locale: "en-KE", currency: "KES" };
 
 function format(value: unknown, formatter: Formatter | undefined, fmt: FormatLocale): string {
-  const { locale, currency } = fmt
-  if (value === null || value === undefined) return ''
+  const { locale, currency } = fmt;
+  if (value === null || value === undefined) return "";
   switch (formatter) {
-    case undefined: return String(value)
-    case 'upper': return String(value).toUpperCase()
-    case 'lower': return String(value).toLowerCase()
-    case 'title': return String(value).replace(/\b\w/g, (c) => c.toUpperCase())
-    case 'truncate': return String(value).length > 120 ? `${String(value).slice(0, 117)}…` : String(value)
-    case 'number': return typeof value === 'number' ? new Intl.NumberFormat(locale).format(value) : String(value)
-    case 'currency':
-      return typeof value === 'number'
-        ? new Intl.NumberFormat(locale, { style: 'currency', currency }).format(value)
-        : String(value)
-    case 'date': return new Date(String(value)).toLocaleDateString(locale, { dateStyle: 'medium' })
-    case 'time': return new Date(String(value)).toLocaleTimeString(locale, { timeStyle: 'short' })
-    case 'datetime': return new Date(String(value)).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' })
+    case undefined:
+      return String(value);
+    case "upper":
+      return String(value).toUpperCase();
+    case "lower":
+      return String(value).toLowerCase();
+    case "title":
+      return String(value).replace(/\b\w/g, (c) => c.toUpperCase());
+    case "truncate":
+      return String(value).length > 120 ? `${String(value).slice(0, 117)}…` : String(value);
+    case "number":
+      return typeof value === "number"
+        ? new Intl.NumberFormat(locale).format(value)
+        : String(value);
+    case "currency":
+      return typeof value === "number"
+        ? new Intl.NumberFormat(locale, { style: "currency", currency }).format(value)
+        : String(value);
+    case "date":
+      return new Date(String(value)).toLocaleDateString(locale, { dateStyle: "medium" });
+    case "time":
+      return new Date(String(value)).toLocaleTimeString(locale, { timeStyle: "short" });
+    case "datetime":
+      return new Date(String(value)).toLocaleString(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
   }
 }
 
@@ -63,12 +77,16 @@ function format(value: unknown, formatter: Formatter | undefined, fmt: FormatLoc
  * ordering matters: resolving to HTML here would make every block a potential
  * injection point.
  */
-export function resolve(template: string, scope: Scope, fmt: FormatLocale = DEFAULT_LOCALE): string {
-  let out = template
+export function resolve(
+  template: string,
+  scope: Scope,
+  fmt: FormatLocale = DEFAULT_LOCALE,
+): string {
+  let out = template;
   for (const expr of parseTemplate(template)) {
-    out = out.replace(expr.raw, format(lookup(scope, expr.path), expr.formatter, fmt))
+    out = out.replace(expr.raw, format(lookup(scope, expr.path), expr.formatter, fmt));
   }
-  return out
+  return out;
 }
 
 /** Resolve every string in an attrs bag. Non-strings pass through untouched. */
@@ -77,9 +95,9 @@ export function resolveAttrs(
   scope: Scope,
   fmt: FormatLocale = DEFAULT_LOCALE,
 ): Record<string, unknown> {
-  const out: Record<string, unknown> = {}
+  const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(attrs ?? {})) {
-    out[key] = typeof value === 'string' ? resolve(value, scope, fmt) : value
+    out[key] = typeof value === "string" ? resolve(value, scope, fmt) : value;
   }
-  return out
+  return out;
 }

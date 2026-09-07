@@ -5,7 +5,7 @@
  * deliberate: they round-trip through YAML with no machinery, stay readable in a
  * diff, and validation is this schema's job rather than the parser's.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
 /**
  * An identifier the author chooses: content type keys, field names, page keys,
@@ -16,7 +16,7 @@ export const Key = z
   .string()
   .min(1)
   .max(64)
-  .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, 'lowercase kebab-case, starting with a letter')
+  .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "lowercase kebab-case, starting with a letter");
 
 /**
  * A field name — **not** a `Key`.
@@ -34,13 +34,13 @@ export const FieldName = z
   .string()
   .min(1)
   .max(64)
-  .regex(/^[a-z][a-zA-Z0-9]*$/, 'camelCase, starting with a lowercase letter')
+  .regex(/^[a-z][a-zA-Z0-9]*$/, "camelCase, starting with a lowercase letter");
 
 /** A URL path. Always absolute, no trailing slash (except the root itself). */
 export const Path = z
   .string()
-  .regex(/^\/([a-z0-9\-/]*[a-z0-9])?$/, 'absolute lowercase path, no trailing slash')
-  .refine((p) => !p.includes('//'), 'no empty path segments')
+  .regex(/^\/([a-z0-9\-/]*[a-z0-9])?$/, "absolute lowercase path, no trailing slash")
+  .refine((p) => !p.includes("//"), "no empty path segments");
 
 /**
  * The prefixed reference forms. Each is a plain scalar in YAML.
@@ -53,12 +53,12 @@ export const Path = z
  *             secret value ever appearing in the spec, and this is the form that
  *             makes that enforceable rather than a convention.
  */
-export const EntryRef = z.string().regex(/^ref:[a-z][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/)
-export const AssetRef = z.string().regex(/^asset:[0-9a-f]{8,32}$/)
-export const TokenRef = z.string().regex(/^token:[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/)
-export const SecretRef = z.string().regex(/^secret:[A-Z][A-Z0-9_]*$/)
+export const EntryRef = z.string().regex(/^ref:[a-z][a-z0-9-]*\/[a-z0-9][a-z0-9-]*$/);
+export const AssetRef = z.string().regex(/^asset:[0-9a-f]{8,32}$/);
+export const TokenRef = z.string().regex(/^token:[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/);
+export const SecretRef = z.string().regex(/^secret:[A-Z][A-Z0-9_]*$/);
 
-export const AnyRef = z.union([EntryRef, AssetRef, TokenRef, SecretRef])
+export const AnyRef = z.union([EntryRef, AssetRef, TokenRef, SecretRef]);
 
 /**
  * The template language, and the reason it is parsed here rather than at render
@@ -73,41 +73,42 @@ export const AnyRef = z.union([EntryRef, AssetRef, TokenRef, SecretRef])
  * page render in front of a customer.
  */
 export const FORMATTERS = [
-  'date',
-  'time',
-  'datetime',
-  'currency',
-  'number',
-  'upper',
-  'lower',
-  'title',
-  'truncate',
-] as const
+  "date",
+  "time",
+  "datetime",
+  "currency",
+  "number",
+  "upper",
+  "lower",
+  "title",
+  "truncate",
+] as const;
 
-export type Formatter = (typeof FORMATTERS)[number]
+export type Formatter = (typeof FORMATTERS)[number];
 
 /** `{{ a.b.c }}` or `{{ a.b | currency }}`. Whitespace is free-form. */
-const EXPRESSION = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(?:\|\s*([a-z]+)\s*)?\}\}/g
+const EXPRESSION =
+  /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(?:\|\s*([a-z]+)\s*)?\}\}/g;
 
 export interface TemplateExpression {
   /** The dotted path, e.g. `item.name` or `flow.service.deposit`. */
-  readonly path: string
-  readonly formatter?: Formatter
+  readonly path: string;
+  readonly formatter?: Formatter;
   /** The whole `{{ … }}`, for error messages. */
-  readonly raw: string
+  readonly raw: string;
 }
 
 /** Every `{{ … }}` in a string, in order. Malformed braces are simply not matches. */
 export function parseTemplate(input: string): TemplateExpression[] {
-  const out: TemplateExpression[] = []
+  const out: TemplateExpression[] = [];
   for (const m of input.matchAll(EXPRESSION)) {
     out.push({
       path: m[1]!,
       ...(m[2] ? { formatter: m[2] as Formatter } : {}),
       raw: m[0]!,
-    })
+    });
   }
-  return out
+  return out;
 }
 
 /**
@@ -119,37 +120,37 @@ export function parseTemplate(input: string): TemplateExpression[] {
  * failure.
  */
 function malformed(input: string): string[] {
-  const candidates = input.match(/\{\{[^}]*\}\}/g) ?? []
-  const valid = new Set(parseTemplate(input).map((e) => e.raw))
-  return candidates.filter((c) => !valid.has(c))
+  const candidates = input.match(/\{\{[^}]*\}\}/g) ?? [];
+  const valid = new Set(parseTemplate(input).map((e) => e.raw));
+  return candidates.filter((c) => !valid.has(c));
 }
 
 /** A string that may interpolate values. Validated, not merely typed. */
 export const TemplateString = z.string().superRefine((value, ctx) => {
   for (const bad of malformed(value)) {
     ctx.addIssue({
-      code: 'custom',
+      code: "custom",
       message:
         `${bad} is not a valid expression. Templates allow property access and one ` +
-        `formatter (${FORMATTERS.join(', ')}) — no arithmetic, calls or comparisons.`,
-    })
+        `formatter (${FORMATTERS.join(", ")}) — no arithmetic, calls or comparisons.`,
+    });
   }
   for (const expr of parseTemplate(value)) {
     if (expr.formatter && !FORMATTERS.includes(expr.formatter)) {
       ctx.addIssue({
-        code: 'custom',
+        code: "custom",
         message: `unknown formatter "${expr.formatter}" in ${expr.raw}`,
-      })
+      });
     }
   }
-})
+});
 
 /** A JSON scalar. The leaf of any `value` position in the spec. */
-export const Scalar = z.union([z.string(), z.number(), z.boolean(), z.null()])
-export type Scalar = z.infer<typeof Scalar>
+export const Scalar = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+export type Scalar = z.infer<typeof Scalar>;
 
 /** Human-facing label. Free text, bounded so it stays a label. */
-export const Label = z.string().min(1).max(200)
+export const Label = z.string().min(1).max(200);
 
 /**
  * An author's "why is this here" note (ADR 0014, decision 6).
@@ -162,4 +163,4 @@ export const Label = z.string().min(1).max(200)
  * agency keeping client specs in git, and `pull` silently deleting their notes
  * on every sync loses a channel rather than annoying it.
  */
-export const Note = z.string().max(2000).optional()
+export const Note = z.string().max(2000).optional();
