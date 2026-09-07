@@ -1011,6 +1011,27 @@
                       "null"
                     ]
                   }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "param": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "default": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "param"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -1074,6 +1095,27 @@
                             "null"
                           ]
                         }
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "param": {
+                            "type": "string",
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "default": {
+                            "type": [
+                              "string",
+                              "number",
+                              "boolean",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "param"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   }
@@ -1087,26 +1129,80 @@
               }
             },
             "sort": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "field": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    },
+                    "dir": {
+                      "default": "asc",
+                      "type": "string",
+                      "enum": [
+                        "asc",
+                        "desc"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "field"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "param": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "allow": {
+                      "minItems": 1,
+                      "maxItems": 10,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "pattern": "^[a-z][a-zA-Z0-9]*$"
+                      }
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    },
+                    "dir": {
+                      "default": "asc",
+                      "type": "string",
+                      "enum": [
+                        "asc",
+                        "desc"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "param",
+                    "allow"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "page": {
               "type": "object",
               "properties": {
-                "field": {
+                "param": {
+                  "default": "page",
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 64,
-                  "pattern": "^[a-z][a-zA-Z0-9]*$"
-                },
-                "dir": {
-                  "default": "asc",
-                  "type": "string",
-                  "enum": [
-                    "asc",
-                    "desc"
-                  ]
+                  "pattern": "^[a-z][a-z0-9_]*$"
                 }
               },
-              "required": [
-                "field"
-              ],
               "additionalProperties": false
             },
             "limit": {

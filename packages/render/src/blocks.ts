@@ -11,7 +11,7 @@
  * which is why that package leaves `attrs` open: the document schema knows the
  * shape of *a block*, the registry knows the vocabulary of *each block type*.
  */
-import type { ContentType } from "@forinda-cms/spec";
+import type { ContentType, Query } from "@forinda-cms/spec";
 
 import { el, esc, fragment, raw, type Html } from "./html.js";
 import type { Scope } from "./scope.js";
@@ -25,6 +25,19 @@ export interface BlockContext {
   readonly contentType?: ContentType;
   /** True when the block author supplied children of their own. */
   readonly hasChildren: boolean;
+  /**
+   * What the visitor asked for, and what the query found (ADR 0019).
+   *
+   * Only the blocks that exist to reflect the request read this — a filter
+   * form showing what is currently applied, a pager showing where you are.
+   */
+  readonly request?: {
+    readonly params: Readonly<Record<string, string | readonly string[] | undefined>>;
+    readonly path: string;
+    readonly result?: { total: number; page: number; pages: number };
+    /** The page's primary query, so a filter form can offer exactly what it reads. */
+    readonly query?: Query;
+  };
 }
 
 export interface BlockType {
@@ -177,6 +190,116 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       attrs: [],
       layout: true,
       render: ({ className, children }) => el("div", { class: `fx-grid ${className}` }, children),
+    }),
+    define({
+      name: "filters",
+      summary: "A search form for the parameters this page's list actually reads.",
+      attrs: ["for", "submit"],
+      render: ({ className, attrs, contentType, request }) => {
+        if (!contentType) return el("div", { class: className }, raw(""));
+
+        // One input per parameter the query names, not one per filterable field.
+        // A form offering `slug` when the list filters on `q` is a form whose
+        // controls do nothing — which is worse than no form.
+        const params = (request?.query?.where ?? []).flatMap((condition) => {
+          const value = condition.value;
+          if (typeof value !== "object" || value === null || !("param" in value)) return [];
+          const field = contentType.fields.find((f) => f.name === condition.field);
+          return field ? [{ param: value.param, field }] : [];
+        });
+
+        const fields = params.map(({ field, param }) => ({ ...field, name: param }));
+
+        const current = (name: string) => {
+          const value = request?.params[name];
+          return typeof value === "string" ? value : Array.isArray(value) ? (value[0] ?? "") : "";
+        };
+
+        const inputs = fields.map((field) => {
+          const label = el("label", { for: `f-${field.name}` }, raw(esc(field.label)));
+          const control =
+            field.type === "select" && "options" in field
+              ? el(
+                  "select",
+                  { id: `f-${field.name}`, name: field.name },
+                  fragment(
+                    el("option", { value: "" }, raw(esc("Any"))),
+                    ...field.options.map((option) =>
+                      el(
+                        "option",
+                        {
+                          value: option.value,
+                          ...(current(field.name) === option.value ? { selected: "selected" } : {}),
+                        },
+                        raw(esc(option.label)),
+                      ),
+                    ),
+                  ),
+                )
+              : el("input", {
+                  id: `f-${field.name}`,
+                  name: field.name,
+                  type: inputTypeFor(field.type),
+                  value: current(field.name),
+                });
+
+          return el("div", { class: "fx-field" }, fragment(label, control));
+        });
+
+        return el(
+          "form",
+          { class: `fx-filters ${className}`, method: "get", action: request?.path ?? "" },
+          fragment(
+            ...inputs,
+            el("button", { type: "submit" }, raw(esc(String(attrs["submit"] ?? "Search")))),
+          ),
+        );
+      },
+    }),
+    define({
+      name: "results-count",
+      summary: "How many rows the current filters matched.",
+      attrs: ["one", "many"],
+      render: ({ className, attrs, request }) => {
+        const total = request?.result?.total ?? 0;
+        const template = String(attrs[total === 1 ? "one" : "many"] ?? "{n} results");
+        return el("p", { class: className }, raw(esc(template.replace("{n}", String(total)))));
+      },
+    }),
+    define({
+      name: "pager",
+      summary: "Previous and next links for a paged list.",
+      attrs: [],
+      render: ({ className, request }) => {
+        const result = request?.result;
+        if (!result || result.pages <= 1) return raw("");
+
+        // Every other parameter is preserved, or paging would silently drop the
+        // visitor's filters on the second page.
+        const href = (page: number) => {
+          const query = new URLSearchParams();
+          for (const [key, value] of Object.entries(request?.params ?? {})) {
+            if (key === "page" || value === undefined) continue;
+            query.set(key, Array.isArray(value) ? (value[0] ?? "") : String(value));
+          }
+          query.set("page", String(page));
+          return `${request?.path ?? ""}?${query.toString()}`;
+        };
+
+        return el(
+          "nav",
+          { class: `fx-pager ${className}`, "aria-label": "Pagination" },
+          fragment(
+            result.page > 1
+              ? el("a", { href: href(result.page - 1), rel: "prev" }, raw(esc("← Previous")))
+              : raw(""),
+            el("span", {}, raw(esc(`Page ${result.page} of ${result.pages}`))),
+            result.page < result.pages
+              ? el("a", { href: href(result.page + 1), rel: "next" }, raw(esc("Next →")))
+              : raw(""),
+          ),
+        );
+      },
     }),
     define({
       name: "divider",

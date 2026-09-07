@@ -179,10 +179,41 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
       }
       if (b.data?.sort) {
         const t = types.get(b.data.from);
-        if (t && !t.fields.some((f) => f.name === b.data!.sort!.field)) {
+        const sort = b.data.sort;
+        // Both shapes name fields: an authored sort names one, a visitor-chosen
+        // sort names the closed list it will accept (ADR 0019 §2). Every one of
+        // them has to exist, or the page offers an ordering that cannot run.
+        const named = "field" in sort ? [sort.field] : sort.allow;
+
+        for (const field of named) {
+          if (t && !t.fields.some((f) => f.name === field)) {
+            issues.push({
+              path: `${here}/data/sort`,
+              message: `sorts by "${field}", which "${b.data.from}" does not have`,
+            });
+          }
+        }
+      }
+
+      // A filter the visitor drives must be indexed, or the page gets slower as
+      // the business grows — which ADR 0009 calls the bug an owner cannot see.
+      for (const [c, condition] of (b.data?.where ?? []).entries()) {
+        if (typeof condition.value !== "object" || condition.value === null) continue;
+        if (!("param" in condition.value)) continue;
+
+        const t = types.get(b.data!.from);
+        const field = t?.fields.find((f) => f.name === condition.field);
+        if (t && !field) {
           issues.push({
-            path: `${here}/data/sort`,
-            message: `sorts by "${b.data.sort.field}", which "${b.data.from}" does not have`,
+            path: `${here}/data/where/${c}`,
+            message: `filters on "${condition.field}", which "${b.data!.from}" does not have`,
+          });
+        } else if (field && !("filterable" in field && field.filterable === true)) {
+          issues.push({
+            path: `${here}/data/where/${c}`,
+            message:
+              `"${condition.field}" is filtered by a request parameter but is not marked ` +
+              `filterable, so it has no index`,
           });
         }
       }
