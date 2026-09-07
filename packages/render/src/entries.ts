@@ -11,6 +11,7 @@
 import type { ContentType, Condition, Field, Operand, Query, SiteSpec } from "@forinda-cms/spec";
 
 import { generateSchedule } from "./schedule.js";
+import { generateStay } from "./stay.js";
 
 /** One row. Shape is the content type's fields; the renderer treats it as data. */
 export type Entry = Record<string, unknown> & { readonly id?: string; readonly slug?: string };
@@ -243,6 +244,26 @@ export function contentTypeOf(spec: SiteSpec, key: string): ContentType | undefi
  * the same availability on one page agree with each other — a page that showed
  * a slot as free in one place and taken in another would be worse than either.
  */
+/**
+ * Which generator owns this kind.
+ *
+ * `kind` comes from a fixed registry (ADR 0014), so this is a lookup rather
+ * than a chain of conditions that grows a branch per shape of availability.
+ */
+function derive(
+  derived: NonNullable<ContentType["derived"]>,
+  base: EntrySource,
+  enriched: EntrySource,
+  now: Date,
+  params: RequestParams,
+): readonly Entry[] {
+  // A stay reads its resources through the enriched source, so a room's
+  // aggregate rating and computed fields are on the row a search returns.
+  return derived.kind === "schedule"
+    ? generateSchedule(base, derived, { now })
+    : generateStay(enriched, derived, { now, params });
+}
+
 export function withDerived(
   spec: SiteSpec,
   base: EntrySource,
@@ -264,7 +285,7 @@ export function withDerived(
       // then get their aggregate fields, so a hotel's rating is present whether
       // the hotel is stored or computed.
       const rows = declared.derived
-        ? generateSchedule(base, declared.derived, { now })
+        ? derive(declared.derived, base, source, now, params)
         : base.all(type);
 
       const enriched = addComputed(declared, addAggregates(declared, rows, source), params);

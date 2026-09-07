@@ -109,12 +109,36 @@ export function checkProfile(
       }
     },
     Pair(_key, pair) {
-      if (isPair(pair) && isScalar(pair.key) && pair.key.value === "<<") {
+      if (!isPair(pair) || !isScalar(pair.key)) return;
+
+      if (pair.key.value === "<<") {
         issues.push({
           path: "/",
           message: "merge keys (`<<`) are not allowed",
           ...at(pair.key),
           hint: "inheritance is not part of this language. Write the fields out.",
+        });
+      }
+
+      /**
+       * A key with a space in it is a sentence that lost its quotes.
+       *
+       * `{ text: Four rooms, a long veranda and nothing to do }` is valid YAML
+       * and means something nobody wrote: the flow scalar ends at the comma,
+       * and the rest becomes a *key* with no value. Every key in this language
+       * is an identifier, so a space in one is never intentional — and because
+       * `attrs` is an open record, the wreckage validates and the page renders
+       * a truncated sentence with no complaint.
+       */
+      const key = pair.key.value;
+      if (typeof key === "string" && /\s/.test(key.trim()) && pair.value === null) {
+        issues.push({
+          path: "/",
+          message: `"${key.trim()}" is not a key — this line lost its quotes`,
+          ...at(pair.key),
+          hint:
+            "a flow scalar ends at the first comma, so the rest of the sentence became a key. " +
+            'Quote the value: `{ text: "Four rooms, a long veranda" }`.',
         });
       }
     },

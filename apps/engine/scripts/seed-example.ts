@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Load `examples/salon` into the database.
+ * Load an example site into the database.
  *
  * The bridge between the spike and the engine: the same spec that `fcms dev`
  * serves from files becomes the one the HTTP server serves from Postgres. If
@@ -22,7 +22,16 @@ if (!url) {
 
 const ORG = process.env["ORG_ID"] ?? "default";
 const SITE = process.env["SITE_ID"] ?? "default";
-const root = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/salon");
+/**
+ * Which example to load. `EXAMPLE=rooms pnpm seed` for the guesthouse.
+ *
+ * Two examples now (ADR 0025): the salon is the appointment shape, the rooms
+ * are the date-range one, and between them they cover both derived kinds.
+ */
+const root = join(
+  dirname(fileURLToPath(import.meta.url)),
+  `../../../examples/${process.env["EXAMPLE"] ?? "salon"}`,
+);
 
 const files: Record<string, string> = {
   "site.yaml": readFileSync(join(root, "site.yaml"), "utf8"),

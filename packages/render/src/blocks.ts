@@ -172,7 +172,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     define({
       name: "card",
       summary: "A titled block of content, usually one row of a list.",
-      attrs: ["heading", "body", "image", "to"],
+      attrs: ["heading", "body", "meta", "image", "to"],
       variants: ["plain", "elevated"],
       render: ({ className, attrs, children }) => {
         const href = safeHref(attrs["to"]);
@@ -182,6 +182,10 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
             : null,
           str(attrs["heading"]) ? el("h3", {}, str(attrs["heading"])) : null,
           str(attrs["body"]) ? el("p", {}, str(attrs["body"])) : null,
+          // The line a listing card always ends up needing: a price, a
+          // distance, a rating. Without it an author reaches for a second
+          // `text` block and loses the card's own layout.
+          str(attrs["meta"]) ? el("p", { class: "fx-card-meta" }, str(attrs["meta"])) : null,
           children,
         );
         return el(
@@ -253,10 +257,38 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
           return el("div", { class: "fx-field" }, fragment(label, control));
         });
 
+        // A stay type is searched by the two dates it declares, and the block
+        // names the inputs itself (ADR 0025 §6): an author writing
+        // `<input name="check-in">` by hand and getting the name subtly wrong
+        // is a form whose controls do nothing.
+        const range =
+          contentType.derived?.kind === "stay"
+            ? [contentType.derived.range.from, contentType.derived.range.to].map((param, i) =>
+                el(
+                  "div",
+                  { class: "fx-field" },
+                  fragment(
+                    el(
+                      "label",
+                      { for: `f-${param}` },
+                      raw(esc(i === 0 ? "Check in" : "Check out")),
+                    ),
+                    el("input", {
+                      id: `f-${param}`,
+                      name: param,
+                      type: "date",
+                      value: current(param),
+                    }),
+                  ),
+                ),
+              )
+            : [];
+
         return el(
           "form",
           { class: `fx-filters ${className}`, method: "get", action: request?.path ?? "" },
           fragment(
+            ...range,
             ...inputs,
             el("button", { type: "submit" }, raw(esc(String(attrs["submit"] ?? "Search")))),
           ),
@@ -340,6 +372,9 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       attrs: ["one", "many"],
       render: ({ className, attrs, request }) => {
         const total = request?.result?.total ?? 0;
+        // `{{ results.total }}` resolves before this block sees the attribute —
+        // it is in scope like anything else. `{n}` stays for the specs written
+        // before that was true.
         const template = String(attrs[total === 1 ? "one" : "many"] ?? "{n} results");
         return el("p", { class: className }, raw(esc(template.replace("{n}", String(total)))));
       },

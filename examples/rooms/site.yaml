@@ -1,0 +1,46 @@
+# A small guesthouse — the search-and-book shape, hand-authored.
+#
+# The salon example (ADR 0007 test 1) is the *appointment* shape: pick a
+# stylist, pick a time. This is the other one: pick two dates, see what is free
+# for all of them, book it, pay a deposit. Between them they cover both derived
+# kinds the platform implements (ADR 0014, ADR 0025).
+specVersion: 2
+name: Riverside Rooms
+theme:
+  colors:
+    brand: "#1d4ed8"
+    accent: "#b45309"
+    surface: "#f8fafc"
+    text: "#0f172a"
+    border: "#e2e8f0"
+    background: "#ffffff"
+  fonts:
+    body: Inter
+    heading: Fraunces
+  typeScale:
+    sm: 0.875rem
+    md: 1rem
+    lg: 1.5rem
+    xl: 2.5rem
+  radius: { sm: 4px, md: 8px, lg: 16px }
+layout:
+  header:
+    - type: nav
+      style: { padding: { y: md, x: lg }, background: token:color.background, border: hairline }
+      attrs:
+        links:
+          - { label: Rooms, to: / }
+          - { label: Your stays, to: /account }
+  footer:
+    - type: footer
+      style: { padding: { y: lg, x: lg }, background: token:color.surface, textAlign: center }
+      attrs: { text: "Riverside Rooms · Naivasha · Reception 7am–9pm" }
+
+access: {}
+wiring:
+  # A deposit taken at reception. No shortcode needed, which is what a
+  # guesthouse has on the day it opens (ADR 0023 §5).
+  - key: reception
+    kind: payment.manual
+    label: Pay at reception
+    config: { instruction: "Pay the deposit at reception on arrival — cash, card or M-Pesa." }

@@ -1,0 +1,36 @@
+key: room-detail
+path: /rooms
+title: "{{ entry.name }}"
+collection: { from: room }
+seo:
+  description: "{{ entry.blurb }}"
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: "{{ entry.name }}", level: 1 }
+        style: { fontSize: xl }
+      - type: text
+        attrs: { text: "{{ entry.blurb }}" }
+      - type: text
+        attrs: { text: "KES {{ entry.price }} a night · sleeps {{ entry.sleeps }}" }
+        style: { textColor: token:color.brand, fontWeight: bold }
+
+  - type: section
+    style: { padding: { y: xl, x: lg }, background: token:color.surface }
+    children:
+      - type: heading
+        attrs: { text: Book this room, level: 2 }
+      # Writes a booking as a draft and sends the guest to pay the deposit
+      # (ADR 0020 §3, ADR 0023). Nothing here is published by paying.
+      - type: form
+        attrs: { for: booking, submit: Reserve }
+        children:
+          - { type: field, attrs: { name: reference } }
+          - { type: field, attrs: { name: room } }
+          - { type: field, attrs: { name: checkIn } }
+          - { type: field, attrs: { name: checkOut } }
+          - { type: field, attrs: { name: guestName } }
+          - { type: field, attrs: { name: guestEmail } }
+          - { type: field, attrs: { name: deposit } }

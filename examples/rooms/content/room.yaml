@@ -1,0 +1,22 @@
+key: room
+label: Room
+labelPlural: Rooms
+titleField: name
+permalink: /rooms/{{ entry.slug }}
+jsonld:
+  type: Product
+  properties: { name: name, description: blurb }
+fields:
+  - { name: name, label: Name, type: text, required: true }
+  - { name: blurb, label: Blurb, type: text }
+  - { name: price, label: Price per night, type: number, required: true, filterable: true }
+  - { name: sleeps, label: Sleeps, type: number, filterable: true }
+  - name: view
+    label: View
+    type: select
+    filterable: true
+    options:
+      - { value: garden, label: Garden }
+      - { value: lake, label: Lake }
+      - { value: courtyard, label: Courtyard }
+  - { name: photo, label: Photo, type: asset, accept: image }

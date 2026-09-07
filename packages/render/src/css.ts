@@ -206,6 +206,7 @@ a{color:var(--color-brand,#06c)}
 .fx-row{display:flex;flex-direction:row;flex-wrap:wrap}
 .fx-grid{display:grid}
 .fx-section{display:block}
+.fx-card-meta{color:var(--color-brand,#06c);font-weight:600;margin:0}
 `.trim();
 
 export function siteCss(spec: SiteSpec): string {

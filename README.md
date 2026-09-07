@@ -48,7 +48,7 @@ guarantees they cover are actually exercised.
 | `pnpm test` | Every suite in the workspace |
 | `pnpm verify` | Everything CI checks |
 | `pnpm docker:build` | The install image, locally |
-| `pnpm --filter @forinda-cms/engine seed:salon` | Load `examples/salon` into a database |
+| `pnpm --filter @forinda-cms/engine seed` | Load `examples/salon` into a database (`EXAMPLE=rooms` for the guesthouse) |
 
 ## Layout
 

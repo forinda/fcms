@@ -288,7 +288,38 @@ export const ScheduleSource = z
   })
   .strict();
 
-export const DerivedSource = z.discriminatedUnion("kind", [ScheduleSource]);
+/**
+ * `stay` — is this free for every night between two dates? (ADR 0025)
+ *
+ * The other shape of availability. `schedule` answers "which start times exist";
+ * this answers "which of these is free for a span", which is what a hotel, a
+ * rental, a hire company and a workshop space all ask. Modelling it with
+ * `schedule` would mean a row per night and a page working out whether the set
+ * is contiguous — an algorithm in a template, which ADR 0006 exists to prevent.
+ *
+ * The same split as every derived type: the spec declares the inputs, the
+ * platform owns the algorithm.
+ */
+export const StaySource = z
+  .object({
+    kind: z.literal("stay"),
+    /** What is booked — a room, a cottage, a van. */
+    resource: z.object({ type: Key }).strict(),
+    /** What occupies it, and where a booking's nights are read from. */
+    occupied: z.object({ type: Key, resource: FieldName, from: FieldName, to: FieldName }).strict(),
+    /**
+     * The request parameters the visitor's dates arrive in.
+     *
+     * Declared, so the `filters` block can render the two inputs with the right
+     * names rather than an author guessing them (ADR 0025 §6).
+     */
+    range: z.object({ from: Key, to: Key }).strict(),
+    /** How far ahead this may be asked about. */
+    window: z.object({ days: z.number().int().min(1).max(1095) }).strict(),
+  })
+  .strict();
+
+export const DerivedSource = z.discriminatedUnion("kind", [ScheduleSource, StaySource]);
 export type DerivedSource = z.infer<typeof DerivedSource>;
 
 /**

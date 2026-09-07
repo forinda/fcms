@@ -1,0 +1,6 @@
+key: confirm-on-deposit
+label: Confirm a booking once the deposit is paid
+trigger: { on: payment.succeeded, type: booking }
+steps:
+  - action: entry.transition
+    params: { to: confirmed }

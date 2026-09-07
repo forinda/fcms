@@ -1,0 +1,32 @@
+key: vacancy
+label: Vacancy
+labelPlural: Vacancies
+# Rows nobody stores: the rooms free for every night between the dates a guest
+# picked (ADR 0025). The spec declares the inputs; the platform owns the
+# algorithm — an author cannot write the availability rule, only choose what it
+# reads.
+derived:
+  kind: stay
+  resource: { type: room }
+  occupied: { type: booking, resource: room, from: checkIn, to: checkOut }
+  range: { from: check-in, to: check-out }
+  window: { days: 365 }
+fields:
+  - { name: name, label: Name, type: text }
+  - { name: blurb, label: Blurb, type: text }
+  - { name: price, label: Price per night, type: number, filterable: true }
+  - { name: sleeps, label: Sleeps, type: number, filterable: true }
+  - name: view
+    label: View
+    type: select
+    filterable: true
+    options:
+      - { value: garden, label: Garden }
+      - { value: lake, label: Lake }
+      - { value: courtyard, label: Courtyard }
+  - { name: nights, label: Nights, type: number }
+  # What the stay costs, worked out by the platform rather than by a template.
+  - name: total
+    label: Total
+    type: computed
+    formula: { op: multiply, of: [{ field: price }, { field: nights }] }

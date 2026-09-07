@@ -12,7 +12,7 @@
     "test": "vitest run",
     "schema": "tsx scripts/emit-schema.ts",
     "schema:check": "tsx scripts/emit-schema.ts --check",
-    "seed:salon": "tsx scripts/seed-salon.ts"
+    "seed": "tsx scripts/seed-example.ts"
   },
   "dependencies": {
     "@forinda-cms/ai": "workspace:*",
