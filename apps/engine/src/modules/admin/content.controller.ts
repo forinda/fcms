@@ -43,13 +43,18 @@ export class ContentController {
     if (!spec) return html(ctx, 200, page({ title: "Admin", body: "<p>No site yet.</p>" }));
 
     const counts = await this.reader.counts(spec);
+    // Drafts named on the dashboard, because an unpublished entry is otherwise
+    // invisible until someone wonders why the page is short.
+    const drafts = await this.reader.drafts();
     const stored = spec.content.filter((t) => !t.derived);
     const derived = spec.content.filter((t) => t.derived);
 
     const card = (t: ContentType) =>
       `<a class="card" href="/admin/content/${esc(t.key)}">
         <h3>${esc(t.labelPlural ?? t.label)}</h3>
-        <p class="muted">${counts[t.key] ?? 0} ${(counts[t.key] ?? 0) === 1 ? "entry" : "entries"}</p>
+        <p class="muted">${counts[t.key] ?? 0} ${(counts[t.key] ?? 0) === 1 ? "entry" : "entries"}${
+          (drafts[t.key] ?? 0) > 0 ? ` · ${drafts[t.key]} not published` : ""
+        }</p>
       </a>`;
 
     html(
@@ -123,14 +128,39 @@ ${
       (r) => `<tr>
       <td>${esc(title(r.data))}</td>
       <td class="muted">${esc(r.slug ?? "")}</td>
-      <td><span class="pill">${esc(r.status)}</span></td>
-      <td>${type.derived ? "" : `<a href="/admin/content/${esc(key)}/${esc(r.id)}">edit</a>`}</td>
+      <td><span class="pill${r.status === "draft" ? "" : " live"}">${esc(r.status)}</span></td>
+      <td>${
+        type.derived
+          ? ""
+          : `<a href="/admin/content/${esc(key)}/${esc(r.id)}">edit</a>
+             <form method="post" action="/admin/content/${esc(key)}/${esc(r.id)}/status" class="inline">
+               <input type="hidden" name="status" value="${r.status === "draft" ? "published" : "draft"}">
+               <button class="link" type="submit">${r.status === "draft" ? "publish" : "unpublish"}</button>
+             </form>`
+      }</td>
     </tr>`,
     )
     .join("")}</tbody></table>`
 }`,
       }),
     );
+  }
+
+  /**
+   * Publish or unpublish one entry.
+   *
+   * The action that decides whether the public site can see it. It is not a
+   * spec change, so it does not go through the patch spine — content is data,
+   * and the row's own timestamp is its history.
+   */
+  @Post("/content/:type/:id/status")
+  async setStatus(ctx: Ctx): Promise<void> {
+    const params = ctx.params as Record<string, string>;
+    const body = ctx.body as Record<string, unknown>;
+    const status = body["status"] === "published" ? "published" : "draft";
+
+    await this.writer.setStatus(String(params["id"]), status);
+    redirect(ctx, `/admin/content/${String(params["type"])}`);
   }
 
   @Get("/content/:type/new")

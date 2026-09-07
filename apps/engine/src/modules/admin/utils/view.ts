@@ -233,6 +233,8 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .danger{margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid var(--line)}
 .pill{display:inline-block;padding:.1rem .45rem;border-radius:99px;font-size:.75rem;background:#f5f5f4;color:var(--muted)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
+.pill.live{background:#dcfce7;color:#166534}
+form.inline{display:inline}
 @media(prefers-color-scheme:dark){
   body{background:#1c1917;color:#e7e5e4}
   .node.selected{background:#064e3b}

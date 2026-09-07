@@ -1,0 +1,12 @@
+-- Publish everything that was already public.
+--
+-- `entries.status` existed from the first migration, was indexed, and was read
+-- by nothing: the renderer served every row regardless. So on every install
+-- running today, a draft is public — "save it and finish tomorrow" published it.
+--
+-- Filtering the public read (as the code now does) would therefore *remove*
+-- content from live sites, silently, on upgrade. Nobody chose those drafts as
+-- drafts, because the choice did nothing. Publishing them keeps every site
+-- exactly as it looks now, and the distinction starts meaning something from
+-- here on.
+UPDATE "entries" SET "status" = 'published' WHERE "status" = 'draft';

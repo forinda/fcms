@@ -15,6 +15,13 @@
       "when": 1788789848875,
       "tag": "0001_sessions_and_login_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788791285794,
+      "tag": "0002_publish_existing_entries",
+      "breakpoints": true
     }
   ]
 }

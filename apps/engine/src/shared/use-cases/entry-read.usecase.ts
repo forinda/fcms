@@ -32,6 +32,11 @@ export class EntryReadUseCase {
    * lost" can be said with confidence instead of inferred from a missing key —
    * which is what a destructive-change message depends on.
    */
+  /** Drafts per type, so the admin can say "3 not published" beside the total. */
+  drafts(): Promise<Record<string, number>> {
+    return this.entries.draftCountsByType();
+  }
+
   async counts(spec: SiteSpec): Promise<Record<string, number>> {
     const zeros = Object.fromEntries(spec.content.map((t) => [t.key, 0]));
     return { ...zeros, ...(await this.entries.countsByType()) };
