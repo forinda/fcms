@@ -273,6 +273,8 @@ ul.blocks ul{border-left:1px solid var(--line)}
 .canvas .add{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
 .canvas .add .row{display:flex;gap:.4rem}
 .canvas .add select,.canvas .add input{flex:1;min-width:0}
+textarea.code{width:100%;font:.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  padding:.5rem;border:1px solid var(--line);border-radius:6px;background:inherit;color:inherit}
 .new-automation{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}
 .new-automation .row{display:flex;gap:.4rem;flex-wrap:wrap}
 .new-automation input{flex:1;min-width:10rem}

@@ -13,6 +13,8 @@
 import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
 import type { EntryRow } from "@forinda-cms/db";
 
+import { runScript, timeoutOf } from "./sandbox";
+
 export interface ActionContext {
   /**
    * What earlier steps produced, and the trigger's own values.
@@ -74,6 +76,14 @@ export interface ActionParam {
   /** For `integration`: which kind of integration may be chosen. */
   readonly of?: string;
   readonly required?: boolean;
+  /**
+   * What a new step starts with, where an empty string is not a legal value.
+   *
+   * A required `text` parameter cannot be prefilled by choosing from a set —
+   * there is no set — so the action says what a working starting point looks
+   * like. Without it, adding a script step is refused for having no script.
+   */
+  readonly default?: string;
   readonly help?: string;
 }
 
@@ -316,8 +326,49 @@ const httpRequest: Action = {
   },
 };
 
+/**
+ * The escape hatch (ADR 0031).
+ *
+ * It sees its input and returns a value. No network, no filesystem, no
+ * database, no secrets — absent rather than declared-and-enforced, which is the
+ * pipeline's own shape used as a security property: if a script needs data an
+ * earlier step fetched it, and if something must be sent a later step sends it.
+ */
+const scriptRun: Action = {
+  summary: "Work something out in JavaScript, with nothing but the values you pass it.",
+  params: [
+    {
+      name: "code",
+      label: "Script",
+      kind: "text",
+      required: true,
+      default: "return input;",
+      help: "`input` holds the entry and every named step. Return the value this step produces.",
+    },
+    {
+      name: "timeoutMs",
+      label: "Timeout (ms)",
+      kind: "text",
+      help: "2000 by default, 10000 at most.",
+    },
+  ],
+  async run({ params, values }): Promise<ActionResult> {
+    const code = String(params["code"] ?? "");
+    if (!code.trim()) throw new Error("this step has no script");
+
+    // A script touches nothing, so a test run executes it for real rather than
+    // reporting what it would do (ADR 0031 §4).
+    const result = await runScript(code, values ?? {}, timeoutOf(params["timeoutMs"]));
+    if (result.error) throw new Error(result.error);
+
+    const logged = result.logs?.length ? ` (${result.logs.length} logged)` : "";
+    return { note: `ran the script${logged}`, value: result.value };
+  },
+};
+
 export const ACTION_REGISTRY: Record<string, Action> = {
   "entry.transition": transition,
   "webhook.post": webhookPost,
   "http.request": httpRequest,
+  "script.run": scriptRun,
 };
