@@ -4,8 +4,8 @@ Two files and one command.
 
 ```bash
 mkdir my-site && cd my-site
-curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/compose.yaml
-curl -o .env https://raw.githubusercontent.com/forinda/forinda-cms/main/install/.env.example
+curl -O https://forinda-cms.dev/install/compose.yaml
+curl -o .env https://forinda-cms.dev/install/env.example
 # edit .env — set POSTGRES_PASSWORD and SITE_NAME
 docker compose up -d
 ```
@@ -16,6 +16,14 @@ That is the whole install. Open `http://localhost:8080`.
 provisions itself on boot, so `up` reaches a working site rather than a 404 and
 an instruction. Booting again changes nothing — migrations keep their ledger
 inside the database, and provisioning only runs when there is no site.
+
+These are served by the marketing site rather than from the repository, which
+is private. A private repository's raw files 404 for everyone else — and so do
+its release assets, which sit behind the same authentication as its code. The
+site is already public, the files are copied into it at build time from this
+directory, and there is one source of truth: this one.
+
+The image itself is public: `ghcr.io/forinda/forinda-cms`.
 
 ## Why this file exists
 
