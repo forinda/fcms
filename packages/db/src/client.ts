@@ -1,9 +1,9 @@
 /**
  * Connections.
  *
- * One pool per connection URL, cached — the pattern from `enaton`
- * (doc 09 §7), where N organizations on one instance shared one pool rather
- * than opening N. Fifteen lines that avoid the obvious bug.
+ * One pool per connection URL, cached (doc 09 §7), so N sites on one instance
+ * share one pool rather than opening N. Fifteen lines that avoid the obvious
+ * bug.
  */
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";

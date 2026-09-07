@@ -153,7 +153,6 @@ suite("SiteRepository", () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
       await db.insert(entries).values([
         {
-          id: "e1",
           siteId: SITE,
           orgId: ORG,
           typeKey: "service",
@@ -161,7 +160,6 @@ suite("SiteRepository", () => {
           data: { name: "Cut", blurb: "x" },
         },
         {
-          id: "e2",
           siteId: SITE,
           orgId: ORG,
           typeKey: "service",
@@ -203,7 +201,6 @@ suite("SiteRepository", () => {
     it("never reads another site's entries", async () => {
       await db.insert(entries).values([
         {
-          id: "mine",
           siteId: SITE,
           orgId: ORG,
           typeKey: "service",
@@ -211,7 +208,6 @@ suite("SiteRepository", () => {
           data: { name: "Mine" },
         },
         {
-          id: "theirs",
           siteId: OTHER_SITE,
           orgId: ORG,
           typeKey: "service",
@@ -235,7 +231,6 @@ suite("SiteRepository", () => {
       await repo().applySpec(spec, { actor: "a", source: "cli" });
       await db.insert(entries).values([
         {
-          id: "e1",
           siteId: SITE,
           orgId: ORG,
           typeKey: "service",

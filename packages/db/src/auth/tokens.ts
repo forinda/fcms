@@ -1,8 +1,8 @@
 /**
  * Session tokens.
  *
- * The token goes to the browser; only its hash is stored — `enaton`'s pattern.
- * A database read, a backup or a leaked dump must not hand out live sessions.
+ * The token goes to the browser; only its hash is stored. A database read, a
+ * backup or a leaked dump must not hand out live sessions.
  */
 import { createHash, randomBytes } from "node:crypto";
 

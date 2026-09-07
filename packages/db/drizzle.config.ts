@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
 /**
- * One database, not the control/tenant split `enaton` uses.
+ * One database, not a control/tenant split.
  *
  * ADR 0013 and doc 09 both land here: a self-hoster running one site should not
  * operate a control plane, so v1 scopes by column rather than by database. The

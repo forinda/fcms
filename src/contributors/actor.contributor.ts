@@ -1,8 +1,8 @@
 /**
  * Who is calling.
  *
- * Rejects by default. `enaton`'s comment on the same contributor records why,
- * and it is worth repeating: opting *into* authorization per route is how
+ * Rejects by default, and the reason is worth stating: opting *into*
+ * authorization per route is how
  * `GET /organization` and two entire apps ended up publicly reachable without
  * anyone deciding they should be. The flag is the only way out, and it is
  * applied per surface rather than per route (ADR 0008 §4).

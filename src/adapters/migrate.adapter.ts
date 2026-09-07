@@ -7,8 +7,7 @@
  *
  * It is safe to do on every boot because Drizzle keeps its ledger inside the
  * target database, so a migration that already ran is a no-op and one that died
- * halfway resumes — the property `enaton` relies on for tenant provisioning
- * (doc 09 §6).
+ * halfway resumes — the property provisioning relies on (doc 09 §6).
  *
  * `beforeStart` rather than `afterStart`: DI is ready, the server is not
  * listening yet, and a request must never arrive against a half-migrated

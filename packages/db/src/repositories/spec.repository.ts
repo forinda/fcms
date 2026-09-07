@@ -1,8 +1,8 @@
 /**
  * The stored spec. Reads and writes only — no diffing, no gating.
  *
- * Thin on purpose, following `enaton`: a repository answers questions about
- * rows, and the decisions live in a use-case. The first version of this package
+ * Thin on purpose: a repository answers questions about rows, and the decisions
+ * live in a use-case. The first version of this package
  * had one class doing loading, diffing, destructive gating, migration and
  * history, which made every one of those untestable without the others.
  */

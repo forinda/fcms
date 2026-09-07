@@ -39,7 +39,7 @@ CREATE TABLE "spec_patches" (
 );
 --> statement-breakpoint
 CREATE TABLE "entries" (
-	"id" char(26) PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"site_id" text NOT NULL,
 	"org_id" text NOT NULL,
 	"type_key" text NOT NULL,
@@ -51,7 +51,7 @@ CREATE TABLE "entries" (
 );
 --> statement-breakpoint
 CREATE TABLE "assets" (
-	"id" char(26) PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"org_id" text NOT NULL,
 	"site_id" text,
 	"blob_hash" text NOT NULL,
@@ -63,8 +63,8 @@ CREATE TABLE "assets" (
 );
 --> statement-breakpoint
 CREATE TABLE "owner_sessions" (
-	"id" char(26) PRIMARY KEY NOT NULL,
-	"owner_id" char(26) NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+	"owner_id" uuid NOT NULL,
 	"token_hash" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE "owner_sessions" (
 );
 --> statement-breakpoint
 CREATE TABLE "owners" (
-	"id" char(26) PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"org_id" text NOT NULL,
 	"email" text NOT NULL,
 	"password_hash" text NOT NULL,

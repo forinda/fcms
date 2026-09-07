@@ -107,9 +107,9 @@ export interface PlanScope {
  * Compute the steps that take the database from `before` to `after`.
  *
  * Every statement is idempotent — `IF NOT EXISTS` / `IF EXISTS` — so a plan that
- * died halfway can simply be re-run. That is the same property `enaton`'s tenant
- * provisioning relies on (doc 09 §6), and it is what lets the install artifact
- * migrate on boot rather than asking a self-hoster to reason about state.
+ * died halfway can simply be re-run. That is the same property provisioning
+ * relies on (doc 09 §6), and it is what lets the install artifact migrate on
+ * boot rather than asking a self-hoster to reason about state.
  */
 export function planMigration(
   before: SiteSpec | undefined,

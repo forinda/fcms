@@ -1,13 +1,12 @@
 /**
  * Which site this request is for.
  *
- * Doc 03 §4's `LoadSite`, and `enaton`'s `tenant-route` contributor with the
- * tenancy taken out: v1 is single-site, so the site comes from configuration
- * rather than from the host. The *shape* is the multi-site one — resolve once
+ * Doc 03 §4's `LoadSite`, with the tenancy taken out: v1 is single-site, so the
+ * site comes from configuration rather than from the host. The *shape* is the multi-site one — resolve once
  * per request, publish on `ctx`, read with `ctx.require` — so switching the
  * resolver to a host lookup later changes this file and nothing downstream.
  *
- * Two details carried over from `enaton` deliberately:
+ * Two details are deliberate:
  *
  *   - `resolve` **returns** the value; the runner writes it with `ctx.set`.
  *     Assigning a property would stick to this contributor's own instance and

@@ -1,5 +1,5 @@
 {
-  "id": "f59a0534-02ab-46f8-be34-629cf06b9d51",
+  "id": "7fb05c81-285d-49fe-9ad4-2bfabf404628",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -346,9 +346,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "char(26)",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "uuidv7()"
         },
         "site_id": {
           "name": "site_id",
@@ -517,9 +518,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "char(26)",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "uuidv7()"
         },
         "org_id": {
           "name": "org_id",
@@ -626,13 +628,14 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "char(26)",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "uuidv7()"
         },
         "owner_id": {
           "name": "owner_id",
-          "type": "char(26)",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
@@ -723,9 +726,10 @@
       "columns": {
         "id": {
           "name": "id",
-          "type": "char(26)",
+          "type": "uuid",
           "primaryKey": true,
-          "notNull": true
+          "notNull": true,
+          "default": "uuidv7()"
         },
         "org_id": {
           "name": "org_id",
