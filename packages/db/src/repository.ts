@@ -223,6 +223,25 @@ export class SiteRepository {
     });
   }
 
+  /**
+   * Raw patch rows, inverses included.
+   *
+   * Separate from `history()` because that returns a display shape, and the
+   * inverse is not something to put in front of a person — but it is exactly
+   * what derives redirects: the old path lives in the inverse of the patch that
+   * moved a page (doc 08, ADR 0002).
+   */
+  async rawHistory(limit = 200) {
+    return this.db
+      .select()
+      .from(specPatches)
+      .where(
+        and(eq(specPatches.orgId, this.scope.orgId), eq(specPatches.siteId, this.scope.siteId)),
+      )
+      .orderBy(desc(specPatches.seq))
+      .limit(limit);
+  }
+
   async history(limit = 20): Promise<PatchRecord[]> {
     const rows = await this.db
       .select()

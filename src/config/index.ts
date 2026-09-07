@@ -5,37 +5,39 @@ import { z } from "zod";
 /**
  * Project environment schema (Zod).
  *
- * `fromZod` wraps the Zod schema as a `KickSchema` so the env loader,
- * validate middleware, and swagger spec generator all see the same
- * shape. The default export is the contract `kick typegen` reads to
- * populate `KickEnv` via `InferSchemaOutput<typeof _envSchema>` —
- * that's what makes `@Value('FOO')` autocomplete and
- * `process.env.FOO` typed.
- *
- * @example
- *   DATABASE_URL: z.string().url(),
- *   JWT_SECRET: z.string().min(32),
- *   REDIS_URL: z.string().url().optional(),
+ * `fromZod` wraps it as a `KickSchema` so the env loader, validate middleware
+ * and swagger generator all see the same shape, and `kick typegen` reads it to
+ * populate `KickEnv` — which is what makes `@Value('FOO')` autocomplete.
  */
 const envSchema = fromZod(
   z.object({
     PORT: z.coerce.number().default(3000),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     LOG_LEVEL: z.string().default("info"),
-    // DATABASE_URL: z.string().url(),
+
+    DATABASE_URL: z.string(),
+
+    /**
+     * Where a single-site install serves from.
+     *
+     * v1 is single-site self-hosted (ADR 0013, doc 09): one org, one site, and
+     * the words never appear in the UI. The multi-site resolver reads the host
+     * instead — these two variables are the seam, not a permanent shape.
+     */
+    SITE_ID: z.string().default("default"),
+    ORG_ID: z.string().default("default"),
+
+    /**
+     * Trust `X-Forwarded-Host`. Off by default because trusting it unconditionally
+     * lets a caller pick which site they get once multi-site exists.
+     */
+    TRUST_PROXY: z.coerce.boolean().default(false),
+
+    /** Absolute base for canonicals and the sitemap (doc 08). */
+    PUBLIC_URL: z.string().optional(),
   }),
 );
 
-/**
- * IMPORTANT — side effect: register the schema with kickjs's env cache
- * **at module-load time**. `ConfigService` and `@Value()` both consume
- * this cache, and they will fall back to the base schema (or undefined)
- * if no extended schema has been registered before they're resolved.
- *
- * As long as `src/index.ts` imports this file (`import './config'`) at
- * the top — before `bootstrap()` runs — every controller and service
- * in the app sees the typed extended values.
- */
-export const env = loadEnvFromSchema(envSchema);
+loadEnvFromSchema(envSchema);
 
 export default envSchema;
