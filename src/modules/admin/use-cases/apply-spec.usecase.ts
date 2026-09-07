@@ -29,6 +29,14 @@ export interface ApplySpecInput {
   readonly allowDestructive?: boolean;
 }
 
+export interface PlanResult {
+  readonly changes: SpecChange[];
+  readonly destructive: SpecChange[];
+  readonly migration: MigrationStep[];
+  /** True when the site has no spec yet, so there is nothing to diff against. */
+  readonly initial: boolean;
+}
+
 export interface ApplySpecResult {
   readonly seq: number;
   readonly changes: SpecChange[];
@@ -58,6 +66,30 @@ export class ApplySpecUseCase {
     this.specs = new SpecRepository(db, scope);
     this.patches = new PatchRepository(db, scope);
     this.entries = new EntryRepository(db, scope);
+  }
+
+  /**
+   * What `execute` *would* do, without doing it.
+   *
+   * `fcms plan` and the apply that follows must agree, and the only way to
+   * guarantee that is for both to run this — the classification, the counts the
+   * impact lines are computed from, and the migration steps all come from here.
+   * A second implementation of "what changed" is a second answer.
+   */
+  async plan(next: SiteSpec): Promise<PlanResult> {
+    const validated = SiteSpec.parse(next);
+    const current = await this.specs.find();
+
+    const changes = current ? diffSpecs(current, validated, await this.entryCounts(current)) : [];
+
+    return {
+      changes,
+      destructive: changes.filter((c) => c.classification === "destructive"),
+      migration: planMigration(current ?? undefined, validated, { siteId: this.scope.siteId }),
+      // A first publish is not a diff — there is nothing to compare against, and
+      // reporting "no changes" for it would be a lie a caller acts on.
+      initial: current === null,
+    };
   }
 
   async execute(next: SiteSpec, input: ApplySpecInput): Promise<ApplySpecResult> {

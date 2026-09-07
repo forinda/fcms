@@ -41,6 +41,30 @@ export function readCookie(header: string | undefined, name: string): string | u
   return undefined;
 }
 
+/**
+ * The session token, from a browser or from a terminal.
+ *
+ * Two carriers, one session: the admin sends a cookie, `fcms` sends
+ * `Authorization: Bearer`. Both resolve through the same hashed-token lookup,
+ * so a CLI session can be listed and revoked exactly like a browser one — a
+ * separate API-key table would be a second credential to expire, audit and get
+ * wrong.
+ *
+ * The bearer header is read first: a request that states its credential
+ * explicitly means it, and a stale cookie in the same request should not win.
+ */
+export function sessionToken(
+  headers: Record<string, string | string[] | undefined>,
+): string | undefined {
+  const auth = headers["authorization"];
+  const header = Array.isArray(auth) ? auth[0] : auth;
+  const bearer = header?.match(/^Bearer (.+)$/i)?.[1]?.trim();
+  if (bearer) return bearer;
+
+  const raw = headers["cookie"];
+  return readCookie(Array.isArray(raw) ? raw[0] : raw, SESSION_COOKIE);
+}
+
 export const Actor = defineHttpContextDecorator({
   key: "actor",
   // The public site has no caller to identify; the login form is how a caller
@@ -53,10 +77,7 @@ export const Actor = defineHttpContextDecorator({
   deps: { authenticate: AuthenticateUseCase },
   async resolve(ctx, { authenticate }): Promise<OwnerRow> {
     const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
-    const raw = headers["cookie"];
-    const cookie = Array.isArray(raw) ? raw[0] : raw;
-
-    const owner = await authenticate.execute(readCookie(cookie, SESSION_COOKIE));
+    const owner = await authenticate.execute(sessionToken(headers));
 
     if (!owner) throw new HttpException(401, "Sign in to continue.");
     return owner;

@@ -204,4 +204,22 @@ describe("no change", () => {
     expect(diffSpecs(base, base, counts)).toEqual([]);
     expect(summarise([])).toEqual({ total: 0, destructive: 0, classification: "additive" });
   });
+
+  it("ignores key order, because a stored spec comes back reordered", () => {
+    // Postgres `jsonb` does not preserve insertion order, so a spec compared
+    // against the copy of itself that was just saved had different key order
+    // and nothing else. Comparing serialised JSON made that a change: `fcms
+    // plan` reported edited colours and an edited layout immediately after a
+    // successful `fcms apply`.
+    const reordered = JSON.parse(JSON.stringify(base), (_, value: unknown) =>
+      value && typeof value === "object" && !Array.isArray(value)
+        ? // `entries()` is already a fresh array, and `toReversed` needs a lib
+          // newer than this package targets.
+          // oxlint-disable-next-line no-array-reverse
+          Object.fromEntries(Object.entries(value as Record<string, unknown>).reverse())
+        : value,
+    ) as typeof base;
+
+    expect(diffSpecs(base, reordered, counts)).toEqual([]);
+  });
 });
