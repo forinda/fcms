@@ -37,6 +37,20 @@ export default mergeConfig(
       globals: true,
       environment: "node",
       include: ["src/**/*.test.ts"],
+      /**
+       * One file at a time.
+       *
+       * These suites truncate shared tables — `owners` above all, because the
+       * rule is "one owner per install" and the provisioning use-case counts
+       * globally, so every suite that needs an owner must first delete any
+       * other. Run in parallel they delete each other's fixtures mid-test, and
+       * the failures read as foreign-key and unique-constraint bugs in the
+       * product rather than as the test collision they are.
+       *
+       * The alternative is a database per file: a lot of machinery to save a
+       * few seconds.
+       */
+      fileParallelism: false,
     },
   }),
 );

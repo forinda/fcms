@@ -79,6 +79,21 @@ import Page from '../../layouts/Page.astro'
     </tbody>
   </table>
 
+  <h2>If a token or a laptop goes missing</h2>
+
+  <p>
+    <strong>Sessions</strong> in the dashboard lists everywhere you are signed in — browsers,
+    and any terminal or agent that ran <code>fcms login</code> — with what each is and when it
+    was last used. Revoke one, or sign out everywhere else in a single click. Revoking takes
+    effect on the next request.
+  </p>
+
+  <p>
+    Sign-in is rate limited: ten failures in fifteen minutes, counted per account
+    <em>and</em> per address, then a short wait. The counter clears the moment a correct
+    password is used, so mistyping yours a few times costs nothing.
+  </p>
+
   <h2>Moving off</h2>
 
   <p>

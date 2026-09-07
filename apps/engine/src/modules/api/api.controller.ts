@@ -25,7 +25,11 @@ import {
 import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
 import { PublicAuth } from "@/route-flags";
-import { InvalidCredentialsError, LoginUseCase } from "@/shared/auth/auth.usecase";
+import {
+  InvalidCredentialsError,
+  LoginUseCase,
+  TooManyAttemptsError,
+} from "@/shared/auth/auth.usecase";
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import {
   ApplySpecUseCase,
@@ -72,6 +76,8 @@ export class ApiController {
         owner: { email: session.owner.email },
       };
     } catch (error) {
+      // 429 so a script backs off rather than hammering a locked account.
+      if (error instanceof TooManyAttemptsError) throw new HttpException(429, error.message);
       if (!(error instanceof InvalidCredentialsError)) throw error;
       // The same message either way, for the same reason the form gives one:
       // a distinguishable answer turns this into a user-enumeration oracle.
