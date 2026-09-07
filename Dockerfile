@@ -15,11 +15,14 @@
 #   runtime what ships: node, the bundle, the migrations, nothing else
 
 ARG NODE_VERSION=24-alpine
-ARG PNPM_VERSION=10.18.0
+ARG PNPM_VERSION=11.24.0
 
 FROM node:${NODE_VERSION} AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+# The version comes from `packageManager` in package.json — corepack reads it,
+# `pnpm/action-setup` reads it in CI, and a developer's corepack reads it
+# locally. One answer, three consumers.
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /repo
 
@@ -41,7 +44,10 @@ ENV NODE_ENV=production
 RUN pnpm exec kick build
 
 FROM build AS deploy
-RUN pnpm deploy --legacy --prod /out \
+# `--filter` names the project: a workspace root with seven packages under it
+# has no single default, and without this `pnpm deploy` fails the build with
+# `ERR_PNPM_CANNOT_DEPLOY_MANY`.
+RUN pnpm --filter=forinda-cms deploy --legacy --prod /out \
  && cp -r dist /out/dist \
  && cp -r packages/db/migrations /out/migrations
 

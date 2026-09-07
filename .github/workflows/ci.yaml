@@ -88,7 +88,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # An absolute path: `--filter ... exec` runs with the package as its working
+      # directory, so `examples/salon` resolved to `packages/cli/examples/salon`
+      # and this job failed with "no site.yaml" on every run.
       - name: validate the reference spec
-        run: pnpm --filter @forinda-cms/cli exec tsx src/bin.ts validate examples/salon
+        run: pnpm --filter @forinda-cms/cli exec tsx src/bin.ts validate "$GITHUB_WORKSPACE/examples/salon"
         env:
           NO_COLOR: '1'
