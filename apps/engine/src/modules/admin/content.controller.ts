@@ -343,13 +343,16 @@ ${
   declared.length === 0
     ? `<p class="muted">This site has no automations yet.</p>`
     : `<table>
-  <thead><tr><th>Automation</th><th>Runs when</th><th>Steps</th></tr></thead>
+  <thead><tr><th>Automation</th><th>Runs when</th><th>Steps</th><th></th></tr></thead>
   <tbody>${declared
     .map(
       (
         w,
       ) => `<tr><td>${esc(w.key)}${w.enabled === false ? ' <span class="pill">off</span>' : ""}</td>
-      <td class="muted">${esc(w.trigger.on)}</td><td class="muted">${w.steps.length}</td></tr>`,
+      <td class="muted">${esc(w.trigger.on)}</td><td class="muted">${w.steps.length}</td>
+      <td><form method="post" action="/admin/automations/${esc(w.key)}/test" class="inline">
+        <button type="submit">Try it</button>
+      </form></td></tr>`,
     )
     .join("")}</tbody></table>`
 }
@@ -365,7 +368,7 @@ ${
       <td class="muted">${esc(run.createdAt.toISOString().replace("T", " ").slice(0, 16))}</td>
       <td>${esc(run.workflowKey)}</td>
       <td class="muted">${esc(run.trigger)}</td>
-      <td>${esc(run.status)}${run.attempts > 1 ? ` <span class="pill">${run.attempts} tries</span>` : ""}</td>
+      <td>${esc(run.status)}${(run.detail as { test?: boolean } | null)?.test ? ' <span class="pill">test</span>' : ""}${run.attempts > 1 ? ` <span class="pill">${run.attempts} tries</span>` : ""}</td>
       <td class="muted">${esc(run.lastError ?? stepsOf(run.detail))}</td>
     </tr>`,
     )
@@ -373,6 +376,33 @@ ${
 }`,
       }),
     );
+  }
+
+  /**
+   * Try an automation without doing it (ADR 0029 §5).
+   *
+   * Every step that touches the world says what it would have done. The result
+   * is a run on the same screen, marked as a test — so the way to find out what
+   * an automation does is the way you find out what it did.
+   */
+  @Post("/automations/:key/test")
+  async testAutomation(ctx: Ctx): Promise<void> {
+    const spec = await this.specs.execute();
+    const key = String((ctx.params as Record<string, string>)["key"] ?? "");
+    if (!spec) return notFound(ctx);
+
+    const body = (ctx.body ?? {}) as Record<string, unknown>;
+    const workflow = spec.logic.find((w) => w.key === key);
+    const typeKey = workflow && "type" in workflow.trigger ? workflow.trigger.type : undefined;
+
+    // A trigger about a content type is tried against a real row of it: an
+    // automation tested on nothing tells you nothing.
+    const entry = typeKey
+      ? ((await this.reader.rows(typeKey))[0] ?? null)
+      : ((await this.reader.byId(String(body["entry"] ?? ""))) ?? null);
+
+    await this.workflows.test(spec, key, entry?.id ?? null);
+    redirect(ctx, "/admin/automations");
   }
 
   @Get("/history")

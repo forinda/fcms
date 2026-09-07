@@ -14,6 +14,21 @@ import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
 import type { EntryRow } from "@forinda-cms/db";
 
 export interface ActionContext {
+  /**
+   * What earlier steps produced, and the trigger's own values.
+   *
+   * The scope a parameter's `{{ … }}` resolves against (ADR 0029 §3) — the
+   * renderer's evaluator, with the renderer's ceiling.
+   */
+  readonly values?: Record<string, unknown>;
+  /**
+   * A test run: report what a step *would* do and touch nothing (ADR 0029 §5).
+   *
+   * Refused rather than mocked. A mock invents a response, the rest of the
+   * pipeline runs on the invention, and the preview reports success for a
+   * fiction.
+   */
+  readonly dryRun?: boolean;
   readonly spec: SiteSpec;
   /** The entry the trigger was about. Absent for a scheduled run. */
   readonly entry?: EntryRow | undefined;
@@ -23,11 +38,25 @@ export interface ActionContext {
   readonly setState: (entryId: string, field: string, to: string) => Promise<void>;
 }
 
-/** One line for the run history — what this step did, in the owner's words. */
-export type ActionResult = string;
+/**
+ * What a step did, and what it produced.
+ *
+ * The note is the line an owner reads on the run; the value is what
+ * `steps.<key>` gives a later step (ADR 0029 §2).
+ */
+export interface ActionResult {
+  readonly note: string;
+  readonly value?: unknown;
+}
 
 export interface Action {
   run(ctx: ActionContext): Promise<ActionResult>;
+}
+
+/** What a step produced, for `steps.<key>` and for the run history. */
+export interface ActionOutput {
+  readonly note: string;
+  readonly value?: unknown;
 }
 
 /**
@@ -79,8 +108,8 @@ export function reachable(url: string): boolean {
 }
 
 const transition: Action = {
-  async run({ entry, type, params, setState }): Promise<ActionResult> {
-    if (!entry || !type) return "skipped: nothing to move";
+  async run({ entry, type, params, setState, dryRun }): Promise<ActionResult> {
+    if (!entry || !type) return { note: "skipped: nothing to move" };
 
     const to = String(params["to"] ?? "");
     const field = type.fields.find((f) => f.type === "state");
@@ -90,7 +119,7 @@ const transition: Action = {
     }
 
     const from = String((entry.data as Record<string, unknown>)[field.name] ?? "");
-    if (from === to) return `already ${to}`;
+    if (from === to) return { note: `already ${to}` };
 
     // The declared transitions are the whole point of a `state` field: a
     // workflow that could jump anywhere would make them decoration.
@@ -99,21 +128,25 @@ const transition: Action = {
     );
     if (!allowed) throw new Error(`"${type.key}" cannot go from ${from || "nothing"} to ${to}`);
 
+    if (dryRun) return { note: `would have moved from ${from} to ${to}` };
+
     await setState(entry.id, field.name, to);
-    return `moved from ${from} to ${to}`;
+    return { note: `moved from ${from} to ${to}`, value: { from, to } };
   },
 };
 
 const webhookPost: Action = {
-  async run({ spec, entry, type, params }): Promise<ActionResult> {
+  async run({ spec, entry, type, params, dryRun }): Promise<ActionResult> {
     const integration = spec.wiring.find((i) => i.key === String(params["to"] ?? ""));
     if (!integration || integration.kind !== "webhook") {
       throw new Error(`no webhook called "${String(params["to"])}"`);
     }
-    if (integration.enabled === false) return "skipped: that webhook is turned off";
+    if (integration.enabled === false) return { note: "skipped: that webhook is turned off" };
 
     const url = String(integration.config?.["url"] ?? "");
     if (!reachable(url)) throw new Error(`"${integration.key}" has no address this may post to`);
+
+    if (dryRun) return { note: `would have posted to ${integration.key}` };
 
     const response = await fetch(url, {
       method: "POST",
@@ -135,7 +168,10 @@ const webhookPost: Action = {
     if (!response.ok && response.status >= 500) {
       throw new Error(`${integration.key} answered ${response.status}`);
     }
-    return `posted to ${integration.key} (${response.status})`;
+    return {
+      note: `posted to ${integration.key} (${response.status})`,
+      value: { status: response.status },
+    };
   },
 };
 
@@ -154,7 +190,64 @@ function secretHeaders(integration: Integration): Record<string, string> {
   return headers;
 }
 
+/**
+ * Call a declared service and keep what it answered (ADR 0029 §4).
+ *
+ * The base URL belongs to the integration; the step names a path. So the set of
+ * hosts this site talks to is the set an owner declared, visible in the diff,
+ * and a step cannot add one.
+ */
+const httpRequest: Action = {
+  async run({ spec, params, dryRun }): Promise<ActionResult> {
+    const integration = spec.wiring.find((i) => i.key === String(params["to"] ?? ""));
+    if (!integration || integration.kind !== "api") {
+      throw new Error(`no api called "${String(params["to"])}"`);
+    }
+    if (integration.enabled === false) return { note: "skipped: that service is turned off" };
+
+    const base = String(integration.config?.["url"] ?? "").replace(/\/$/, "");
+    const path = String(params["path"] ?? "");
+    const url = `${base}${path.startsWith("/") ? path : `/${path}`}`;
+    if (!reachable(url)) throw new Error(`"${integration.key}" has no address this may call`);
+
+    const method = String(params["method"] ?? "GET").toUpperCase();
+    if (dryRun) {
+      // Reported, not performed: nothing leaves the building on a test run.
+      return { note: `would have called ${method} ${url}` };
+    }
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        accept: "application/json",
+        ...(params["body"] === undefined ? {} : { "content-type": "application/json" }),
+        ...secretHeaders(integration),
+      },
+      ...(params["body"] === undefined ? {} : { body: String(params["body"]) }),
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    const text = await response.text();
+    let body: unknown = text;
+    try {
+      body = text ? JSON.parse(text) : null;
+    } catch {
+      // Not JSON: kept as text, because a step that needed the body still has
+      // it and one that did not is unaffected.
+    }
+
+    if (!response.ok) {
+      throw new Error(`${integration.key} answered ${response.status}`);
+    }
+    return {
+      note: `called ${method} ${url} (${response.status})`,
+      value: { status: response.status, body },
+    };
+  },
+};
+
 export const ACTION_REGISTRY: Record<string, Action> = {
   "entry.transition": transition,
   "webhook.post": webhookPost,
+  "http.request": httpRequest,
 };

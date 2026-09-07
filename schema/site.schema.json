@@ -211,7 +211,8 @@
               "calendar",
               "storage",
               "analytics",
-              "webhook"
+              "webhook",
+              "api"
             ]
           },
           "label": {

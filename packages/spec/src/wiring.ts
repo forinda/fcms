@@ -35,6 +35,14 @@ export const INTEGRATION_KINDS = [
    * one place, and refusable.
    */
   "webhook",
+  /**
+   * A service this site calls: a base URL, and credentials by reference.
+   *
+   * Distinct from `webhook`, which is somewhere to post *to* and nothing more.
+   * An `api` is read as well as written, so a step keeps what it answered
+   * (ADR 0029 §4).
+   */
+  "api",
 ] as const;
 
 export const Integration = z

@@ -8,7 +8,7 @@
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { and, eq, lte, sql } from "drizzle-orm";
-import { matches } from "@forinda-cms/render";
+import { matches, resolve } from "@forinda-cms/render";
 import type { SiteSpec, Workflow } from "@forinda-cms/spec";
 import { entries, workflowRuns, type EntryRow, type WorkflowRunRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
@@ -122,6 +122,33 @@ export class WorkflowUseCase {
   }
 
   /**
+   * Run an automation now, touching nothing (ADR 0029 §5).
+   *
+   * Every step that reaches the world reports what it would have done instead
+   * of doing it, and the result is a run row like any other — marked as a test,
+   * on the same screen, with nothing new to learn.
+   */
+  async test(spec: SiteSpec, workflowKey: string, entryId: string | null) {
+    const workflow = spec.logic.find((w) => w.key === workflowKey);
+    if (!workflow) return null;
+
+    const [run] = await this.db
+      .insert(workflowRuns)
+      .values({
+        siteId: this.scope.siteId,
+        orgId: this.scope.orgId,
+        workflowKey,
+        trigger: "test",
+        entryId,
+        status: "running",
+        detail: { test: true },
+      })
+      .returning();
+
+    return this.execute(spec, run!);
+  }
+
+  /**
    * Take up to `limit` due runs and execute them.
    *
    * `FOR UPDATE SKIP LOCKED` is what makes the table a queue: two runners take
@@ -176,6 +203,21 @@ export class WorkflowUseCase {
     const entry = run.entryId ? await this.entry(run.entryId) : undefined;
     const type = spec.content.find((t) => t.key === entry?.typeKey);
     const steps: string[] = [];
+    const dryRun =
+      run.status === "testing" || (run.detail as { test?: boolean } | null)?.test === true;
+
+    /**
+     * What a parameter's `{{ … }}` sees (ADR 0029 §3).
+     *
+     * The trigger's entry, the site, and what earlier steps produced. The same
+     * evaluator the renderer uses, so there is one template language rather
+     * than a second one that grows differently.
+     */
+    const values: Record<string, unknown> = {
+      site: { name: spec.name },
+      ...(entry ? { entry: entry.data } : {}),
+      steps: {} as Record<string, unknown>,
+    };
 
     try {
       for (const step of workflow.steps) {
@@ -189,19 +231,38 @@ export class WorkflowUseCase {
         const action = ACTION_REGISTRY[step.action];
         if (!action) throw new Error(`no action called "${step.action}"`);
 
-        steps.push(
-          `${step.action}: ${await action.run({
-            spec,
-            entry,
-            type,
-            params: step.params ?? {},
-            setState: (id, field, to) => this.setState(id, field, to),
-          })}`,
+        const params = Object.fromEntries(
+          Object.entries(step.params ?? {}).map(([name, value]) => [
+            name,
+            typeof value === "string" ? resolve(value, values) : value,
+          ]),
         );
+
+        const result = await action.run({
+          spec,
+          entry,
+          type,
+          params,
+          values,
+          dryRun,
+          setState: (id, field, to) => this.setState(id, field, to),
+        });
+
+        // Named steps publish what they produced; unnamed ones do not, so an
+        // automation only grows a key when something reads it.
+        if (step.key) {
+          (values["steps"] as Record<string, unknown>)[step.key] = result.value ?? {};
+        }
+        steps.push(`${step.key ?? step.action}: ${result.note}`);
       }
-      return this.finish(run, "done", { steps });
+      return this.finish(run, "done", { steps, ...(dryRun ? { test: true } : {}) });
     } catch (error) {
-      return this.retry(run, error instanceof Error ? error.message : String(error), steps);
+      // A test run does not retry: nobody is waiting five minutes to find out
+      // what a preview would have done.
+      const message = error instanceof Error ? error.message : String(error);
+      return dryRun
+        ? this.finish(run, "failed", { steps, test: true }, message)
+        : this.retry(run, message, steps);
     }
   }
 
