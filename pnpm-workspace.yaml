@@ -1,3 +1,10 @@
+# The app still lives at the repo root; `packages/*` holds the shared libraries.
+# It moves to `apps/engine` when there is a second app to sit beside it
+# (research/09-packaging.md) — not before, because the move is cheap and doing it
+# now buys nothing.
+packages:
+  - 'packages/*'
+
 allowBuilds:
   '@scarf/scarf': true
   '@swc/core': true

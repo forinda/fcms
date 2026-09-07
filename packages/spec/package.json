@@ -1,0 +1,24 @@
+{
+  "name": "@forinda-cms/spec",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The site spec: schema, validators, patch types. The AST every surface writes to.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.2"
+  }
+}
