@@ -41,7 +41,10 @@ ENV NODE_ENV=production
 RUN pnpm exec kick build
 
 FROM build AS deploy
-RUN pnpm deploy --legacy --prod /out \
+# `--filter` names the project: a workspace root with seven packages under it
+# has no single default, and without this `pnpm deploy` fails the build with
+# `ERR_PNPM_CANNOT_DEPLOY_MANY`.
+RUN pnpm --filter=forinda-cms deploy --legacy --prod /out \
  && cp -r dist /out/dist \
  && cp -r packages/db/migrations /out/migrations
 

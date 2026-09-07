@@ -25,7 +25,14 @@ services:
     volumes:
       # A named volume, so `docker volume` can back it up without poking around
       # in bind mounts (doc 09 §4).
-      - postgres-data:/var/lib/postgresql/data
+      #
+      # Mounted at `/var/lib/postgresql`, **not** at `.../data`. The 18 images
+      # store data in a major-version subdirectory so `pg_upgrade --link` works
+      # across a mount boundary, and they refuse to start when they find data
+      # where the old images put it. Mounting the old path failed the documented
+      # one-command install outright: `postgres ... is unhealthy`, and the app
+      # never started.
+      - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-forinda}"]
       interval: 5s

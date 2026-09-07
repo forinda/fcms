@@ -47,6 +47,11 @@ ADR 0011: **export always works and is never withheld.** For a self-hoster that
 means a plain `pg_dump` any Postgres can read — the spec, its whole patch
 history, and the content, with no account and no export queue.
 
+Restoring stops the app first, so nothing writes mid-restore, and asks you to
+type the database name — the one command here that can lose data should be hard
+to run by accident. Uploaded media is not in Postgres; once the asset store
+exists (ADR 0010), back its bucket up alongside this.
+
 ## Resource floor
 
 Two services, deliberately: Postgres and the app. No Redis, no separate queue,

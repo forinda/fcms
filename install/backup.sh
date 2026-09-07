@@ -18,15 +18,26 @@ set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Read from .env so this needs no arguments and cannot drift from compose.
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
+#
+# Read, not sourced. `source .env` broke on the very first line of the shipped
+# example — `SITE_NAME=Install Test` is valid for compose and a command
+# invocation for bash ("Test: command not found") — and it also runs whatever a
+# `.env` contains, which is the wrong amount of trust for a file people paste
+# into. This reads one key and unwraps one layer of quotes, like compose does.
+env_value() {
+  local key="$1" line
+  [[ -f .env ]] || return 0
+  line="$(grep -E "^[[:space:]]*${key}=" .env | tail -n 1)" || return 0
+  line="${line#*=}"
+  # Strip a matching pair of surrounding quotes, and nothing else.
+  [[ "$line" == \"*\" || "$line" == \'*\' ]] && line="${line:1:${#line}-2}"
+  printf '%s' "$line"
+}
 
-DB_USER="${POSTGRES_USER:-forinda}"
-DB_NAME="${POSTGRES_DB:-forinda_cms}"
+DB_USER="${POSTGRES_USER:-$(env_value POSTGRES_USER)}"
+DB_NAME="${POSTGRES_DB:-$(env_value POSTGRES_DB)}"
+DB_USER="${DB_USER:-forinda}"
+DB_NAME="${DB_NAME:-forinda_cms}"
 SERVICE="${POSTGRES_SERVICE:-postgres}"
 DIR="${BACKUP_DIR:-./backups}"
 
