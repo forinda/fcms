@@ -8,6 +8,7 @@
 import { defineModule } from "@forinda/kickjs";
 
 import { AdminController } from "./admin.controller";
+import { AssistController } from "./assist.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 
@@ -33,6 +34,7 @@ export const AdminModule = defineModule({
         // Before the content controller: its `/content/:type` would otherwise
         // swallow nothing here, but the canvas's `/pages/:key` is the more
         // specific route and reads better first.
+        { path: "/admin", controller: AssistController },
         { path: "/admin", controller: CanvasController },
         { path: "/admin", controller: ContentController },
       ];

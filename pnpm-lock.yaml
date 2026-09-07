@@ -119,6 +119,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@forinda-cms/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@forinda-cms/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -208,6 +211,28 @@ importers:
         specifier: 'catalog:'
         version: 6.4.8(@types/node@25.9.5)(jiti@2.7.0)(lightningcss@1.33.0)(rollup@4.63.1)(tsx@4.23.13)(yaml@2.9.0)
 
+  packages/ai:
+    dependencies:
+      '@anthropic-ai/sdk':
+        specifier: 'catalog:'
+        version: 0.71.2(zod@4.5.4)
+      '@forinda-cms/lang':
+        specifier: workspace:*
+        version: link:../lang
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:../spec
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.5
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
   packages/cli:
     dependencies:
       '@forinda-cms/lang':
@@ -284,9 +309,9 @@ importers:
 
   packages/eval:
     dependencies:
-      '@anthropic-ai/sdk':
-        specifier: 'catalog:'
-        version: 0.71.2(zod@4.5.4)
+      '@forinda-cms/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@forinda-cms/lang':
         specifier: workspace:*
         version: link:../lang

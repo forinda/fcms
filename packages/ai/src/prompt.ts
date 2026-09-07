@@ -1,18 +1,19 @@
 /**
  * The prompt a model is given to author this language.
  *
- * Deliberately thin. The point of ADR 0007 test 3 is to measure whether **the
- * language** is easy for a model to emit correctly — not how far clever
- * prompting can carry it. A prompt stuffed with worked examples would measure
- * the prompt.
+ * Deliberately thin. ADR 0007 test 3 measures whether **the language** is easy
+ * for a model to emit correctly — not how far clever prompting can carry it. A
+ * prompt stuffed with worked examples would measure the prompt.
+ *
+ * It lives here, beside the client, because the product and the harness must
+ * send the same one (ADR 0018 §3). Two copies means the eval measures a prompt
+ * nobody ships, which is a number worse than no number because it gets quoted.
  *
  * So the model gets what a real harness would give it: the JSON Schema (the same
  * artifact the YAML language server consumes — ADR 0006), the current spec, the
  * profile rules that a schema cannot express, and the task.
  */
 import { siteSpecJsonSchema } from "@forinda-cms/spec";
-
-import type { Task } from "./tasks.js";
 
 export const SYSTEM = `You edit a website specification written in YAML.
 
@@ -70,7 +71,7 @@ single YAML document inside one \`\`\`yaml fenced block, and nothing else.
 If it is not: reply with \`CANNOT_EXPRESS\` followed by one short paragraph
 explaining why and what would be needed.`;
 
-export function buildUserMessage(currentSpecYaml: string, task: Task): string {
+export function buildUserMessage(currentSpecYaml: string, instruction: string): string {
   return [
     "## JSON Schema",
     "",
@@ -86,7 +87,7 @@ export function buildUserMessage(currentSpecYaml: string, task: Task): string {
     "",
     "## Requested change",
     "",
-    task.instruction,
+    instruction,
   ].join("\n");
 }
 

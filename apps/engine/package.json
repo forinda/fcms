@@ -15,6 +15,7 @@
     "seed:salon": "tsx scripts/seed-salon.ts"
   },
   "dependencies": {
+    "@forinda-cms/ai": "workspace:*",
     "@forinda-cms/db": "workspace:*",
     "@forinda-cms/lang": "workspace:*",
     "@forinda-cms/render": "workspace:*",
