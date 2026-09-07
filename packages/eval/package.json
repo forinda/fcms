@@ -13,10 +13,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "eval": "tsx src/cli.ts",
-    "eval:record": "tsx src/cli.ts --record"
+    "eval:record": "tsx src/cli.ts --record",
+    "test2": "tsx src/test-2.ts"
   },
   "dependencies": {
     "@forinda-cms/ai": "workspace:*",
+    "@forinda-cms/cli": "workspace:*",
     "@forinda-cms/lang": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "yaml": "catalog:"
