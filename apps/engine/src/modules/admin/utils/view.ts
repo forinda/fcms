@@ -241,10 +241,40 @@ h2{font-size:1.05rem;margin:2rem 0 .5rem}
 table{width:100%;border-collapse:collapse;margin:.5rem 0 0}
 th,td{text-align:left;padding:.55rem .5rem;border-bottom:1px solid var(--line)}
 th{font-size:.8rem;color:var(--muted);font-weight:600}
+/* On a phone a wide table scrolls inside its own box. Without this the history
+   table — five columns of it — drags the whole page sideways. */
+@media(max-width:40rem){table{display:block;overflow-x:auto}}
+/* The top of the dashboard. A count first in each line, because the number is
+   what decides whether it is opened now or later. */
+.attention{margin:1.5rem 0 0}
+.attention h2{margin-top:0}
+ul.waiting{list-style:none;margin:0;padding:0}
+ul.waiting li{padding:.4rem 0;border-bottom:1px solid var(--line)}
+ul.waiting li:last-child{border-bottom:0}
+ul.waiting a{text-decoration:none}
+ul.waiting a:hover{text-decoration:underline}
+ul.waiting strong{font-size:1.1rem}
+ul.waiting li.destructive-change a{color:var(--bad)}
+/* Two panels of recent activity, one column on a narrow screen. */
+.two-up{display:grid;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr));gap:0 2rem}
+.two-up table{font-size:.9rem}
+/* The half of a row that is metadata keeps to one line: "16 minutes ago" broken
+   over three lines is taller than the change it is dating. */
+.two-up td:not(:first-child){white-space:nowrap;text-align:right}
+h3.quiet{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  margin:1.5rem 0 .25rem}
+.card-actions{margin:.5rem 0 0;font-size:.85rem}
 .cards{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));margin-top:.5rem}
 .card{padding:1rem;border:1px solid var(--line);border-radius:8px;background:#fff}
 .card h3{margin:0 0 .25rem;font-size:1rem}
-.header-actions{display:flex;gap:.9rem;align-items:center}
+/* Wraps. Six links and a sign-out button do not fit a phone in one row, and
+   without this the last of them sits past the right edge — off the screen, and
+   dragging the whole page sideways with it. */
+.header-actions{display:flex;gap:.5rem .9rem;align-items:center;flex-wrap:wrap}
+@media(max-width:34rem){
+  header{padding:.6rem .75rem}
+  .header-actions{font-size:.9rem;gap:.4rem .7rem}
+}
 tr.current td{background:#f5f5f4}
 @media(prefers-color-scheme:dark){tr.current td{background:#292524}}
 ul.changes{margin:.5rem 0 0;padding-left:1.1rem}

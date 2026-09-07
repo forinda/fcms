@@ -22,9 +22,15 @@ warning teaches people to skim the real one.
 Sign in at <code>/admin</code> on your own install. Everything below is that dashboard.
 </p>
 
+## What is waiting for you
+
+The front page opens with <em>Needs you</em>: entries written but not published, automations that failed, payments a customer started and never finished, automations somebody turned off. Each line is a count and a link to the screen that deals with it. When there is nothing, it says so in one line and takes up no more room than that.
+
+Under it are the site's latest automation runs and its latest changes — who changed what, from where, and how long ago — so "what happened while I was away" is answered without opening anything.
+
 ## Content
 
-The front page of the dashboard lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
+The front page also lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
 
 The form is generated from what the type declares, so it validates the way the site does: a required field left empty is refused rather than saved blank, a number field will not take words, and a slug already in use is reported as such instead of failing later.
 
