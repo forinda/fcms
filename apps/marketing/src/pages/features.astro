@@ -1,0 +1,108 @@
+---
+/**
+ * What the system does, in the order a buyer asks.
+ *
+ * Every claim is something the repo can demonstrate today. The hosted platform
+ * is marked as not yet available rather than described in the present tense —
+ * doc 12's technical reader checks, and a page that oversells the unbuilt half
+ * loses them permanently.
+ */
+import Page from '../layouts/Page.astro'
+---
+
+<Page
+  section="What it does"
+  title="What forinda-cms does"
+  description="A spec-driven CMS: forms for owners, files for developers, a visual canvas, an assistant, and one history that covers all of them."
+>
+  <h1>One site. Four ways to change it.</h1>
+
+  <p class="lede">
+    Your site is a single declarative <strong>spec</strong> — content types, pages, logic,
+    access, integrations. Every surface below edits that same artifact, so they cannot
+    disagree with each other, and one history covers all of them.
+  </p>
+
+  <h2>For the person who owns the business</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Forms, not fields-in-a-database</h3>
+      <p>Content types and entries with real validation, generated from what the site
+        actually declares. A required box left empty is refused, not saved blank.</p>
+    </div>
+    <div class="card">
+      <h3>A canvas that edits the real page</h3>
+      <p>The editor shows your actual rendered page — same styles, same layout — and you
+        move, nest, duplicate and restyle sections in it. There is no "preview" that
+        disagrees with the live site.</p>
+    </div>
+    <div class="card">
+      <h3>An assistant that asks first</h3>
+      <p>Describe the change in words. It proposes; you see exactly what would change, in
+        plain language; you decide. Nothing is applied because a model thought it should be.</p>
+    </div>
+    <div class="card">
+      <h3>Undo that actually undoes</h3>
+      <p>Every change is stored with its inverse — from a form, the canvas, the command
+        line or the assistant. One list, newest first, with an undo button.</p>
+    </div>
+  </div>
+
+  <h2>For whoever builds it</h2>
+
+  <div class="cards">
+    <div class="card">
+      <h3>The site is a directory of files</h3>
+      <p>Readable YAML under version control. <code>fcms plan</code> shows what a change
+        would do, <code>fcms apply</code> does it, and destructive changes need
+        <code>--yes</code>.</p>
+    </div>
+    <div class="card">
+      <h3>An MCP server, so agents can drive it</h3>
+      <p>Ten tools over the same API the CLI uses. No <code>write_file</code>, no SQL — the
+        tool list <em>is</em> the safety model, and it is ten lines long.</p>
+    </div>
+    <div class="card">
+      <h3>Migrations you did not write</h3>
+      <p>Change a content type and the schema change is planned, classified and applied on
+        boot. Destructive steps refuse to run unless someone confirmed them.</p>
+    </div>
+    <div class="card">
+      <h3>SEO that is structural</h3>
+      <p>Server-rendered pages, clean URLs, a sitemap that maintains itself, and an
+        automatic 301 when a page moves — because the old address is recorded in the change.</p>
+    </div>
+  </div>
+
+  <h2>What it will not do</h2>
+
+  <p>
+    Worth saying plainly, because the alternative is discovering it after you have moved in:
+  </p>
+
+  <table>
+    <tbody>
+      <tr>
+        <td><strong>Arbitrary code in a page</strong></td>
+        <td>Pages are structured blocks, not templates with logic in them. That limit is what
+          makes the canvas, the assistant and the migrations possible at once.</td>
+      </tr>
+      <tr>
+        <td><strong>Per-pixel layout</strong></td>
+        <td>Spacing, colour and size are token choices, not free numbers — so restyling the
+          brand still changes everything at once.</td>
+      </tr>
+      <tr>
+        <td><strong>A plugin marketplace</strong></td>
+        <td>Not yet. The block and action registry exists; opening it to third parties is
+          deliberately later.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="ctas">
+    <a class="cta" href="/docs/install/">Install it</a>
+    <a class="cta secondary" href="/docs/">Read the docs</a>
+  </div>
+</Page>

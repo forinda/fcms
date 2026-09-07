@@ -1,0 +1,125 @@
+---
+/**
+ * What it costs, and what happens when you stop paying.
+ *
+ * The second half is the part that matters and the part most pricing pages
+ * omit. ADR 0011 makes non-payment behaviour a credibility question rather than
+ * a billing detail: a product whose pitch is ownership has to say, on the
+ * pricing page, what it does with your site when the card fails.
+ *
+ * The hosted platform is not built. It is described in the future tense
+ * throughout, and the free path is the one with a button.
+ */
+import Page from '../layouts/Page.astro'
+---
+
+<Page
+  section="Pricing"
+  title="Pricing — forinda-cms"
+  description="Self-hosting is free and complete. The hosted platform will meter site-hours, never seats, and never AI."
+>
+  <h1>Free if you run it. Metered if we do.</h1>
+
+  <p class="lede">
+    Self-hosting is not a limited edition. It is the whole product — every feature on this
+    site, no licence key, no phone-home, no feature gate.
+  </p>
+
+  <h2>Run it yourself — free</h2>
+
+  <table>
+    <tbody>
+      <tr><td>Everything</td><td>Content, canvas, assistant, CLI, MCP, migrations, SEO, backups</td></tr>
+      <tr><td>Sites</td><td>As many as your machine can hold</td></tr>
+      <tr><td>People</td><td>Unlimited. Seats are never charged, here or on the hosted plan.</td></tr>
+      <tr><td>Your data</td><td>Your Postgres. One command writes a dump any Postgres can read.</td></tr>
+      <tr><td>AI</td><td>Your own API key. Your provider bills you directly; we are not in the loop.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="ctas">
+    <a class="cta" href="/docs/install/">Install it now</a>
+    <a class="cta secondary" href="/docs/">What that involves</a>
+  </div>
+
+  <h2>Hosted <span class="soon">not yet available</span></h2>
+
+  <p>
+    For people who would rather not run a server. Being built; the shape is decided and
+    worth stating now, because it is the reason to trust the free path too.
+  </p>
+
+  <table>
+    <thead><tr><th>What is metered</th><th>What is not</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>
+          Published <strong>site-hours</strong>, by plan size — a site running nine days
+          costs nine days, capped at the monthly rate.
+          <br />Storage above the plan's allowance.
+        </td>
+        <td>
+          Draft and unpublished sites.<br />
+          Bandwidth, up to an abuse threshold.<br />
+          <strong>Seats — collaborators are never charged.</strong><br />
+          <strong>AI — never metered, on any plan.</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <p>
+      <strong>No per-seat pricing, ever.</strong> An agency should be able to invite a
+      client's whole staff without doing arithmetic first. Charging seats taxes exactly the
+      behaviour that makes the software useful.
+    </p>
+  </div>
+
+  <div class="note">
+    <p>
+      <strong>AI is never metered and never billed in arrears.</strong> Inference cost is
+      unpredictable in a way hosting is not, and a surprise bill ends a relationship. Either
+      it is an allowance included in a plan, or you bring your own key and pay your provider.
+      When an allowance runs out the assistant stops — and the canvas, the content editor,
+      the CLI and your site keep working.
+    </p>
+  </div>
+
+  <h3>Trying it</h3>
+
+  <p>
+    <strong>14 days, no card.</strong> Card-up-front cuts fraud and would cut out most of the
+    market this is built for, where card access is limited; the trial is bounded by resource
+    limits instead — one site, a subdomain, capped storage.
+  </p>
+  <p>
+    <strong>30-day money back</strong>, first month, no questions. Though the honest version
+    is that hourly metering already means you can leave any hour and pay only for what you
+    used, which is a stronger promise than a refund policy.
+  </p>
+  <p>Top up by <strong>M-Pesa</strong> or pay by card. Invoices go to the organisation.</p>
+
+  <h3>When payment fails</h3>
+
+  <p>
+    The part that decides whether "you own this" is true. In order:
+  </p>
+
+  <ol>
+    <li><strong>Seven days' grace.</strong> The site stays up. You are told.</li>
+    <li><strong>Then the site is suspended</strong> — it stops serving, and it is not deleted.</li>
+    <li><strong>Your export keeps working the entire time.</strong> Suspended, unpaid, whatever:
+      the data is yours and the download is never withheld to force a payment.</li>
+    <li><strong>You can move to self-hosting at any point</strong>, including from a suspended
+      account, and the software you move to is the one on this page — not a crippled edition.</li>
+  </ol>
+
+  <div class="note">
+    <p>
+      We never hold data hostage. That is a design constraint, not a courtesy: the export is
+      a plain database dump and the software is free, so withholding either would only
+      damage us.
+    </p>
+  </div>
+</Page>
