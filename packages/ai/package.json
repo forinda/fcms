@@ -1,8 +1,8 @@
 {
-  "name": "@forinda-cms/eval",
+  "name": "@forinda-cms/ai",
   "version": "0.0.0",
   "private": true,
-  "description": "ADR 0007 test 3 — can a model author this language correctly?",
+  "description": "The planner: one prompt, one parser, shared by the product and the eval harness.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -11,19 +11,15 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "eval": "tsx src/cli.ts",
-    "eval:record": "tsx src/cli.ts --record"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@forinda-cms/ai": "workspace:*",
+    "@anthropic-ai/sdk": "catalog:",
     "@forinda-cms/lang": "workspace:*",
-    "@forinda-cms/spec": "workspace:*",
-    "yaml": "catalog:"
+    "@forinda-cms/spec": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

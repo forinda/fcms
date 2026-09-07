@@ -19,14 +19,18 @@ export interface Provider {
   complete(system: string, user: string, id: string): Promise<string>;
 }
 
-export const FIXTURE_DIR = join(import.meta.dirname, "fixtures");
-
-/** Replays a recorded response. The default, so CI needs no key and no budget. */
-export function replayProvider(): Provider {
+/**
+ * Replays a recorded response. The default, so CI needs no key and no budget.
+ *
+ * The directory is the caller's: recordings belong to whoever made them — the
+ * eval harness keeps its own beside its tasks — and a fixed path here would
+ * make this package own files it knows nothing about.
+ */
+export function replayProvider(fixtureDir: string): Provider {
   return {
     name: "replay",
     async complete(_system, _user, id) {
-      const path = join(FIXTURE_DIR, `${id}.txt`);
+      const path = join(fixtureDir, `${id}.txt`);
       if (!existsSync(path)) {
         throw new Error(
           `no recording for "${id}". Run \`pnpm eval:record\` with an API key to create one, ` +
@@ -40,8 +44,8 @@ export function replayProvider(): Provider {
 
 export interface LiveOptions {
   readonly model?: string;
-  /** Write each response to `fixtures/` so CI can replay it later. */
-  readonly record?: boolean;
+  /** Where to write each response, so CI can replay it later. Omit to record nothing. */
+  readonly recordTo?: string;
 }
 
 /**
@@ -78,9 +82,9 @@ export function liveProvider(options: LiveOptions = {}): Provider {
         .map((b) => b.text)
         .join("");
 
-      if (options.record) {
-        mkdirSync(FIXTURE_DIR, { recursive: true });
-        writeFileSync(join(FIXTURE_DIR, `${id}.txt`), text, "utf8");
+      if (options.recordTo) {
+        mkdirSync(options.recordTo, { recursive: true });
+        writeFileSync(join(options.recordTo, `${id}.txt`), text, "utf8");
       }
       return text;
     },
@@ -95,12 +99,12 @@ export function liveProvider(options: LiveOptions = {}): Provider {
  * `--live` asks for the live provider explicitly and fails loudly if it cannot
  * authenticate, rather than silently replaying stale recordings.
  */
-export function chooseProvider(argv: readonly string[]): Provider {
+export function chooseProvider(argv: readonly string[], fixtureDir: string): Provider {
   const record = argv.includes("--record");
   const live = record || argv.includes("--live");
-  if (!live) return replayProvider();
+  if (!live) return replayProvider(fixtureDir);
 
   const modelFlag = argv.indexOf("--model");
   const model = modelFlag === -1 ? undefined : argv[modelFlag + 1];
-  return liveProvider({ ...(model ? { model } : {}), record });
+  return liveProvider({ ...(model ? { model } : {}), ...(record ? { recordTo: fixtureDir } : {}) });
 }

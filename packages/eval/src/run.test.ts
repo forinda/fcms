@@ -13,8 +13,7 @@ import { describe, expect, it } from "vitest";
 import { printSpec } from "@forinda-cms/lang";
 
 import { loadSalonSpec } from "./fixture.js";
-import { declined, extractYaml } from "./prompt.js";
-import type { Provider } from "./providers.js";
+import { declined, extractYaml, type Provider } from "@forinda-cms/ai";
 import { runTask, score, type TaskResult } from "./run.js";
 import { TASKS } from "./tasks.js";
 

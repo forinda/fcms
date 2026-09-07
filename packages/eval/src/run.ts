@@ -13,8 +13,7 @@
 import { parseSpec } from "@forinda-cms/lang";
 import type { SiteSpec } from "@forinda-cms/spec";
 
-import { buildUserMessage, declined, extractYaml, SYSTEM } from "./prompt.js";
-import type { Provider } from "./providers.js";
+import { buildUserMessage, declined, extractYaml, SYSTEM, type Provider } from "@forinda-cms/ai";
 import type { Task } from "./tasks.js";
 
 export type Outcome =
@@ -52,7 +51,11 @@ export async function runTask(
   baseSpecYaml: string,
   task: Task,
 ): Promise<TaskResult> {
-  const response = await provider.complete(SYSTEM, buildUserMessage(baseSpecYaml, task), task.id);
+  const response = await provider.complete(
+    SYSTEM,
+    buildUserMessage(baseSpecYaml, task.instruction),
+    task.id,
+  );
 
   if (task.kind === "trap") {
     // Scored on judgement, not format. A model that produces a *valid* spec for

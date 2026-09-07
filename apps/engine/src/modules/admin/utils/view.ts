@@ -47,7 +47,10 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
   const header = chrome
     ? `<header>
   <nav class="crumbs"><a href="/admin">Admin</a>${crumbs ? `<span class="sep">/</span>${crumbs}` : ""}</nav>
-  <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
+  <span class="header-actions">
+    <a href="/admin/assist">Assistant</a>
+    <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
+  </span>
 </header>`
     : "";
 
@@ -206,6 +209,12 @@ th{font-size:.8rem;color:var(--muted);font-weight:600}
 .cards{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));margin-top:.5rem}
 .card{padding:1rem;border:1px solid var(--line);border-radius:8px;background:#fff}
 .card h3{margin:0 0 .25rem;font-size:1rem}
+.header-actions{display:flex;gap:.9rem;align-items:center}
+ul.changes{margin:.5rem 0 0;padding-left:1.1rem}
+ul.changes li{margin:.35rem 0}
+li.destructive-change{color:var(--bad)}
+.warn{color:var(--muted);font-size:.9rem}
+textarea{width:100%;padding:.55rem;font:inherit;border:1px solid #d6d3d1;border-radius:6px}
 .field{margin:1.1rem 0}
 label{display:block;margin-bottom:.3rem;font-size:.875rem;font-weight:500}
 input,select,textarea{width:100%;padding:.55rem;font:inherit;border:1px solid #d6d3d1;border-radius:6px;background:#fff}

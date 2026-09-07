@@ -68,6 +68,7 @@ packages/
   sdk/             the client boundary: the HTTP client, the link, the token
   cli/             `fcms`: validate, fmt, diff, dev, link, login, plan, apply
   mcp/             `fcms-mcp`: ten tools over the SDK, for an agent
+  ai/              the planner: one prompt, shared by the assistant and the evals
   eval/            the harness for ADR 0007's model tests
 docs/decisions/    ADRs — the reasoning, numbered and dated
 research/          the fourteen research docs the ADRs argue from
