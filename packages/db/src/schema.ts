@@ -7,7 +7,7 @@
  * `spec_patches` carrying an inverse for every change (doc 03 — "the spine; it
  * is not deferrable").
  */
-import { sql } from "drizzle-orm";
+import type { PatchOp, SiteSpec } from "@forinda-cms/spec";
 import {
   index,
   jsonb,
@@ -68,7 +68,7 @@ export const siteSpecs = pgTable("site_specs", {
     .primaryKey()
     .references(() => sites.id, { onDelete: "cascade" }),
   orgId: text().notNull(),
-  document: jsonb().notNull(),
+  document: jsonb().$type<SiteSpec>().notNull(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -102,9 +102,9 @@ export const specPatches = pgTable(
     /** Which surface produced it — chat, canvas, cli, mcp — and which harness. */
     source: text().notNull(),
     harness: text(),
-    ops: jsonb().notNull(),
-    inverse: jsonb().notNull(),
-    classification: text().notNull(),
+    ops: jsonb().$type<PatchOp[]>().notNull(),
+    inverse: jsonb().$type<PatchOp[]>().notNull(),
+    classification: text().$type<"additive" | "destructive">().notNull(),
     /** One sentence a non-developer can verify (doc 13). */
     summary: text().notNull(),
     appliedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -140,7 +140,7 @@ export const entries = pgTable(
     orgId: text().notNull(),
     typeKey: text().notNull(),
     slug: text(),
-    data: jsonb().notNull(),
+    data: jsonb().$type<Record<string, unknown>>().notNull(),
     status: text().notNull().default("draft"),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
@@ -171,7 +171,29 @@ export const assets = pgTable(
   (t) => [index("assets_org").on(t.orgId), index("assets_blob").on(t.blobHash)],
 );
 
-export const SITE_SCOPED = [siteSpecs, specPatches, entries] as const;
+/**
+ * Row types, inferred rather than written.
+ *
+ * The pattern from `enaton`: every table exports its select and insert shapes,
+ * so nothing downstream has to cast. Combined with `$type<>()` on the `jsonb`
+ * columns above, a repository method can return `Promise<SpecPatchRow>` and a
+ * caller can read `patch.inverse[0].value` with the compiler checking it —
+ * which is what the first version of this package spent `as unknown as` on.
+ */
+export type OrganizationRow = typeof organizations.$inferSelect;
+export type NewOrganizationRow = typeof organizations.$inferInsert;
 
-/** Row-count guard used by the tests: every site-scoped table carries both ids. */
-export const SCOPING_COLUMNS = sql`org_id, site_id`;
+export type SiteRow = typeof sites.$inferSelect;
+export type NewSiteRow = typeof sites.$inferInsert;
+
+export type SiteSpecRow = typeof siteSpecs.$inferSelect;
+export type NewSiteSpecRow = typeof siteSpecs.$inferInsert;
+
+export type SpecPatchRow = typeof specPatches.$inferSelect;
+export type NewSpecPatchRow = typeof specPatches.$inferInsert;
+
+export type EntryRow = typeof entries.$inferSelect;
+export type NewEntryRow = typeof entries.$inferInsert;
+
+export type AssetRow = typeof assets.$inferSelect;
+export type NewAssetRow = typeof assets.$inferInsert;

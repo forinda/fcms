@@ -27,6 +27,8 @@
  * field definition.
  */
 import { sql } from "drizzle-orm";
+
+import type { Executor } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
 import type { Classification } from "@forinda-cms/spec";
@@ -220,10 +222,6 @@ export function planMigration(
   );
 }
 
-export interface ExecutorLike {
-  execute(query: ReturnType<typeof sql.raw>): Promise<unknown>;
-}
-
 /**
  * Run a plan.
  *
@@ -232,7 +230,7 @@ export interface ExecutorLike {
  * declined a deletion should still get their new index.
  */
 export async function runMigration(
-  tx: ExecutorLike,
+  tx: Executor,
   steps: readonly MigrationStep[],
   options: { allowDestructive?: boolean } = {},
 ): Promise<{ applied: MigrationStep[]; skipped: MigrationStep[] }> {

@@ -11,14 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { joinFiles } from "@forinda-cms/lang";
-import {
-  SiteRepository,
-  createDb,
-  closeAllPools,
-  entries,
-  organizations,
-  sites,
-} from "@forinda-cms/db";
+import { Site, createDb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
 
 const url = process.env["DATABASE_URL"];
 if (!url) {
@@ -65,8 +58,8 @@ await db
   })
   .onConflictDoNothing();
 
-const repo = new SiteRepository(db, { orgId: ORG, siteId: SITE });
-const { seq, migration } = await repo.applySpec(joined.spec, {
+const site = new Site(db, { orgId: ORG, siteId: SITE });
+const { seq, migration } = await site.applySpec(joined.spec, {
   actor: "seed",
   source: "cli",
   allowDestructive: true,
