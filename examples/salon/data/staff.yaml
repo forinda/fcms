@@ -1,4 +1,30 @@
-- { slug: amina, name: Amina, role: Senior stylist, active: true }
-- { slug: joy, name: Joy, role: Colour specialist, active: true }
-- { slug: kevin, name: Kevin, role: Barber, active: true }
-- { slug: past, name: Former stylist, role: Stylist, active: false }
+- slug: amina
+  name: Amina
+  role: Senior stylist
+  active: true
+  workingHours:
+    tue: [{ from: "09:00", to: "17:00" }]
+    wed: [{ from: "09:00", to: "17:00" }]
+    thu: [{ from: "09:00", to: "17:00" }]
+    fri: [{ from: "09:00", to: "19:00" }]
+    sat: [{ from: "08:00", to: "16:00" }]
+- slug: joy
+  name: Joy
+  role: Colour specialist
+  active: true
+  workingHours:
+    wed: [{ from: "10:00", to: "18:00" }]
+    thu: [{ from: "10:00", to: "18:00" }]
+    fri: [{ from: "10:00", to: "18:00" }]
+    sat: [{ from: "09:00", to: "15:00" }]
+- slug: kevin
+  name: Kevin
+  role: Barber
+  active: true
+  workingHours:
+    tue: [{ from: "11:00", to: "19:00" }]
+    sat: [{ from: "09:00", to: "17:00" }]
+- slug: past
+  name: Former stylist
+  role: Stylist
+  active: false

@@ -10,6 +10,8 @@
  */
 import type { ContentType, Condition, Query, SiteSpec } from '@forinda-cms/spec'
 
+import { generateSchedule } from './schedule.js'
+
 /** One row. Shape is the content type's fields; the renderer treats it as data. */
 export type Entry = Record<string, unknown> & { readonly id?: string; readonly slug?: string }
 
@@ -82,4 +84,30 @@ export function runQuery(source: EntrySource, query: Query): readonly Entry[] {
 
 export function contentTypeOf(spec: SiteSpec, key: string): ContentType | undefined {
   return spec.content.find((t) => t.key === key)
+}
+
+/**
+ * Wrap a source so derived types resolve (ADR 0014, decision 1).
+ *
+ * This is the whole reason derived types cost the query language nothing:
+ * `data`, `where`, `sort` and `limit` ask an `EntrySource` for rows and cannot
+ * tell whether they were read or computed.
+ *
+ * Rows are computed once per wrap rather than per call, so two blocks querying
+ * the same availability on one page agree with each other — a page that showed
+ * a slot as free in one place and taken in another would be worse than either.
+ */
+export function withDerived(spec: SiteSpec, base: EntrySource, now: Date = new Date()): EntrySource {
+  const cache = new Map<string, readonly Entry[]>()
+  return {
+    all(type) {
+      const declared = contentTypeOf(spec, type)
+      if (!declared?.derived) return base.all(type)
+      const hit = cache.get(type)
+      if (hit) return hit
+      const rows = generateSchedule(base, declared.derived, { now })
+      cache.set(type, rows)
+      return rows
+    },
+  }
 }

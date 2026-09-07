@@ -8,6 +8,7 @@ fields:
   - { name: service, label: Service, type: reference, to: service, required: true }
   - { name: stylist, label: Stylist, type: reference, to: staff }
   - { name: startsAt, label: Starts at, type: datetime, required: true, filterable: true }
+  - { name: minutes, label: Minutes, type: number, required: true }
   - { name: customerName, label: Customer name, type: text, required: true }
   - { name: customerPhone, label: Phone, type: phone, required: true }
   - name: status

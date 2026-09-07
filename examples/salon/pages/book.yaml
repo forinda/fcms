@@ -12,6 +12,7 @@ flows:
     steps:
       - key: service
         label: Choose a service
+        selects: { from: service, as: service }
         blocks:
           - type: list
             style: { cols: { base: 1, md: 2 }, gap: md }
@@ -28,6 +29,7 @@ flows:
       - key: stylist
         label: Choose a stylist
         requires: [service]
+        selects: { from: staff, as: stylist }
         blocks:
           - type: list
             style: { cols: { base: 2, md: 4 }, gap: md }
@@ -43,21 +45,27 @@ flows:
       - key: time
         label: Pick a time
         requires: [stylist]
+        selects: { from: availability, as: slot }
         blocks:
-          - type: text
-            attrs: { text: Available slots appear here once availability is wired up. }
+          - type: list
+            style: { cols: { base: 2, md: 4 }, gap: sm }
+            data:
+              from: availability
+              sort: { field: startsAt, dir: asc }
+              limit: 40
+            item:
+              - type: card
+                style: { padding: sm, border: hairline, radius: sm }
+                attrs: { heading: "{{ item.startsAt | time }}", body: "{{ item.staff }}" }
 
       - key: details
         label: Your details
         requires: [time]
         blocks:
+          # No children: the inputs are generated from the booking type's declared
+          # fields (ADR 0014, decision 5), so the form cannot drift from the model.
           - type: form
             attrs: { for: booking, submitLabel: Confirm booking }
-            children:
-              - type: field
-                attrs: { name: customerName, label: Your name, type: text, required: true }
-              - type: field
-                attrs: { name: customerPhone, label: Phone number, type: tel, required: true }
 
     onComplete:
       - { action: booking-create }

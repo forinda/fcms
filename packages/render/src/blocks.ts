@@ -11,6 +11,8 @@
  * which is why that package leaves `attrs` open: the document schema knows the
  * shape of *a block*, the registry knows the vocabulary of *each block type*.
  */
+import type { ContentType } from '@forinda-cms/spec'
+
 import { el, esc, fragment, raw, type Html } from './html.js'
 import type { Scope } from './scope.js'
 
@@ -19,6 +21,10 @@ export interface BlockContext {
   readonly attrs: Record<string, unknown>
   readonly children: Html
   readonly scope: Scope
+  /** Set when a block declares `for: <type>` — used to generate form inputs. */
+  readonly contentType?: ContentType
+  /** True when the block author supplied children of their own. */
+  readonly hasChildren: boolean
 }
 
 export interface BlockType {
@@ -164,26 +170,70 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     define({
       name: 'form', summary: 'A form over a content type. Renders fields; does not submit in the spike.',
       attrs: ['for', 'submitLabel'],
-      render: ({ className, attrs, children }) =>
-        el('form', { class: `fx-form ${className}`, method: 'post', 'data-for': str(attrs['for']) },
-          children,
-          el('button', { type: 'submit' }, str(attrs['submitLabel'], 'Submit'))),
+      /**
+       * With no children, the inputs are generated from the content type's
+       * declared fields (ADR 0014, decision 5). Children still win when present,
+       * for ordering or a subset.
+       *
+       * This removes a place where the type and the form drift apart — the
+       * salon fixture had to repeat every field by hand, and nothing kept the
+       * two in step.
+       */
+      render: ({ className, attrs, children, hasChildren, contentType }) => {
+        const generated = !hasChildren && contentType
+          ? fragment(...contentType.fields
+              .filter((f) => f.type !== 'state' && f.name !== 'slug')
+              .map((f) => renderField(f.name, f.label, inputTypeFor(f.type), f.type === 'richtext',
+                'required' in f ? f.required === true : false)))
+          : null
+        return el('form', { class: `fx-form ${className}`, method: 'post', 'data-for': str(attrs['for']) },
+          hasChildren ? children : generated,
+          el('button', { type: 'submit' }, str(attrs['submitLabel'], 'Submit')))
+      },
     }),
     define({
       name: 'field', summary: 'One input inside a form.', attrs: ['name', 'label', 'type', 'required'],
       render: ({ className, attrs }) => {
         const name = str(attrs['name'])
-        const id = `f-${name}`
         const type = str(attrs['type'], 'text')
-        return el('div', { class: `fx-field ${className}` },
-          el('label', { for: id }, str(attrs['label'], name)),
-          type === 'richtext'
-            ? el('textarea', { id, name, required: attrs['required'] === true })
-            : el('input', { id, name, type, required: attrs['required'] === true }))
+        return renderField(name, str(attrs['label'], name), type, type === 'richtext', attrs['required'] === true, className)
       },
     }),
   ].map((b) => [b.name, b]),
 )
+
+/** Map a declared field type onto an input type the browser validates natively. */
+function inputTypeFor(fieldType: string): string {
+  switch (fieldType) {
+    case 'email': return 'email'
+    case 'phone': return 'tel'
+    case 'url': return 'url'
+    case 'number': return 'number'
+    case 'date': return 'date'
+    case 'datetime': return 'datetime-local'
+    case 'boolean': return 'checkbox'
+    default: return 'text'
+  }
+}
+
+function renderField(
+  name: string,
+  label: string,
+  type: string,
+  multiline: boolean,
+  required: boolean,
+  className = '',
+): Html {
+  const id = `f-${name}`
+  return el('div', { class: `fx-field ${className}`.trim() },
+    // Always a real `<label for>` rather than a placeholder: a placeholder is not
+    // a label, and screen readers do not treat it as one. Accessibility basics
+    // are not something to simplify away.
+    el('label', { for: id }, label),
+    multiline
+      ? el('textarea', { id, name, required })
+      : el('input', { id, name, type, required }))
+}
 
 /**
  * A block type the registry does not know.

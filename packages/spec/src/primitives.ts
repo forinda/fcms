@@ -150,3 +150,16 @@ export type Scalar = z.infer<typeof Scalar>
 
 /** Human-facing label. Free text, bounded so it stays a label. */
 export const Label = z.string().min(1).max(200)
+
+/**
+ * An author's "why is this here" note (ADR 0014, decision 6).
+ *
+ * Comments do not survive the canonical printer — ADR 0006 took that bargain
+ * knowingly — so a note has to be *data* to round-trip. Writing the first real
+ * spec made the cost concrete: `fmt` would have deleted every explanation in it.
+ *
+ * The people most likely to annotate a spec are doc 12's implementer channel, an
+ * agency keeping client specs in git, and `pull` silently deleting their notes
+ * on every sync loses a channel rather than annoying it.
+ */
+export const Note = z.string().max(2000).optional()

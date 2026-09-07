@@ -1,0 +1,18 @@
+key: availability
+label: Available slot
+labelPlural: Available slots
+note: >-
+  Rows are computed, not stored (ADR 0014). The platform owns the algorithm; this
+  declares only its inputs. Booking a slot writes a `booking`, which then removes
+  the slot on the next query.
+derived:
+  kind: schedule
+  resource: { type: staff, hours: workingHours }
+  occupied: { type: booking, resource: stylist, start: startsAt, minutes: minutes }
+  slot: { minutes: 30, buffer: 0 }
+  window: { days: 14, leadTime: { hours: 2 } }
+fields:
+  - { name: staff, label: Stylist, type: text, filterable: true }
+  - { name: startsAt, label: Starts at, type: datetime, filterable: true }
+  - { name: endsAt, label: Ends at, type: datetime }
+  - { name: minutes, label: Minutes, type: number }

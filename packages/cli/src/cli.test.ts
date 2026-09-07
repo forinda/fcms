@@ -11,7 +11,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, cpSync } f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { renderPage, routes } from '@forinda-cms/render'
+import { renderPage, routes, withDerived } from '@forinda-cms/render'
 
 import { loadProject } from './project.js'
 
@@ -38,10 +38,66 @@ describe('the salon fixture (ADR 0007 test 1)', () => {
     const loaded = loadProject(SALON)
     if (!loaded.ok) throw new Error('fixture must load')
     const { spec } = loaded.project
-    expect(spec.content.map((t) => t.key).sort()).toEqual(['booking', 'service', 'staff'])
+    expect(spec.content.map((t) => t.key).sort()).toEqual(['availability', 'booking', 'service', 'staff'])
+
     // The state machine is the part ADR 0009 §4 exists for.
     const status = spec.content.find((t) => t.key === 'booking')!.fields.find((f) => f.name === 'status')!
     expect(status.type).toBe('state')
+
+    // Availability is computed, not stored (ADR 0014) — the construct the whole
+    // vertical was blocked on.
+    expect(spec.content.find((t) => t.key === 'availability')!.derived?.kind).toBe('schedule')
+  })
+
+  it('computes availability and excludes an existing booking', () => {
+    const loaded = loadProject(SALON)
+    if (!loaded.ok) throw new Error('fixture must load')
+    const { spec, source } = loaded.project
+    const now = new Date(2026, 8, 7, 6, 0, 0, 0)
+    const slots = withDerived(spec, source, now).all('availability')
+
+    expect(slots.length).toBeGreaterThan(0)
+    // The fixture books Amina for 45 minutes; no slot may overlap it.
+    const booked = source.all('booking')[0]!
+    const start = Date.parse(String(booked['startsAt']))
+    const end = start + Number(booked['minutes']) * 60_000
+    const clash = slots.filter(
+      (s) => String(s['staff']) === 'amina' && Date.parse(String(s['startsAt'])) < end && Date.parse(String(s['endsAt'])) > start,
+    )
+    expect(clash).toEqual([])
+  })
+
+  it('applies the site layout to every page that does not opt out', () => {
+    const loaded = loadProject(SALON)
+    if (!loaded.ok) throw new Error('fixture must load')
+    const { spec, source } = loaded.project
+    expect(spec.layout?.header?.length).toBeGreaterThan(0)
+    for (const r of routes(spec, source)) {
+      const { html } = renderPage(r.page, { spec, source }, r.entry)
+      expect(html, r.path).toContain('fx-nav')
+    }
+  })
+
+  it('does not give an inactive service a URL', () => {
+    const loaded = loadProject(SALON)
+    if (!loaded.ok) throw new Error('fixture must load')
+    const { spec, source } = loaded.project
+    const paths = routes(spec, source).map((r) => r.path)
+    expect(paths).toContain('/services/cut')
+    // `relaxer` is `active: false`, and the collection binding filters on it.
+    expect(paths).not.toContain('/services/relaxer')
+  })
+
+  it('generates the booking form from the content type', () => {
+    const loaded = loadProject(SALON)
+    if (!loaded.ok) throw new Error('fixture must load')
+    const { spec, source } = loaded.project
+    const book = spec.pages.find((p) => p.key === 'book')!
+    const { html } = renderPage(book, { spec, source })
+    // Types come from the field declarations, so the form cannot drift from the
+    // model — a phone field is `type="tel"` because the type says `phone`.
+    expect(html).toContain('name="customerPhone" type="tel"')
+    expect(html).toContain('name="startsAt" type="datetime-local"')
   })
 
   it('renders every route it declares', () => {
