@@ -36,11 +36,36 @@ export class EntryRepository {
     return row ?? null;
   }
 
+  /** Every row of a type, drafts included — the admin's view. */
   async rowsOfType(typeKey: string): Promise<EntryRow[]> {
     return this.db
       .select()
       .from(entries)
       .where(and(this.scoped, eq(entries.typeKey, typeKey)));
+  }
+
+  /**
+   * Published rows only — what the public site may see.
+   *
+   * The `status` column existed, was indexed, and was read by nothing: an entry
+   * created in the admin is a draft, and every draft was being served to the
+   * public. "Save it and finish it tomorrow" published it.
+   */
+  async publishedOfType(typeKey: string): Promise<EntryRow[]> {
+    return this.db
+      .select()
+      .from(entries)
+      .where(and(this.scoped, eq(entries.typeKey, typeKey), eq(entries.status, "published")));
+  }
+
+  /** Publish or unpublish one row, scoped so an id alone cannot reach another site. */
+  async setStatus(id: string, status: "draft" | "published"): Promise<boolean> {
+    const rows = await this.db
+      .update(entries)
+      .set({ status, updatedAt: new Date() })
+      .where(and(this.scoped, eq(entries.id, id)))
+      .returning({ id: entries.id });
+    return rows.length > 0;
   }
 
   /**
@@ -51,7 +76,7 @@ export class EntryRepository {
    * was written.
    */
   async allOfType(typeKey: string): Promise<Entry[]> {
-    const rows = await this.rowsOfType(typeKey);
+    const rows = await this.publishedOfType(typeKey);
     return rows.map((row) => ({ ...row.data, id: row.id, slug: row.slug ?? undefined }));
   }
 
@@ -60,6 +85,23 @@ export class EntryRepository {
       .select({ typeKey: entries.typeKey, count: sql<number>`count(*)::int` })
       .from(entries)
       .where(this.scoped)
+      .groupBy(entries.typeKey);
+
+    return Object.fromEntries(rows.map((r) => [r.typeKey, r.count]));
+  }
+
+  /**
+   * Drafts per type, for the admin.
+   *
+   * Shown beside the total because "12 services, 3 not published" is a fact an
+   * owner acts on, and an unpublished entry is otherwise invisible until
+   * somebody wonders why the page is short.
+   */
+  async draftCountsByType(): Promise<Record<string, number>> {
+    const rows = await this.db
+      .select({ typeKey: entries.typeKey, count: sql<number>`count(*)::int` })
+      .from(entries)
+      .where(and(this.scoped, eq(entries.status, "draft")))
       .groupBy(entries.typeKey);
 
     return Object.fromEntries(rows.map((r) => [r.typeKey, r.count]));

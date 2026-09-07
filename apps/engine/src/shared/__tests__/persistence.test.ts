@@ -189,6 +189,7 @@ suite("the persistence layer", () => {
           typeKey: "service",
           slug: "cut",
           data: { name: "Cut", blurb: "x" },
+          status: "published",
         },
         {
           siteId: SITE,
@@ -196,6 +197,7 @@ suite("the persistence layer", () => {
           typeKey: "service",
           slug: "colour",
           data: { name: "Colour" },
+          status: "published",
         },
       ]);
 
@@ -241,6 +243,7 @@ suite("the persistence layer", () => {
           typeKey: "service",
           slug: "a",
           data: { name: "Mine" },
+          status: "published",
         },
         {
           siteId: OTHER_SITE,
@@ -248,6 +251,7 @@ suite("the persistence layer", () => {
           typeKey: "service",
           slug: "b",
           data: { name: "Theirs" },
+          status: "published",
         },
       ]);
       const rows = await repo().entries.allOfType("service");
@@ -271,6 +275,7 @@ suite("the persistence layer", () => {
           typeKey: "service",
           slug: "cut",
           data: { name: "Cut and finish" },
+          status: "published",
         },
       ]);
 
@@ -319,6 +324,55 @@ suite("the persistence layer", () => {
 
       expect(clash?.ok).toBe(false);
       expect(clash && clash.ok === false && clash.errors["slug"]).toMatch(/already uses/);
+    });
+  });
+
+  describe("publishing", () => {
+    const entry = (slug: string) => ({
+      typeKey: "service",
+      slug,
+      data: { slug, name: "Cut", blurb: "A cut" },
+    });
+
+    it("keeps a draft off the public site", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const created = await repo().writer.create(spec, entry("cut"));
+      expect(created.ok).toBe(true);
+
+      // `status` was stored, indexed, and read by nothing: every draft was
+      // being served. "Save it and finish it tomorrow" published it.
+      const source = await repo().read.source(["service"]);
+      expect(source.all("service")).toEqual([]);
+    });
+
+    it("shows it once published, and hides it again when unpublished", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const created = await repo().writer.create(spec, entry("cut"));
+      const id = created.ok ? created.entry.id : "";
+
+      expect(await repo().writer.setStatus(id, "published")).toBe(true);
+      expect((await repo().read.source(["service"])).all("service")).toHaveLength(1);
+
+      expect(await repo().writer.setStatus(id, "draft")).toBe(true);
+      expect((await repo().read.source(["service"])).all("service")).toEqual([]);
+    });
+
+    it("still lists drafts for the admin, and counts them", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().writer.create(spec, entry("cut"));
+
+      // The admin has to see what the public cannot, or nobody could publish it.
+      expect(await repo().read.rows("service")).toHaveLength(1);
+      expect((await repo().read.drafts())["service"]).toBe(1);
+    });
+
+    it("refuses to publish an entry from another site", async () => {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const created = await repo().writer.create(spec, entry("cut"));
+      const id = created.ok ? created.entry.id : "";
+
+      // A valid uuid from a request must not reach another site's row.
+      expect(await of(OTHER_SITE).writer.setStatus(id, "published")).toBe(false);
     });
   });
 

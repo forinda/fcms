@@ -116,6 +116,18 @@ export class EntryWriteUseCase {
     return { ok: true, entry: row };
   }
 
+  /**
+   * Publish or unpublish one entry.
+   *
+   * Not a spec change, so it does not go through the patch spine: content is
+   * data, and its history is the row's own `updatedAt`. What it *is* is the
+   * boundary between "written" and "public", which is why it is one deliberate
+   * action rather than a checkbox on the form that someone leaves ticked.
+   */
+  async setStatus(id: string, status: "draft" | "published"): Promise<boolean> {
+    return this.repo.setStatus(id, status);
+  }
+
   async delete(id: string): Promise<boolean> {
     const rows = await this.db
       .delete(entries)
