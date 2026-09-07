@@ -7,12 +7,12 @@
  * be canonical, and because a discriminated shape validates directly against a
  * JSON Schema generated from these definitions.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { Condition, When } from './condition.js'
-import { Key, Label, Note, Path, TemplateString } from './primitives.js'
-import { Query } from './query.js'
-import { CustomCss, Layout, StyleProps } from './style.js'
+import { Condition, When } from "./condition.js";
+import { Key, Label, Note, Path, TemplateString } from "./primitives.js";
+import { Query } from "./query.js";
+import { CustomCss, Layout, StyleProps } from "./style.js";
 
 /**
  * A block. Recursive, hence `z.lazy`.
@@ -23,17 +23,17 @@ import { CustomCss, Layout, StyleProps } from './style.js'
  * knows the shape of a block, not the vocabulary of every block type.
  */
 export interface Block {
-  type: string
-  layout?: z.infer<typeof Layout>
-  style?: z.infer<typeof StyleProps>
-  attrs?: Record<string, unknown>
-  when?: z.infer<typeof When>
-  data?: z.infer<typeof Query>
+  type: string;
+  layout?: z.infer<typeof Layout>;
+  style?: z.infer<typeof StyleProps>;
+  attrs?: Record<string, unknown>;
+  when?: z.infer<typeof When>;
+  data?: z.infer<typeof Query>;
   /** Rendered once per row when `data` is present, with `item.*` in scope. */
-  item?: Block[]
-  children?: Block[]
-  css?: string
-  note?: string
+  item?: Block[];
+  children?: Block[];
+  css?: string;
+  note?: string;
 }
 
 export const Block: z.ZodType<Block> = z.lazy(() =>
@@ -54,13 +54,13 @@ export const Block: z.ZodType<Block> = z.lazy(() =>
     .strict()
     .superRefine((b, ctx) => {
       if (b.item && !b.data) {
-        ctx.addIssue({ code: 'custom', message: '`item` needs a `data` query to iterate' })
+        ctx.addIssue({ code: "custom", message: "`item` needs a `data` query to iterate" });
       }
       if (b.data && !b.item) {
-        ctx.addIssue({ code: 'custom', message: '`data` needs an `item` template to render rows' })
+        ctx.addIssue({ code: "custom", message: "`data` needs an `item` template to render rows" });
       }
     }),
-)
+);
 
 /**
  * Nesting depth for `data` inside `item`.
@@ -70,17 +70,17 @@ export const Block: z.ZodType<Block> = z.lazy(() =>
  * pays for. Enforced as a tree walk rather than a type because the recursion is
  * unbounded.
  */
-export const MAX_DATA_NESTING = 1
+export const MAX_DATA_NESTING = 1;
 
 export function dataNestingDepth(blocks: readonly Block[], current = 0): number {
-  let deepest = current
+  let deepest = current;
   for (const b of blocks) {
-    const here = b.data ? current + 1 : current
-    deepest = Math.max(deepest, here)
-    if (b.item) deepest = Math.max(deepest, dataNestingDepth(b.item, here))
-    if (b.children) deepest = Math.max(deepest, dataNestingDepth(b.children, here))
+    const here = b.data ? current + 1 : current;
+    deepest = Math.max(deepest, here);
+    if (b.item) deepest = Math.max(deepest, dataNestingDepth(b.item, here));
+    if (b.children) deepest = Math.max(deepest, dataNestingDepth(b.children, here));
   }
-  return deepest
+  return deepest;
 }
 
 /**
@@ -107,42 +107,49 @@ export const FlowStep = z
     selects: z.object({ from: Key, as: Key }).strict().optional(),
     blocks: z.array(Block).min(1),
   })
-  .strict()
+  .strict();
 
 export const Flow = z
   .object({
     key: Key,
     steps: z.array(FlowStep).min(2),
     /** Handed to the same action registry `logic` uses. */
-    onComplete: z.array(z.object({ action: Key, params: z.record(z.string(), z.unknown()).optional() }).strict()).optional(),
+    onComplete: z
+      .array(
+        z.object({ action: Key, params: z.record(z.string(), z.unknown()).optional() }).strict(),
+      )
+      .optional(),
   })
   .strict()
   .superRefine((f, ctx) => {
-    const seen = new Set<string>()
+    const seen = new Set<string>();
     for (const step of f.steps) {
       for (const need of step.requires ?? []) {
         // A step may only require an *earlier* step: forward references make the
         // flow unorderable and are almost always a typo.
         if (!seen.has(need)) {
           ctx.addIssue({
-            code: 'custom',
+            code: "custom",
             message: `step "${step.key}" requires "${need}", which does not come before it`,
-          })
+          });
         }
       }
-      seen.add(step.key)
+      seen.add(step.key);
     }
-  })
+  });
 
 /** Per-page SEO. Templated so a type's pages get sane defaults without editing each one (doc 08). */
 export const PageSeo = z
   .object({
     title: TemplateString.optional(),
     description: TemplateString.optional(),
-    image: z.string().regex(/^asset:/).optional(),
+    image: z
+      .string()
+      .regex(/^asset:/)
+      .optional(),
     noindex: z.boolean().default(false),
   })
-  .strict()
+  .strict();
 
 /**
  * Which entries a collection page answers for (ADR 0014, decision 4).
@@ -154,11 +161,13 @@ export const PageSeo = z
 export const CollectionBinding = z.union([
   Key,
   z.object({ from: Key, where: z.array(Condition).max(10).optional() }).strict(),
-])
+]);
 
-export function collectionType(binding: z.infer<typeof CollectionBinding> | undefined): string | undefined {
-  if (binding === undefined) return undefined
-  return typeof binding === 'string' ? binding : binding.from
+export function collectionType(
+  binding: z.infer<typeof CollectionBinding> | undefined,
+): string | undefined {
+  if (binding === undefined) return undefined;
+  return typeof binding === "string" ? binding : binding.from;
 }
 
 export const Page = z
@@ -173,7 +182,7 @@ export const Page = z
      * second layout and no composition — those are the increments by which this
      * becomes a template system.
      */
-    layout: z.literal('none').optional(),
+    layout: z.literal("none").optional(),
     note: Note,
     seo: PageSeo.optional(),
     blocks: z.array(Block),
@@ -185,14 +194,14 @@ export const Page = z
   .superRefine((p, ctx) => {
     if (dataNestingDepth(p.blocks) > MAX_DATA_NESTING) {
       ctx.addIssue({
-        code: 'custom',
+        code: "custom",
         message:
           `page "${p.key}" nests \`data\` more than ${MAX_DATA_NESTING} level deep. ` +
           `A query inside a row template runs once per row — flatten it, or move the ` +
           `inner list into a block type.`,
-      })
+      });
     }
-  })
+  });
 
-export type Page = z.infer<typeof Page>
-export type Flow = z.infer<typeof Flow>
+export type Page = z.infer<typeof Page>;
+export type Flow = z.infer<typeof Flow>;

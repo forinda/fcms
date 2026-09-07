@@ -5,12 +5,12 @@
  * use YAML" — a parser that accepts them has accepted a different language. So
  * the anchor/alias/merge cases below are not edge cases, they are the boundary.
  */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from "vitest";
 
-import { formatDiagnostic } from './errors.js'
-import { joinFiles, splitFiles } from './layout.js'
-import { parseSpec } from './parse.js'
-import { formatSource, printSpec } from './print.js'
+import { formatDiagnostic } from "./errors.js";
+import { joinFiles, splitFiles } from "./layout.js";
+import { parseSpec } from "./parse.js";
+import { formatSource, printSpec } from "./print.js";
 
 const SITE = `
 specVersion: 1
@@ -40,146 +40,168 @@ pages:
         item:
           - type: card
             attrs: { heading: "{{ item.name }}" }
-`
+`;
 
-describe('the strict profile (ADR 0006)', () => {
-  it('parses a valid spec', () => {
-    const r = parseSpec(SITE)
-    expect(r.ok).toBe(true)
-    if (r.ok) expect(r.spec.content[0]!.key).toBe('service')
-  })
+describe("the strict profile (ADR 0006)", () => {
+  it("parses a valid spec", () => {
+    const r = parseSpec(SITE);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.spec.content[0]!.key).toBe("service");
+  });
 
-  it('rejects anchors and aliases — the route by which config grows variables', () => {
-    const withAnchor = SITE.replace('colors: { brand: "#1a7f5a", surface: "#f5f5f4" }', 'colors: &c { brand: "#1a7f5a", surface: "#f5f5f4" }')
-    const r = parseSpec(withAnchor)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/anchors/)
-  })
+  it("rejects anchors and aliases — the route by which config grows variables", () => {
+    const withAnchor = SITE.replace(
+      'colors: { brand: "#1a7f5a", surface: "#f5f5f4" }',
+      'colors: &c { brand: "#1a7f5a", surface: "#f5f5f4" }',
+    );
+    const r = parseSpec(withAnchor);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/anchors/);
+  });
 
-  it('rejects merge keys', () => {
-    const r = parseSpec(SITE.replace('  - key: service\n', '  - <<: {}\n    key: service\n'))
-    expect(r.ok).toBe(false)
-  })
+  it("rejects merge keys", () => {
+    const r = parseSpec(SITE.replace("  - key: service\n", "  - <<: {}\n    key: service\n"));
+    expect(r.ok).toBe(false);
+  });
 
-  it('rejects a second document in one file', () => {
-    const r = parseSpec(`${SITE}\n---\nspecVersion: 1\n`)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/multiple YAML documents/)
-  })
+  it("rejects a second document in one file", () => {
+    const r = parseSpec(`${SITE}\n---\nspecVersion: 1\n`);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/multiple YAML documents/);
+  });
 
-  it('rejects duplicate keys rather than taking the last', () => {
-    const r = parseSpec(SITE.replace('name: Test Salon', 'name: Test Salon\nname: Other Salon'))
-    expect(r.ok).toBe(false)
-  })
+  it("rejects duplicate keys rather than taking the last", () => {
+    const r = parseSpec(SITE.replace("name: Test Salon", "name: Test Salon\nname: Other Salon"));
+    expect(r.ok).toBe(false);
+  });
 
-  it('reads 1.2 core types — `no` stays a string, not false', () => {
-    const r = parseSpec(SITE.replace('name: Test Salon', 'name: no'))
-    expect(r.ok).toBe(true)
-    if (r.ok) expect(r.spec.name).toBe('no')
-  })
-})
+  it("reads 1.2 core types — `no` stays a string, not false", () => {
+    const r = parseSpec(SITE.replace("name: Test Salon", "name: no"));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.spec.name).toBe("no");
+  });
+});
 
-describe('diagnostics carry a position (the ADR 0006 budget)', () => {
-  it('points at the line of a schema failure', () => {
-    const r = parseSpec(SITE.replace('          limit: 12\n', ''))
-    expect(r.ok).toBe(false)
+describe("diagnostics carry a position (the ADR 0006 budget)", () => {
+  it("points at the line of a schema failure", () => {
+    const r = parseSpec(SITE.replace("          limit: 12\n", ""));
+    expect(r.ok).toBe(false);
     if (!r.ok) {
-      const d = r.diagnostics[0]!
-      expect(d.path).toContain('data')
+      const d = r.diagnostics[0]!;
+      expect(d.path).toContain("data");
       // Located by walking up to the nearest existing ancestor, since a missing
       // key has no node of its own.
-      expect(d.line).toBeGreaterThan(0)
+      expect(d.line).toBeGreaterThan(0);
     }
-  })
+  });
 
   // Not a parse error — YAML reads `{{ x }}` as a flow mapping and silently
   // produces `{ "x": null }`. Wrong data, no complaint. Caught in the profile.
-  it('rejects an unquoted template rather than silently making it a map', () => {
-    const r = parseSpec(SITE.replace('attrs: { heading: "{{ item.name }}" }', 'attrs:\n              heading: {{ item.name }}'))
-    expect(r.ok).toBe(false)
+  it("rejects an unquoted template rather than silently making it a map", () => {
+    const r = parseSpec(
+      SITE.replace(
+        'attrs: { heading: "{{ item.name }}" }',
+        "attrs:\n              heading: {{ item.name }}",
+      ),
+    );
+    expect(r.ok).toBe(false);
     if (!r.ok) {
-      const d = r.diagnostics[0]!
-      expect(d.message).toMatch(/must be quoted/)
-      expect(d.hint).toMatch(/flow mapping/)
-      expect(d.line).toBeGreaterThan(0)
+      const d = r.diagnostics[0]!;
+      expect(d.message).toMatch(/must be quoted/);
+      expect(d.hint).toMatch(/flow mapping/);
+      expect(d.line).toBeGreaterThan(0);
     }
-  })
+  });
 
-  it('names the file and line when formatted', () => {
-    const out = formatDiagnostic({ path: '/pages/0', message: 'boom', line: 3, col: 5, file: 'pages/home.yaml', hint: 'try this' })
-    expect(out).toContain('pages/home.yaml:3:5')
-    expect(out).toContain('hint: try this')
-  })
+  it("names the file and line when formatted", () => {
+    const out = formatDiagnostic({
+      path: "/pages/0",
+      message: "boom",
+      line: 3,
+      col: 5,
+      file: "pages/home.yaml",
+      hint: "try this",
+    });
+    expect(out).toContain("pages/home.yaml:3:5");
+    expect(out).toContain("hint: try this");
+  });
 
-  it('reports a cross-file reference error, not a shape error', () => {
-    const r = parseSpec(SITE.replace('from: service', 'from: treatment'))
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/treatment/)
-  })
-})
+  it("reports a cross-file reference error, not a shape error", () => {
+    const r = parseSpec(SITE.replace("from: service", "from: treatment"));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.diagnostics[0]!.message).toMatch(/treatment/);
+  });
+});
 
-describe('the canonical printer (ADR 0006 rules 5 and 6)', () => {
+describe("the canonical printer (ADR 0006 rules 5 and 6)", () => {
   const spec = (() => {
-    const r = parseSpec(SITE)
-    if (!r.ok) throw new Error('fixture must parse')
-    return r.spec
-  })()
+    const r = parseSpec(SITE);
+    if (!r.ok) throw new Error("fixture must parse");
+    return r.spec;
+  })();
 
-  it('quotes any string containing a template, unconditionally', () => {
-    expect(printSpec(spec)).toContain('"{{ item.name }}"')
-  })
+  it("quotes any string containing a template, unconditionally", () => {
+    expect(printSpec(spec)).toContain('"{{ item.name }}"');
+  });
 
-  it('orders keys by schema, not alphabetically', () => {
-    const text = printSpec(spec)
+  it("orders keys by schema, not alphabetically", () => {
+    const text = printSpec(spec);
     // `type` precedes `data` precedes `item` — reading order, not A-Z, which
     // would put `attrs` first and `children` in the middle.
-    expect(text.indexOf('type: list')).toBeLessThan(text.indexOf('from: service'))
-    expect(text.indexOf('specVersion')).toBeLessThan(text.indexOf('name:'))
-  })
+    expect(text.indexOf("type: list")).toBeLessThan(text.indexOf("from: service"));
+    expect(text.indexOf("specVersion")).toBeLessThan(text.indexOf("name:"));
+  });
 
-  it('is idempotent — the property `pull` depends on', () => {
-    const once = printSpec(spec)
-    const twice = formatSource(once)
-    expect(twice.ok).toBe(true)
-    if (twice.ok) expect(twice.text).toBe(once)
-  })
+  it("is idempotent — the property `pull` depends on", () => {
+    const once = printSpec(spec);
+    const twice = formatSource(once);
+    expect(twice.ok).toBe(true);
+    if (twice.ok) expect(twice.text).toBe(once);
+  });
 
-  it('round-trips meaning', () => {
-    const reparsed = parseSpec(printSpec(spec))
-    expect(reparsed.ok).toBe(true)
-    if (reparsed.ok) expect(reparsed.spec).toEqual(spec)
-  })
-})
+  it("round-trips meaning", () => {
+    const reparsed = parseSpec(printSpec(spec));
+    expect(reparsed.ok).toBe(true);
+    if (reparsed.ok) expect(reparsed.spec).toEqual(spec);
+  });
+});
 
-describe('the derived file layout', () => {
+describe("the derived file layout", () => {
   const spec = (() => {
-    const r = parseSpec(SITE)
-    if (!r.ok) throw new Error('fixture must parse')
-    return r.spec
-  })()
+    const r = parseSpec(SITE);
+    if (!r.ok) throw new Error("fixture must parse");
+    return r.spec;
+  })();
 
-  it('emits one file per content type, page and workflow', () => {
-    const files = splitFiles(spec)
-    expect(Object.keys(files).sort()).toEqual(['content/service.yaml', 'pages/home.yaml', 'site.yaml'])
-  })
+  it("emits one file per content type, page and workflow", () => {
+    const files = splitFiles(spec);
+    expect(Object.keys(files).sort()).toEqual([
+      "content/service.yaml",
+      "pages/home.yaml",
+      "site.yaml",
+    ]);
+  });
 
-  it('rejoins into the same spec', () => {
-    const joined = joinFiles(splitFiles(spec))
-    expect(joined.ok).toBe(true)
-    if (joined.ok) expect(joined.spec).toEqual(spec)
-  })
+  it("rejoins into the same spec", () => {
+    const joined = joinFiles(splitFiles(spec));
+    expect(joined.ok).toBe(true);
+    if (joined.ok) expect(joined.spec).toEqual(spec);
+  });
 
-  it('validates cross-file references only after joining', () => {
-    const files = { ...splitFiles(spec) }
-    files['pages/home.yaml'] = files['pages/home.yaml']!.replace('from: service', 'from: treatment')
-    const joined = joinFiles(files)
-    expect(joined.ok).toBe(false)
-    if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/treatment/)
-  })
+  it("validates cross-file references only after joining", () => {
+    const files = { ...splitFiles(spec) };
+    files["pages/home.yaml"] = files["pages/home.yaml"]!.replace(
+      "from: service",
+      "from: treatment",
+    );
+    const joined = joinFiles(files);
+    expect(joined.ok).toBe(false);
+    if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/treatment/);
+  });
 
-  it('says which file is missing', () => {
-    const joined = joinFiles({ 'pages/home.yaml': 'key: home' })
-    expect(joined.ok).toBe(false)
-    if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/site\.yaml/)
-  })
-})
+  it("says which file is missing", () => {
+    const joined = joinFiles({ "pages/home.yaml": "key: home" });
+    expect(joined.ok).toBe(false);
+    if (!joined.ok) expect(joined.diagnostics[0]!.message).toMatch(/site\.yaml/);
+  });
+});

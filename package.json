@@ -6,7 +6,15 @@
     "dev": "kick dev",
     "build": "kick build",
     "start": "kick start",
-    "test": "vitest run"
+    "typecheck": "pnpm -r --no-bail run typecheck",
+    "test": "pnpm -r --no-bail run test",
+    "lint": "oxlint packages src",
+    "lint:fix": "oxlint --fix packages src",
+    "format": "oxfmt packages src",
+    "format:check": "oxfmt --check packages src",
+    "schema": "tsx scripts/emit-schema.ts",
+    "schema:check": "tsx scripts/emit-schema.ts --check",
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test"
   },
   "dependencies": {
     "@forinda/kickjs": "^8.3.1",
@@ -18,6 +26,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@forinda-cms/spec": "workspace:*",
     "@forinda/kickjs-cli": "^8.1.5",
     "@forinda/kickjs-testing": "^8.0.0",
     "@forinda/kickjs-vite": "^8.0.0",
@@ -28,6 +37,7 @@
     "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "supertest": "^7.2.2",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "unplugin-swc": "^1.5.9",
     "vite": "^8.0.3",

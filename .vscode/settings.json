@@ -1,0 +1,15 @@
+{
+  // Makes ADR 0006's editor-support claim real. The YAML language server reads
+  // the generated schema and gives autocomplete, inline validation and hover
+  // docs — which is most of the editor cost doc 11 flagged for having human
+  // authors, without writing an LSP.
+  //
+  // The canonical layout splits a spec across several files (ADR 0006), so each
+  // pattern points at the matching sub-schema rather than the whole document.
+  "yaml.schemas": {
+    "./schema/site.schema.json": ["**/site.yaml"]
+  },
+  "yaml.format.enable": false,
+  "yaml.validate": true,
+  "files.associations": { "*.yaml": "yaml" }
+}

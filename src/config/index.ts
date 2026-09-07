@@ -1,6 +1,6 @@
-import { loadEnvFromSchema } from '@forinda/kickjs/config'
-import { fromZod } from '@forinda/kickjs-schema/zod'
-import { z } from 'zod'
+import { loadEnvFromSchema } from "@forinda/kickjs/config";
+import { fromZod } from "@forinda/kickjs-schema/zod";
+import { z } from "zod";
 
 /**
  * Project environment schema (Zod).
@@ -20,11 +20,11 @@ import { z } from 'zod'
 const envSchema = fromZod(
   z.object({
     PORT: z.coerce.number().default(3000),
-    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-    LOG_LEVEL: z.string().default('info'),
+    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    LOG_LEVEL: z.string().default("info"),
     // DATABASE_URL: z.string().url(),
   }),
-)
+);
 
 /**
  * IMPORTANT — side effect: register the schema with kickjs's env cache
@@ -36,6 +36,6 @@ const envSchema = fromZod(
  * the top — before `bootstrap()` runs — every controller and service
  * in the app sees the typed extended values.
  */
-export const env = loadEnvFromSchema(envSchema)
+export const env = loadEnvFromSchema(envSchema);
 
-export default envSchema
+export default envSchema;

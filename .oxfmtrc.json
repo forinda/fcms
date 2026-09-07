@@ -1,13 +1,7 @@
 {
-  "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "semi": false,
-  "singleQuote": true,
-  "trailingComma": "all",
-  "printWidth": 100,
-  "tabWidth": 2,
-  "ignorePatterns": [
-    "**/dist/",
-    "**/.kickjs/",
-    "**/node_modules/"
-  ]
+  "lineWidth": 110,
+  "indentWidth": 2,
+  "quoteStyle": "single",
+  "semicolons": "asNeeded",
+  "trailingComma": "all"
 }

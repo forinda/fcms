@@ -6,24 +6,24 @@
  * nothing and a customer's site keeps serving whether or not anyone is paying
  * for inference (doc 13).
  */
-import { collectionType, type Block, type Page, type SiteSpec } from '@forinda-cms/spec'
+import { collectionType, type Block, type Page, type SiteSpec } from "@forinda-cms/spec";
 
-import { CORE_BLOCKS, unknownBlock, type BlockType } from './blocks.js'
-import { blockCss, siteCss } from './css.js'
-import { matches, runQuery, withDerived, type Entry, type EntrySource } from './entries.js'
-import { el, fragment, raw, render as toString, type Html } from './html.js'
-import { buildJsonLd, head, pageSeo } from './seo.js'
-import { DEFAULT_LOCALE, resolveAttrs, type FormatLocale, type Scope } from './scope.js'
+import { CORE_BLOCKS, unknownBlock, type BlockType } from "./blocks.js";
+import { blockCss, siteCss } from "./css.js";
+import { matches, runQuery, withDerived, type Entry, type EntrySource } from "./entries.js";
+import { el, fragment, raw, render as toString, type Html } from "./html.js";
+import { buildJsonLd, head, pageSeo } from "./seo.js";
+import { DEFAULT_LOCALE, resolveAttrs, type FormatLocale, type Scope } from "./scope.js";
 
 export interface RenderOptions {
-  readonly spec: SiteSpec
-  readonly source: EntrySource
-  readonly registry?: Record<string, BlockType>
-  readonly canonicalBase?: string
+  readonly spec: SiteSpec;
+  readonly source: EntrySource;
+  readonly registry?: Record<string, BlockType>;
+  readonly canonicalBase?: string;
   /** Defaults to Kenya-first (doc 14). Moves into the spec in Phase 0b. */
-  readonly locale?: FormatLocale
+  readonly locale?: FormatLocale;
   /** Injected so derived types (ADR 0014) render deterministically in tests. */
-  readonly now?: Date
+  readonly now?: Date;
 }
 
 /**
@@ -34,47 +34,54 @@ export interface RenderOptions {
  * what makes the eventual static-render path cacheable.
  */
 function className(path: readonly number[]): string {
-  return `b${path.join('-')}`
+  return `b${path.join("-")}`;
 }
 
 interface Walk {
-  readonly css: string[]
-  readonly registry: Record<string, BlockType>
-  readonly source: EntrySource
-  readonly locale: FormatLocale
-  readonly spec: SiteSpec
+  readonly css: string[];
+  readonly registry: Record<string, BlockType>;
+  readonly source: EntrySource;
+  readonly locale: FormatLocale;
+  readonly spec: SiteSpec;
 }
 
 function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: Walk): Html {
   // `when` gates the whole subtree. Evaluated against the current scope, so a
   // condition inside an `item` sees that row.
-  if (block.when && !matches(scope as Entry, block.when)) return raw('')
+  if (block.when && !matches(scope as Entry, block.when)) return raw("");
 
-  const cls = className(path)
-  const css = blockCss(cls, block.style, block.css)
-  if (css) walk.css.push(css)
+  const cls = className(path);
+  const css = blockCss(cls, block.style, block.css);
+  if (css) walk.css.push(css);
 
   // A `data` block renders `item` once per row instead of its children. The
   // schema guarantees the two travel together, so neither branch is partial.
-  let children: Html
+  let children: Html;
   if (block.data && block.item) {
-    const rows = runQuery(walk.source, block.data)
+    const rows = runQuery(walk.source, block.data);
     children = fragment(
       ...rows.map((row, i) =>
         fragment(
-          ...block.item!.map((child, j) => renderBlock(child, { ...scope, item: row }, [...path, i, j], walk)),
+          ...block.item!.map((child, j) =>
+            renderBlock(child, { ...scope, item: row }, [...path, i, j], walk),
+          ),
         ),
       ),
-    )
+    );
   } else {
-    children = fragment(...(block.children ?? []).map((child, i) => renderBlock(child, scope, [...path, i], walk)))
+    children = fragment(
+      ...(block.children ?? []).map((child, i) => renderBlock(child, scope, [...path, i], walk)),
+    );
   }
 
-  const type = walk.registry[block.type]
-  if (!type) return unknownBlock(block.type)
+  const type = walk.registry[block.type];
+  if (!type) return unknownBlock(block.type);
 
-  const attrs = resolveAttrs(block.attrs, scope, walk.locale)
-  const forType = typeof attrs['for'] === 'string' ? walk.spec.content.find((t) => t.key === attrs['for']) : undefined
+  const attrs = resolveAttrs(block.attrs, scope, walk.locale);
+  const forType =
+    typeof attrs["for"] === "string"
+      ? walk.spec.content.find((t) => t.key === attrs["for"])
+      : undefined;
 
   return type.render({
     className: cls,
@@ -83,7 +90,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
     scope,
     hasChildren: (block.children?.length ?? 0) > 0,
     ...(forType ? { contentType: forType } : {}),
-  })
+  });
 }
 
 /**
@@ -95,50 +102,70 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
  * marked — enough to answer "can the spec express this booking journey", which
  * is the question Phase 0a exists to answer.
  */
-function renderFlow(flow: NonNullable<Page['flows']>[number], scope: Scope, path: readonly number[], walk: Walk): Html {
-  return el('div', { class: 'fx-flow', 'data-flow': flow.key },
-    el('ol', { class: 'fx-flow-steps' },
-      ...flow.steps.map((step, i) => el('li', { 'aria-current': i === 0 ? 'step' : undefined }, step.label ?? step.key))),
+function renderFlow(
+  flow: NonNullable<Page["flows"]>[number],
+  scope: Scope,
+  path: readonly number[],
+  walk: Walk,
+): Html {
+  return el(
+    "div",
+    { class: "fx-flow", "data-flow": flow.key },
+    el(
+      "ol",
+      { class: "fx-flow-steps" },
+      ...flow.steps.map((step, i) =>
+        el("li", { "aria-current": i === 0 ? "step" : undefined }, step.label ?? step.key),
+      ),
+    ),
     ...flow.steps.map((step, i) =>
-      el('section', { class: 'fx-flow-step', 'data-step': step.key, hidden: i !== 0 },
-        ...step.blocks.map((b, j) => renderBlock(b, scope, [...path, i, j], walk)))),
-  )
+      el(
+        "section",
+        { class: "fx-flow-step", "data-step": step.key, hidden: i !== 0 },
+        ...step.blocks.map((b, j) => renderBlock(b, scope, [...path, i, j], walk)),
+      ),
+    ),
+  );
 }
 
 export interface RenderedPage {
-  readonly html: string
-  readonly title: string
+  readonly html: string;
+  readonly title: string;
 }
 
 export function renderPage(page: Page, options: RenderOptions, entry?: Entry): RenderedPage {
-  const { spec, registry = CORE_BLOCKS, locale = DEFAULT_LOCALE } = options
+  const { spec, registry = CORE_BLOCKS, locale = DEFAULT_LOCALE } = options;
   // Derived types resolve once here, so every query on the page sees the same
   // rows. A page showing a slot as free in one place and taken in another would
   // be worse than either.
-  const source = withDerived(spec, options.source, options.now)
-  const walk: Walk = { css: [], registry, source, locale, spec }
-  const scope: Scope = { site: { name: spec.name }, ...(entry ? { entry } : {}) }
+  const source = withDerived(spec, options.source, options.now);
+  const walk: Walk = { css: [], registry, source, locale, spec };
+  const scope: Scope = { site: { name: spec.name }, ...(entry ? { entry } : {}) };
 
   // The site layout wraps every page unless it opts out (ADR 0014, decision 2).
   // Header and footer indices are offset so their generated class names cannot
   // collide with the page's own blocks.
-  const layout = page.layout === 'none' ? undefined : spec.layout
+  const layout = page.layout === "none" ? undefined : spec.layout;
   const body = fragment(
     ...(layout?.header ?? []).map((b, i) => renderBlock(b, scope, [9000 + i], walk)),
     ...page.blocks.map((b, i) => renderBlock(b, scope, [i], walk)),
     ...(page.flows ?? []).map((f, i) => renderFlow(f, scope, [1000 + i], walk)),
     ...(layout?.footer ?? []).map((b, i) => renderBlock(b, scope, [9500 + i], walk)),
-  )
+  );
 
-  const seo = pageSeo(spec, page, scope)
-  const bound = collectionType(page.collection)
-  const type = bound ? spec.content.find((t) => t.key === bound) : undefined
-  const jsonld = type && entry ? buildJsonLd(type, entry, spec.name) : undefined
+  const seo = pageSeo(spec, page, scope);
+  const bound = collectionType(page.collection);
+  const type = bound ? spec.content.find((t) => t.key === bound) : undefined;
+  const jsonld = type && entry ? buildJsonLd(type, entry, spec.name) : undefined;
 
   const document = fragment(
-    raw('<!doctype html>'),
-    el('html', { lang: 'en' },
-      el('head', {},
+    raw("<!doctype html>"),
+    el(
+      "html",
+      { lang: "en" },
+      el(
+        "head",
+        {},
         head({
           spec,
           title: seo.title,
@@ -148,41 +175,44 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
           noindex: seo.noindex,
           ...(jsonld ? { jsonld } : {}),
         }),
-        el('style', {}, raw(siteCss(spec))),
+        el("style", {}, raw(siteCss(spec))),
         // Block CSS after site CSS so a block's own rules win, and after the
         // walk so only blocks that actually rendered contribute any.
-        walk.css.length ? el('style', {}, raw(walk.css.join(''))) : null,
-        page.css ? el('style', {}, raw(page.css)) : null,
+        walk.css.length ? el("style", {}, raw(walk.css.join(""))) : null,
+        page.css ? el("style", {}, raw(page.css)) : null,
       ),
-      el('body', {}, body)),
-  )
+      el("body", {}, body),
+    ),
+  );
 
-  return { html: toString(document), title: seo.title }
+  return { html: toString(document), title: seo.title };
 }
 
 /** Every route this spec answers, including one per entry for collection pages. */
-export function routes(spec: SiteSpec, source: EntrySource, now?: Date): { path: string; page: Page; entry?: Entry }[] {
-  const resolved = withDerived(spec, source, now)
-  const out: { path: string; page: Page; entry?: Entry }[] = []
+export function routes(
+  spec: SiteSpec,
+  source: EntrySource,
+  now?: Date,
+): { path: string; page: Page; entry?: Entry }[] {
+  const resolved = withDerived(spec, source, now);
+  const out: { path: string; page: Page; entry?: Entry }[] = [];
 
   for (const page of spec.pages) {
-    const bound = collectionType(page.collection)
+    const bound = collectionType(page.collection);
     if (!bound) {
-      out.push({ path: page.path, page })
-      continue
+      out.push({ path: page.path, page });
+      continue;
     }
     // A collection page may filter which entries get a URL (ADR 0014, decision
     // 4) — so a retired service can either keep its address or stop resolving,
     // and the spec says which rather than the renderer deciding.
-    const where = typeof page.collection === 'string' ? undefined : page.collection?.where
-    const rows = resolved
-      .all(bound)
-      .filter((row) => (where ?? []).every((c) => matches(row, c)))
+    const where = typeof page.collection === "string" ? undefined : page.collection?.where;
+    const rows = resolved.all(bound).filter((row) => (where ?? []).every((c) => matches(row, c)));
 
     for (const entry of rows) {
-      const slug = String(entry['slug'] ?? entry['id'] ?? '')
-      if (slug) out.push({ path: `${page.path.replace(/\/$/, '')}/${slug}`, page, entry })
+      const slug = String(entry["slug"] ?? entry["id"] ?? "");
+      if (slug) out.push({ path: `${page.path.replace(/\/$/, "")}/${slug}`, page, entry });
     }
   }
-  return out
+  return out;
 }

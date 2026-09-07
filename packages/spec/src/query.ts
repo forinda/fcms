@@ -5,10 +5,10 @@
  * best-understood pattern in the category, and it is data rather than code
  * (ADR 0009 §1). There is no `for`; `data` + `item` is the whole story.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { Condition } from './condition.js'
-import { FieldName, Key } from './primitives.js'
+import { Condition } from "./condition.js";
+import { FieldName, Key } from "./primitives.js";
 
 /**
  * Hard ceiling on `limit`.
@@ -17,9 +17,11 @@ import { FieldName, Key } from './primitives.js'
  * a performance bug the owner cannot see — the page just gets slower as their
  * business grows, which is the worst possible time for it to happen.
  */
-export const MAX_LIMIT = 100
+export const MAX_LIMIT = 100;
 
-export const Sort = z.object({ field: FieldName, dir: z.enum(['asc', 'desc']).default('asc') }).strict()
+export const Sort = z
+  .object({ field: FieldName, dir: z.enum(["asc", "desc"]).default("asc") })
+  .strict();
 
 export const Query = z
   .object({
@@ -30,6 +32,6 @@ export const Query = z
     sort: Sort.optional(),
     limit: z.number().int().min(1).max(MAX_LIMIT),
   })
-  .strict()
+  .strict();
 
-export type Query = z.infer<typeof Query>
+export type Query = z.infer<typeof Query>;
