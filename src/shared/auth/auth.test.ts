@@ -9,18 +9,17 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 
-import { closeAllPools, createDb } from "../client.js";
-import { organizations, ownerSessions, owners } from "../schema/index.js";
-import { hashPassword, verifyPassword } from "./passwords.js";
-import { hashToken, newSessionToken } from "./tokens.js";
+import { closeAllPools, createDb, organizations, ownerSessions, owners } from "@forinda-cms/db";
+import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
+import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 import {
   AuthenticateUseCase,
   InvalidCredentialsError,
   LoginUseCase,
   LogoutUseCase,
   ProvisionOwnerUseCase,
-} from "./login.usecase.js";
-import { OwnerRepository } from "./owner.repository.js";
+} from "./auth.usecase";
+import { OwnerRepository } from "@/shared/repositories";
 
 describe("password hashing (no database needed)", () => {
   it("verifies a correct password and rejects a wrong one", async () => {

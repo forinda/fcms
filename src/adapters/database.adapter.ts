@@ -17,20 +17,8 @@
  * listening, and it is the hook that also fires under `createTestApp` — which is
  * what makes these tokens substitutable in a test.
  */
+import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
 import {
-  createToken,
-  defineAdapter,
-  getEnv,
-  getRequestValue,
-  Scope,
-  type InjectionToken,
-} from "@forinda/kickjs";
-import {
-  AuthenticateUseCase,
-  LoginUseCase,
-  LogoutUseCase,
-  ProvisionOwnerUseCase,
-  Site,
   closeAllPools,
   createDb,
   organizations,
@@ -40,30 +28,15 @@ import {
 } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
-/**
- * `<scope>/<PascalKey>/<suffix>` — the token grammar v4 enforces.
- *
- * Annotated rather than inferred: `Db` resolves through the schema barrel, and
- * an inferred token type would name a path inside another package's `src`.
- */
-export const DB: InjectionToken<Db> = createToken<Db>("app/Db/connection");
+import { Actor, CURRENT_SCOPE, ResolveSite } from "@/contributors";
+import { DB } from "@/shared/db";
+import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 
-/** Scope-free use-cases: they take a connection and nothing else, so they are singletons. */
-export const LOGIN: InjectionToken<LoginUseCase> = createToken("app/Auth/login");
-export const LOGOUT: InjectionToken<LogoutUseCase> = createToken("app/Auth/logout");
-export const AUTHENTICATE: InjectionToken<AuthenticateUseCase> =
-  createToken("app/Auth/authenticate");
-
-/**
- * The current request's site — **request-scoped**, unlike everything above.
- *
- * `Site` binds a connection to one `(orgId, siteId)`, and that pair comes from
- * the request. A singleton would be a site chosen at boot, which is the shape
- * multi-site has to break anyway (doc 03 §4). Reading it from the request
- * context here means a handler asks for "this request's site" and gets it,
- * rather than resolving the scope itself and building one.
- */
-export const CURRENT_SITE: InjectionToken<Site> = createToken("app/Site/current");
+// Side-effect import: `src/shared` sits outside every module, so no module glob
+// reaches it and its `@Repository` / `@Service` decorators would never run.
+import "@/shared";
+import { SpecRepository } from "@/shared/repositories";
+import { ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 
 export interface DatabaseConfig {
   /** Set false to boot against a database someone else migrates. */
@@ -77,21 +50,35 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
     const db = createDb(getEnv("DATABASE_URL"));
 
     return {
+      /**
+       * Both contributors, registered here rather than per module.
+       *
+       * `CURRENT_SITE` reads the scope `ResolveSite` publishes, and `Actor`
+       * runs on every route in the deny-by-default tree — so both are needed
+       * wherever those bindings are, independently of which modules happen to
+       * be mounted. Registering `ResolveSite` in the site module is what made
+       * the admin answer 500: its own routes never got a site.
+       */
+      contributors: () => [ResolveSite.registration, Actor.registration],
+
       async beforeStart({ container }) {
+        // Two bindings, and everything else is a decorated class the container
+        // finds on its own: the repositories and use-cases live under `src/`
+        // now, so the module glob eagerly imports them and their decorators
+        // register them. That is the whole reason they moved — a class inside a
+        // workspace package is never globbed, its decorator never runs, and
+        // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
-        container.registerInstance(LOGIN, new LoginUseCase(db));
-        container.registerInstance(LOGOUT, new LogoutUseCase(db));
-        container.registerInstance(AUTHENTICATE, new AuthenticateUseCase(db));
 
         container.registerFactory(
-          CURRENT_SITE,
+          CURRENT_SCOPE,
           () => {
             // `getRequestValue` rather than a `ctx` reference: this factory has
             // no request object, and the site contributor already published the
             // scope under `site` (doc 03 §4).
             const scope = getRequestValue("site");
             if (!scope) throw new Error("no site on this request — is ResolveSite applied?");
-            return new Site(db, scope);
+            return scope;
           },
           Scope.REQUEST,
         );
@@ -146,12 +133,18 @@ async function provision(db: Db): Promise<void> {
     if (created) console.log(`[install] created the first owner: ${created.email}`);
   }
 
-  const site = new Site(db, { orgId, siteId });
-  if (!(await site.spec())) {
-    await site.applySpec(SiteSpec.parse(starterSpec(getEnv("SITE_NAME"))), {
-      actor: "install",
-      source: "boot",
-    });
+  // Boot has no request, so these are constructed rather than resolved — the
+  // same constructors the container calls, with the scope this install is
+  // configured for.
+  const scope = { orgId, siteId };
+  if (!(await new SpecRepository(db, scope).find())) {
+    await new ApplySpecUseCase(db, scope).execute(
+      SiteSpec.parse(starterSpec(getEnv("SITE_NAME"))),
+      {
+        actor: "install",
+        source: "boot",
+      },
+    );
   }
 }
 

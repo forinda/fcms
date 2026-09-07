@@ -6,17 +6,18 @@
  * decision it used to hold lives in a use-case now, next to the data it reads
  * and testable without an HTTP server.
  *
- * It also no longer resolves the site. `CURRENT_SITE` is request-scoped, so this
- * asks for "the site this request is for" rather than taking a scope through
- * every method and building one — which is what makes the multi-site switch a
- * change to one factory instead of to every caller.
+ * It also no longer resolves the site. The use-cases it injects are
+ * request-scoped and take the scope from `CURRENT_SCOPE`, so this asks for
+ * "the spec for this request" rather than threading a scope through every
+ * method — which is what makes the multi-site switch a change to one factory
+ * instead of to every caller.
  */
 import { Inject, Service } from "@forinda/kickjs";
-import type { Site } from "@forinda-cms/db";
 import { renderPage, routes, type Entry } from "@forinda-cms/render";
 import type { SiteSpec } from "@forinda-cms/spec";
 
-import { CURRENT_SITE } from "@/adapters/database.adapter";
+import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
+import { RedirectsUseCase } from "./use-cases/redirects.usecase";
 
 export interface Rendered {
   readonly html: string;
@@ -25,14 +26,16 @@ export interface Rendered {
 
 @Service()
 export class SiteService {
-  @Inject(CURRENT_SITE) private readonly site!: Site;
+  @Inject(SiteSpecUseCase) private readonly specs!: SiteSpecUseCase;
+  @Inject(EntryReadUseCase) private readonly entries!: EntryReadUseCase;
+  @Inject(RedirectsUseCase) private readonly moved!: RedirectsUseCase;
 
   spec(): Promise<SiteSpec | null> {
-    return this.site.spec();
+    return this.specs.execute();
   }
 
   redirects(): Promise<Map<string, string>> {
-    return this.site.redirects();
+    return this.moved.execute();
   }
 
   /**
@@ -44,9 +47,9 @@ export class SiteService {
    * will want per-page loading, and `EntrySource` is where that change goes.
    */
   private async resolve() {
-    const spec = await this.site.spec();
+    const spec = await this.specs.execute();
     if (!spec) return null;
-    const source = await this.site.entrySource(spec.content.map((t) => t.key));
+    const source = await this.entries.source(spec.content.map((t) => t.key));
     return { spec, source };
   }
 

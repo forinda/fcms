@@ -7,12 +7,15 @@
  * whether it is allowed, what the schema has to do about it, and what gets
  * recorded so it can be undone.
  */
+import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
 
-import type { Db } from "../client.js";
-import { planMigration, runMigration, type MigrationStep } from "../planner.js";
-import { EntryRepository, PatchRepository, SpecRepository } from "../repositories/index.js";
-import type { Scope } from "../scope.js";
+import { planMigration, runMigration, type MigrationStep } from "@forinda-cms/db";
+import type { Db, Scope } from "@forinda-cms/db";
+import { EntryRepository, PatchRepository, SpecRepository } from "@/shared/repositories";
+
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface ApplySpecInput {
   readonly actor: string;
@@ -42,14 +45,15 @@ export class DestructiveChangeError extends Error {
   }
 }
 
+@Service({ scope: Lifetime.REQUEST })
 export class ApplySpecUseCase {
   private readonly specs: SpecRepository;
   private readonly patches: PatchRepository;
   private readonly entries: EntryRepository;
 
   constructor(
-    private readonly db: Db,
-    private readonly scope: Scope,
+    @Inject(DB) private readonly db: Db,
+    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
     this.specs = new SpecRepository(db, scope);
     this.patches = new PatchRepository(db, scope);

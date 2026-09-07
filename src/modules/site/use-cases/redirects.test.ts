@@ -18,9 +18,10 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { createDb } from "./client.js";
-import { Site } from "./site.js";
-import { organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
+import { createDb, organizations, siteSpecs, sites, specPatches } from "@forinda-cms/db";
+import { SpecRepository } from "@/shared/repositories";
+import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
+import { RedirectsUseCase } from "./redirects.usecase";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -41,7 +42,15 @@ const specWith = (pages: unknown[]) =>
   });
 
 suite("redirects from the patch spine", () => {
-  const repo = () => new Site(db, { orgId: ORG, siteId: SITE });
+  const of = () => {
+    const scope = { orgId: ORG, siteId: SITE };
+    return {
+      apply: new ApplySpecUseCase(db, scope),
+      redirects: new RedirectsUseCase(db, scope),
+      specs: new SpecRepository(db, scope),
+    };
+  };
+  const repo = of;
 
   const reset = async () => {
     await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
@@ -54,25 +63,27 @@ suite("redirects from the patch spine", () => {
 
   it("redirects a moved page without anyone writing a rule", async () => {
     await reset();
-    await repo().applySpec(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
-    await repo().applySpec(specWith([page("book", "/appointments")]), {
+    await repo().apply.execute(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/appointments")]), {
       actor: "a",
       source: "cli",
       allowDestructive: true,
     });
 
-    expect(Object.fromEntries(await repo().redirects())).toEqual({ "/book": "/appointments" });
+    expect(Object.fromEntries(await repo().redirects.execute())).toEqual({
+      "/book": "/appointments",
+    });
   });
 
   it("follows a page moved twice to its current address", async () => {
     await reset();
-    await repo().applySpec(specWith([page("book", "/a")]), { actor: "a", source: "cli" });
-    await repo().applySpec(specWith([page("book", "/b")]), {
+    await repo().apply.execute(specWith([page("book", "/a")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/b")]), {
       actor: "a",
       source: "cli",
       allowDestructive: true,
     });
-    await repo().applySpec(specWith([page("book", "/c")]), {
+    await repo().apply.execute(specWith([page("book", "/c")]), {
       actor: "a",
       source: "cli",
       allowDestructive: true,
@@ -80,16 +91,19 @@ suite("redirects from the patch spine", () => {
 
     // Both old addresses point at where the page actually is, not at each
     // other — a redirect chain costs rankings almost as much as a 404.
-    expect(Object.fromEntries(await repo().redirects())).toEqual({ "/a": "/c", "/b": "/c" });
+    expect(Object.fromEntries(await repo().redirects.execute())).toEqual({
+      "/a": "/c",
+      "/b": "/c",
+    });
   });
 
   it("does not redirect a deleted page", async () => {
     await reset();
-    await repo().applySpec(specWith([page("book", "/book"), page("home", "/")]), {
+    await repo().apply.execute(specWith([page("book", "/book"), page("home", "/")]), {
       actor: "a",
       source: "cli",
     });
-    await repo().applySpec(specWith([page("home", "/")]), {
+    await repo().apply.execute(specWith([page("home", "/")]), {
       actor: "a",
       source: "cli",
       allowDestructive: true,
@@ -98,13 +112,13 @@ suite("redirects from the patch spine", () => {
     // A deleted page has nowhere to send anyone. Redirecting to the homepage
     // would tell a search engine the content moved when it did not — worse for
     // the owner than an honest 404.
-    expect(await repo().redirects()).toEqual(new Map());
+    expect(await repo().redirects.execute()).toEqual(new Map());
   });
 
   it("does not redirect a path another page now occupies", async () => {
     await reset();
-    await repo().applySpec(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
-    await repo().applySpec(specWith([page("book", "/appointments"), page("other", "/book")]), {
+    await repo().apply.execute(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/appointments"), page("other", "/book")]), {
       actor: "a",
       source: "cli",
       allowDestructive: true,
@@ -112,6 +126,6 @@ suite("redirects from the patch spine", () => {
 
     // `/book` is live again under a different page. Redirecting it would make
     // the new page unreachable.
-    expect(await repo().redirects()).toEqual(new Map());
+    expect(await repo().redirects.execute()).toEqual(new Map());
   });
 });

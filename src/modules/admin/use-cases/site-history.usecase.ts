@@ -5,11 +5,14 @@
  * in front of a person, and an audit view that leaked it would be showing the
  * whole previous spec on every line.
  */
+import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import type { Classification } from "@forinda-cms/spec";
 
-import type { Db } from "../client.js";
-import { PatchRepository } from "../repositories/index.js";
-import type { Scope } from "../scope.js";
+import type { Db, Scope } from "@forinda-cms/db";
+import { PatchRepository } from "@/shared/repositories";
+
+import { DB } from "@/shared/db";
+import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface HistoryEntry {
   readonly seq: number;
@@ -22,10 +25,11 @@ export interface HistoryEntry {
   readonly revertedAt: Date | null;
 }
 
+@Service({ scope: Lifetime.REQUEST })
 export class SiteHistoryUseCase {
   private readonly patches: PatchRepository;
 
-  constructor(db: Db, scope: Scope) {
+  constructor(@Inject(DB) db: Db, @Inject(CURRENT_SCOPE) scope: Scope) {
     this.patches = new PatchRepository(db, scope);
   }
 

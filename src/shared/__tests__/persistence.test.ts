@@ -16,10 +16,23 @@ import { eq } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 import { renderPage, routes } from "@forinda-cms/render";
 
-import { closeAllPools, createDb } from "./client.js";
-import { Site } from "./site.js";
-import { DestructiveChangeError } from "./use-cases/index.js";
-import { entries, organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
+import {
+  closeAllPools,
+  createDb,
+  entries,
+  organizations,
+  siteSpecs,
+  sites,
+  specPatches,
+} from "@forinda-cms/db";
+import { EntryRepository, SpecRepository } from "@/shared/repositories";
+import { EntryReadUseCase } from "@/shared/use-cases";
+import {
+  ApplySpecUseCase,
+  DestructiveChangeError,
+} from "@/modules/admin/use-cases/apply-spec.usecase";
+import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.usecase";
+import { UndoSpecUseCase } from "@/modules/admin/use-cases/undo-spec.usecase";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -70,8 +83,24 @@ const withoutBlurb = SiteSpec.parse({
   ],
 });
 
-suite("SiteRepository", () => {
-  const repo = () => new Site(db, { orgId: ORG, siteId: SITE });
+suite("the persistence layer", () => {
+  /**
+   * The use-cases for one site, constructed the way the container constructs
+   * them. There is no facade any more — each of these is resolved on its own in
+   * a request — so the harness composes exactly what a test needs.
+   */
+  const of = (siteId = SITE, orgId = ORG) => {
+    const scope = { orgId, siteId };
+    return {
+      apply: new ApplySpecUseCase(db, scope),
+      undo: new UndoSpecUseCase(db, scope),
+      history: new SiteHistoryUseCase(db, scope),
+      specs: new SpecRepository(db, scope),
+      entries: new EntryRepository(db, scope),
+      read: new EntryReadUseCase(new EntryRepository(db, scope)),
+    };
+  };
+  const repo = of;
 
   beforeEach(async () => {
     await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
@@ -93,15 +122,15 @@ suite("SiteRepository", () => {
 
   describe("the patch spine (doc 03)", () => {
     it("stores a spec and reads it back parsed, not cast", async () => {
-      await repo().applySpec(spec, { actor: "test", source: "cli" });
-      const loaded = await repo().spec();
+      await repo().apply.execute(spec, { actor: "test", source: "cli" });
+      const loaded = await repo().specs.find();
       // Parsed on the way out, so a document written by an older version cannot
       // reach the renderer unvalidated.
       expect(loaded).toEqual(spec);
     });
 
     it("records an inverse for every change, never null", async () => {
-      await repo().applySpec(spec, { actor: "test", source: "cli" });
+      await repo().apply.execute(spec, { actor: "test", source: "cli" });
       const [patch] = await db.select().from(specPatches).where(eq(specPatches.siteId, SITE));
       expect(patch!.inverse).toBeTruthy();
       // Doc 13's argument that a non-developer can review rests on a wrong "yes"
@@ -110,47 +139,47 @@ suite("SiteRepository", () => {
     });
 
     it("numbers patches per site, monotonically", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      await repo().applySpec({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
-      const history = await repo().history();
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
+      const history = await repo().history.execute();
       expect(history.map((h) => h.seq)).toEqual([2, 1]);
       expect(history[0]!.source).toBe("chat");
     });
 
     it("undoes the last change and leaves the history intact", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      await repo().applySpec({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
-      expect((await repo().spec())!.name).toBe("Renamed");
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
+      expect((await repo().specs.find())!.name).toBe("Renamed");
 
-      const undone = await repo().undo();
+      const undone = await repo().undo.execute();
       expect(undone!.seq).toBe(2);
-      expect((await repo().spec())!.name).toBe("Riverside Salon");
+      expect((await repo().specs.find())!.name).toBe("Riverside Salon");
 
       // Append-only: "what happened to my site last Tuesday" survives an undo.
-      const history = await repo().history();
+      const history = await repo().history.execute();
       expect(history.length).toBe(2);
       expect(history[0]!.revertedAt).not.toBeNull();
     });
 
     it("undoes back to nothing when the first patch is reverted", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      await repo().undo();
-      expect(await repo().spec()).toBeNull();
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().undo.execute();
+      expect(await repo().specs.find()).toBeNull();
     });
   });
 
   describe("the destructive gate", () => {
     it("refuses a destructive change by default", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
       // Refusing unless asked is what makes the gate real rather than advisory.
       await expect(
-        repo().applySpec(withoutBlurb, { actor: "a", source: "chat" }),
+        repo().apply.execute(withoutBlurb, { actor: "a", source: "chat" }),
       ).rejects.toBeInstanceOf(DestructiveChangeError);
-      expect((await repo().spec())!.content[0]!.fields.length).toBe(3);
+      expect((await repo().specs.find())!.content[0]!.fields.length).toBe(3);
     });
 
     it("names what would be lost, and how much", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
       await db.insert(entries).values([
         {
           siteId: SITE,
@@ -168,34 +197,38 @@ suite("SiteRepository", () => {
         },
       ]);
 
-      await expect(repo().applySpec(withoutBlurb, { actor: "a", source: "chat" })).rejects.toThrow(
-        /2 existing services/,
-      );
+      await expect(
+        repo().apply.execute(withoutBlurb, { actor: "a", source: "chat" }),
+      ).rejects.toThrow(/2 existing services/);
     });
 
     it("applies when the caller says so", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      const { changes } = await repo().applySpec(withoutBlurb, {
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const { changes } = await repo().apply.execute(withoutBlurb, {
         actor: "a",
         source: "cli",
         allowDestructive: true,
       });
       expect(changes.some((c) => c.classification === "destructive")).toBe(true);
-      expect((await repo().spec())!.content[0]!.fields.length).toBe(2);
+      expect((await repo().specs.find())!.content[0]!.fields.length).toBe(2);
     });
 
     it("marks the stored patch destructive so history reads honestly", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      await repo().applySpec(withoutBlurb, { actor: "a", source: "cli", allowDestructive: true });
-      expect((await repo().history())[0]!.classification).toBe("destructive");
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(withoutBlurb, {
+        actor: "a",
+        source: "cli",
+        allowDestructive: true,
+      });
+      expect((await repo().history.execute())[0]!.classification).toBe("destructive");
     });
   });
 
   describe("scoping (ADR 0002 seam 1)", () => {
     it("never reads another site's spec", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      const other = new Site(db, { orgId: ORG, siteId: OTHER_SITE });
-      expect(await other.spec()).toBeNull();
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const other = of(OTHER_SITE);
+      expect(await other.specs.find()).toBeNull();
     });
 
     it("never reads another site's entries", async () => {
@@ -220,15 +253,15 @@ suite("SiteRepository", () => {
     });
 
     it("never reads another org's data even at the same site id", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
-      const wrongOrg = new Site(db, { orgId: "org_other", siteId: SITE });
-      expect(await wrongOrg.spec()).toBeNull();
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      const wrongOrg = of(SITE, "org_other");
+      expect(await wrongOrg.specs.find()).toBeNull();
     });
   });
 
   describe("the EntrySource seam pays off (ADR 0007)", () => {
     it("renders a page from database rows with an unchanged renderer", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
       await db.insert(entries).values([
         {
           siteId: SITE,
@@ -239,8 +272,8 @@ suite("SiteRepository", () => {
         },
       ]);
 
-      const loaded = (await repo().spec())!;
-      const source = await repo().entrySource(["service"]);
+      const loaded = (await repo().specs.find())!;
+      const source = await repo().read.source(["service"]);
 
       // The renderer cannot tell these rows came from Postgres rather than from
       // `data/*.yaml` — which is the entire point of drawing the seam in 0a.
@@ -253,10 +286,10 @@ suite("SiteRepository", () => {
 
   describe("entry counts", () => {
     it("reports zero for a declared type with no rows", async () => {
-      await repo().applySpec(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", source: "cli" });
       // "Nothing is lost" has to be sayable with confidence, not inferred from
       // an absent key.
-      expect(await repo().entryCounts(spec)).toEqual({ service: 0 });
+      expect(await repo().read.counts(spec)).toEqual({ service: 0 });
     });
   });
 });

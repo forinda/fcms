@@ -109,4 +109,16 @@ describe("state and structured field types", () => {
     );
     expect(validateEntry(booking, { hours: "whenever" }).ok).toBe(false);
   });
+
+  it("rejects an empty string in a required text field", () => {
+    // What a form sends for a box nobody filled in. Accepting it stored an
+    // entry with a blank title and answered 303.
+    const result = validateEntry(service, { name: "", price: 1 });
+    expect(result.ok).toBe(false);
+    expect(result.errors?.["name"]).toBeTruthy();
+  });
+
+  it("still treats an empty string as absent in an optional field", () => {
+    expect(validateEntry(service, { name: "Cut", price: 1, blurb: "" }).ok).toBe(true);
+  });
 });

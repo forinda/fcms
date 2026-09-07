@@ -7,15 +7,16 @@
     "build": "kick build",
     "start": "kick start",
     "typecheck": "pnpm -r --no-bail run typecheck",
-    "test": "pnpm -r --no-bail run test",
+    "test": "vitest run",
     "lint": "oxlint packages scripts src",
     "lint:fix": "oxlint --fix packages scripts src",
     "format": "oxfmt packages scripts src",
     "format:check": "oxfmt --check packages scripts src",
     "schema": "tsx scripts/emit-schema.ts",
     "schema:check": "tsx scripts/emit-schema.ts --check",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test",
-    "docker:build": "docker build -t forinda-cms:local ."
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test:all",
+    "docker:build": "docker build -t forinda-cms:local .",
+    "test:all": "pnpm run test && pnpm -r --no-bail run test"
   },
   "dependencies": {
     "@forinda-cms/db": "workspace:*",
@@ -27,6 +28,7 @@
     "@forinda/kickjs-swagger": "^7.2.1",
     "@node-rs/argon2": "^2.2.0",
     "dotenv": "^17.3.1",
+    "drizzle-orm": "^0.45.2",
     "express": "^5.1.0",
     "reflect-metadata": "^0.2.2",
     "yaml": "^2.8.1",

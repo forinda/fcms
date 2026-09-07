@@ -11,7 +11,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { joinFiles } from "@forinda-cms/lang";
-import { Site, createDb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
+import { createDb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
+import { ApplySpecUseCase } from "../src/modules/admin/use-cases/apply-spec.usecase";
 
 const url = process.env["DATABASE_URL"];
 if (!url) {
@@ -58,8 +59,10 @@ await db
   })
   .onConflictDoNothing();
 
-const site = new Site(db, { orgId: ORG, siteId: SITE });
-const { seq, migration } = await site.applySpec(joined.spec, {
+// Constructed directly rather than resolved: a script has no request, and the
+// use-case's constructor is the same one the container calls.
+const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE });
+const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
   source: "cli",
   allowDestructive: true,

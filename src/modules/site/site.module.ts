@@ -13,18 +13,18 @@
  */
 import { defineModule } from "@forinda/kickjs";
 
-import { ResolveSite } from "@/contributors";
 import { SiteController } from "./site.controller";
 
-import.meta.glob(["./**/*.controller.ts", "./**/*.service.ts"], { eager: true });
+// Eagerly import every file in the module so decorators run and register in
+// the container. Broad by design, the way `kick g module` generates it: a
+// suffix list only covers the names that existed when it was written, and the
+// `*.usecase.ts` files added later registered nothing — which surfaces as
+// `No provider for X` at the first request, not at boot.
+import.meta.glob(["./**/*.ts", "!./**/*.test.ts", "!./**/*.d.ts"], { eager: true });
 
 export const SiteModule = defineModule({
   name: "SiteModule",
   build: () => ({
-    // Module-level rather than per route: every route here needs the site, and
-    // a contributor nobody can forget to apply beats one applied precisely
-    // (ADR 0008).
-    contributors: () => [ResolveSite.registration],
     // The mount prefix lives here, not on `@Controller()` — v4 moved it, and
     // the decorator's path argument is OpenAPI metadata only.
     routes() {

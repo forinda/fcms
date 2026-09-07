@@ -1,5 +1,23 @@
 import { defineConfig, mergeConfig } from 'vitest/config'
+import { loadEnv } from 'vite'
+import { fileURLToPath } from 'node:url'
 import viteConfig from './vite.config.ts'
+
+/**
+ * Load `.env.test` before the suite runs.
+ *
+ * The app's own suites live under `src/` now — the repositories, the use-cases
+ * and auth moved out of the workspace package — and they talk to a real
+ * database. Under `kick dev` the framework's env loader supplies that; plain
+ * vitest has to ask, and without this `DATABASE_URL` is whatever is in the
+ * shell, usually the development database these suites truncate.
+ *
+ * **The shell wins.** A committed default cannot be right on every machine, so
+ * an exported variable overrides the file rather than the other way round.
+ */
+for (const [key, value] of Object.entries(loadEnv('test', fileURLToPath(new URL('.', import.meta.url)), ''))) {
+  process.env[key] ??= value
+}
 
 // A `vitest.config.ts` OVERRIDES `vite.config.ts` outright — vitest does not
 // merge the two, and it never reads tsconfig `paths`. Restating settings here

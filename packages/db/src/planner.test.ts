@@ -1,22 +1,16 @@
 /**
- * Planner tests.
+ * Planner tests — the pure half: a spec pair in, a plan out, no database.
  *
- * The pure-planning half runs anywhere. The half that actually executes SQL
- * needs a database, and is where the claims that matter get checked: that a
- * plan is idempotent, that destructive steps do not run unasked, and that an
- * index the planner says it made is one Postgres will actually use.
+ * The half that executes those plans lives with the use-case that runs them
+ * (`src/shared/__tests__/migration.test.ts`), because applying a spec is an
+ * application decision and this package is the model.
  */
 import { describe, expect, it } from "vitest";
-import { and, eq, sql } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { closeAllPools, createDb } from "./client.js";
-import { indexName, planMigration, runMigration } from "./planner.js";
-import { entries, organizations, siteSpecs, sites, specPatches } from "./schema/index.js";
-import { Site } from "./site.js";
+import { indexName, planMigration } from "./planner.js";
 
 const SITE = "site_planner";
-const ORG = "org_planner";
 
 const specWith = (fields: unknown[]) =>
   SiteSpec.parse({
@@ -103,116 +97,5 @@ describe("planning (no database needed)", () => {
     expect(() =>
       planMigration(undefined, indexed, { siteId: "bad'; drop table entries; --" }),
     ).toThrow(/unsafe site id/);
-  });
-});
-
-const url = process.env["DATABASE_URL"];
-const suite = url ? describe : describe.skip;
-const db = url ? createDb(url) : (undefined as never);
-
-suite("executing a plan (needs a database)", () => {
-  const repo = () => new Site(db, { orgId: ORG, siteId: SITE });
-
-  const reset = async () => {
-    await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
-    await db.delete(entries).where(eq(entries.orgId, ORG));
-    await db.delete(siteSpecs).where(eq(siteSpecs.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.execute(sql.raw(`DROP INDEX IF EXISTS ${indexName(SITE, "service", "price")}`));
-    await db.insert(organizations).values({ id: ORG, name: "Planner org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "planner", name: "Planner" });
-  };
-
-  const indexExists = async (name: string) => {
-    const rows = await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${name}'`));
-    return (rows as unknown as unknown[]).length > 0;
-  };
-
-  it("creates the index it planned, and is idempotent", async () => {
-    await reset();
-    await repo().applySpec(plain, { actor: "a", source: "cli" });
-
-    const { migration } = await repo().applySpec(indexed, { actor: "a", source: "cli" });
-    expect(migration.map((s) => s.kind)).toEqual(["create-index"]);
-    expect(await indexExists(indexName(SITE, "service", "price"))).toBe(true);
-
-    // Re-running the same plan must be safe — the property that lets the
-    // install artifact migrate on boot without reasoning about prior state.
-    const again = planMigration(plain, indexed, { siteId: SITE });
-    await runMigration(db, again);
-    expect(await indexExists(indexName(SITE, "service", "price"))).toBe(true);
-  });
-
-  it("does not purge values when the destructive half was not allowed", async () => {
-    await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
-    await db.insert(entries).values({
-      siteId: SITE,
-      orgId: ORG,
-      typeKey: "service",
-      slug: "cut",
-      data: { name: "Cut", price: 1500 },
-    });
-
-    // The spec change itself is refused first, so nothing runs at all.
-    await expect(repo().applySpec(dropped, { actor: "a", source: "cli" })).rejects.toThrow();
-    const [row] = await db
-      .select()
-      .from(entries)
-      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
-    expect((row!.data as Record<string, unknown>)["price"]).toBe(1500);
-  });
-
-  it("purges values and drops the index when the change is confirmed", async () => {
-    await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
-    await db.insert(entries).values({
-      siteId: SITE,
-      orgId: ORG,
-      typeKey: "service",
-      slug: "cut",
-      data: { name: "Cut", price: 1500 },
-    });
-
-    const { migration } = await repo().applySpec(dropped, {
-      actor: "a",
-      source: "cli",
-      allowDestructive: true,
-    });
-    expect(migration.map((s) => s.kind).sort()).toEqual(["drop-index", "purge-field"]);
-
-    const [row] = await db
-      .select()
-      .from(entries)
-      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
-    expect((row!.data as Record<string, unknown>)["price"]).toBeUndefined();
-    // The name survives: only the removed field's values are deleted.
-    expect((row!.data as Record<string, unknown>)["name"]).toBe("Cut");
-    expect(await indexExists(indexName(SITE, "service", "price"))).toBe(false);
-  });
-
-  it("rolls the index back when the surrounding transaction fails", async () => {
-    await reset();
-    await repo().applySpec(plain, { actor: "a", source: "cli" });
-
-    // A spec the schema rejects on the way in, after the plan was computed.
-    await expect(
-      repo().applySpec({ ...indexed, specVersion: 99 } as never, { actor: "a", source: "cli" }),
-    ).rejects.toThrow();
-
-    // The migration must not have escaped the failed transaction, or the
-    // database would claim a shape the spec does not describe.
-    expect(await indexExists(indexName(SITE, "service", "price"))).toBe(false);
-  });
-
-  it("leaves another site's index alone", async () => {
-    await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
-    expect(await indexExists(indexName("site_someone_else", "service", "price"))).toBe(false);
-  });
-
-  it("closes its pools", async () => {
-    if (url) await closeAllPools();
   });
 });
