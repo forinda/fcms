@@ -14,7 +14,8 @@
     "format:check": "oxfmt --check packages scripts src",
     "schema": "tsx scripts/emit-schema.ts",
     "schema:check": "tsx scripts/emit-schema.ts --check",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test"
+    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm schema:check && pnpm test",
+    "docker:build": "docker build -t forinda-cms:local ."
   },
   "dependencies": {
     "@forinda-cms/db": "workspace:*",

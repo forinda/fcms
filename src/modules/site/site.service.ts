@@ -24,9 +24,10 @@ export class SiteService {
 
   constructor() {
     // `getEnv` rather than `@Value`: the parameter-decorator form does not
-    // typecheck under TypeScript 7's decorator signatures, and reading the
-    // value here is the same thing with one less mechanism.
-    this.db = createDb(getEnv("DATABASE_URL") as string);
+    // typecheck under TypeScript 7's decorator signatures. It is typed either
+    // way — `kick typegen` derives `KickEnv` from the Zod schema in
+    // `src/config`, so this is a `string` without anyone saying so.
+    this.db = createDb(getEnv("DATABASE_URL"));
   }
 
   site(scope: Scope): Site {

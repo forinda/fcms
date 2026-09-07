@@ -5,6 +5,7 @@ import "reflect-metadata";
 import "./config";
 import { bootstrap, expressRuntime } from "@forinda/kickjs";
 
+import { adapters } from "./adapters";
 import { modules } from "./modules";
 
 /**
@@ -21,6 +22,7 @@ import { modules } from "./modules";
  */
 export const app = await bootstrap({
   modules,
+  adapters,
   runtime: expressRuntime(),
   apiPrefix: "",
   defaultVersion: false,

@@ -47,8 +47,8 @@ export const ResolveSite = defineHttpContextDecorator({
   async resolve(ctx): Promise<SiteScope | null> {
     const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
     return {
-      orgId: getEnv("ORG_ID") as string,
-      siteId: getEnv("SITE_ID") as string,
+      orgId: getEnv("ORG_ID"),
+      siteId: getEnv("SITE_ID"),
       // Read through `getEnv` rather than a captured constant so an env reload
       // flips proxy trust without a restart.
       host: pickHost(headers, getEnv("TRUST_PROXY") === true),
