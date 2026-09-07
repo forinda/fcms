@@ -86,10 +86,38 @@ export interface QueryResult {
  * `runQuery` still returns just the rows, because most callers want those; this
  * is what a paginated listing uses.
  */
+/**
+ * Markers the platform puts on a row, which no spec can name.
+ *
+ * Field names are camelCase and cannot start with an underscore, so these
+ * cannot collide with anything an author declares — and neither is ever
+ * rendered (ADR 0027, consequences).
+ */
+export const VISITOR_KEY = "_visitor";
+export const DRAFT_KEY = "_draft";
+
+/** Who is asking, when anybody is. Never read from a request parameter. */
+export type Viewer = string | null | undefined;
+
+/**
+ * The rows this query may see.
+ *
+ * Two filters, and the order matters: an unpublished row is visible only to its
+ * author, and only when the query asked for the author's own rows. A page that
+ * forgets `mine` cannot list drafts, because the draft filter is on by default.
+ */
+function visible(rows: readonly Entry[], query: Query, viewer: Viewer): readonly Entry[] {
+  if (!query.mine) return rows.filter((row) => row[DRAFT_KEY] !== true);
+  // Signed out: nothing. Not everything, and not an error.
+  if (!viewer) return [];
+  return rows.filter((row) => row[VISITOR_KEY] === viewer);
+}
+
 export function runQueryPage(
   source: EntrySource,
   query: Query,
   params: RequestParams = {},
+  viewer: Viewer = null,
 ): QueryResult {
   // Conditions are resolved once, not per row: a parameter's value does not
   // change halfway through a list, and an absent one drops its condition
@@ -99,7 +127,9 @@ export function runQueryPage(
     return resolved ? [resolved] : [];
   });
 
-  const filtered = source.all(query.from).filter((row) => conditions.every((c) => matches(row, c)));
+  const filtered = visible(source.all(query.from), query, viewer).filter((row) =>
+    conditions.every((c) => matches(row, c)),
+  );
 
   const sorted = sortRows(filtered, query, params);
   const size = query.limit;
@@ -145,15 +175,20 @@ export function runQueryExcluding(
     return resolved ? [resolved] : [];
   });
 
-  return source.all(query.from).filter((row) => conditions.every((c) => matches(row, c)));
+  // Facets count what everyone else can see: a visitor's own draft is not part
+  // of what anybody is choosing from, so this reads the published rows only.
+  return visible(source.all(query.from), { ...query, mine: false }, null).filter((row) =>
+    conditions.every((c) => matches(row, c)),
+  );
 }
 
 export function runQuery(
   source: EntrySource,
   query: Query,
   params: RequestParams = {},
+  viewer: Viewer = null,
 ): readonly Entry[] {
-  return runQueryPage(source, query, params).rows;
+  return runQueryPage(source, query, params, viewer).rows;
 }
 
 /** The first value, since a repeated parameter is a caller's mistake, not a list. */

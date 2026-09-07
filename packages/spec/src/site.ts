@@ -320,6 +320,18 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
           });
         }
       }
+      if (b.data?.mine) {
+        const t = types.get(b.data.from);
+        // Nothing a visitor wrote could be in a type that takes no
+        // submissions, so the query would return nothing forever — a page that
+        // looks configured and does nothing (ADR 0027 §4).
+        if (t && !t.submissions) {
+          issues.push({
+            path: `${here}/data/mine`,
+            message: `"${b.data.from}" takes no submissions, so a visitor has no rows of it`,
+          });
+        }
+      }
       if (b.data && !types.has(b.data.from)) {
         issues.push({
           path: `${here}/data`,

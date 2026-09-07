@@ -49,11 +49,32 @@ export class EntryReadUseCase {
    * cannot tell whether they were read from a file, computed by a derived type,
    * or selected from a table.
    */
-  async source(typeKeys: readonly string[]): Promise<EntrySource> {
+  async source(
+    typeKeys: readonly string[],
+    viewer?: string | null,
+    /**
+     * Types whose unpublished rows must be loaded for everyone.
+     *
+     * Occupancy is not display: a room somebody has booked is held whether or
+     * not anyone has published the booking, and a submission lands as a draft
+     * (ADR 0020 §3). Without this a guest books a room and it stays on sale —
+     * a double-booking with a moderation queue in front of it.
+     *
+     * The rows are still marked as drafts, so no query renders them; only the
+     * availability generators read them (ADR 0025 §4).
+     */
+    unpublished: readonly string[] = [],
+  ): Promise<EntrySource> {
+    const held = new Set(unpublished);
     const loaded = new Map<string, readonly Entry[]>();
     await Promise.all(
       typeKeys.map(async (key) => {
-        loaded.set(key, await this.entries.allOfType(key));
+        loaded.set(
+          key,
+          held.has(key)
+            ? await this.entries.everyOfType(key)
+            : await this.entries.allOfType(key, viewer),
+        );
       }),
     );
     return { all: (type) => loaded.get(type) ?? [] };

@@ -3,7 +3,9 @@ label: Booking
 labelPlural: Bookings
 titleField: reference
 publishable: false
-submissions: anyone
+# A guest signs in to book, so the booking can be theirs to look at later
+# (ADR 0027). `anyone` would take the booking and give them nowhere to see it.
+submissions: visitors
 # The deposit is a night's rate, and the amount is read from the row the
 # platform just wrote — never from the form (ADR 0023 §3).
 payment:

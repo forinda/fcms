@@ -7,8 +7,8 @@
  * cost of not using EAV.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, eq, sql } from "drizzle-orm";
-import type { Entry } from "@forinda-cms/render";
+import { and, eq, ne, sql } from "drizzle-orm";
+import { DRAFT_KEY, VISITOR_KEY, type Entry } from "@forinda-cms/render";
 
 import { entries, type EntryRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
@@ -79,9 +79,57 @@ export class EntryRepository {
    * present in `data`, so a template can rely on them regardless of how the row
    * was written.
    */
-  async allOfType(typeKey: string): Promise<Entry[]> {
-    const rows = await this.publishedOfType(typeKey);
-    return rows.map((row) => ({ ...row.data, id: row.id, slug: row.slug ?? undefined }));
+  /**
+   * Rows for the renderer.
+   *
+   * Published rows, plus — when a visitor is signed in — the ones that visitor
+   * wrote, whatever their status (ADR 0027 §3). Each row carries who wrote it
+   * and whether it is a draft, so the renderer can enforce the rule the
+   * repository cannot see: an unpublished row is visible to its author, and
+   * only through a query that asked for the author's own rows.
+   */
+  async allOfType(typeKey: string, viewer?: string | null): Promise<Entry[]> {
+    const published = await this.publishedOfType(typeKey);
+    const own =
+      viewer && UUID.test(viewer)
+        ? await this.db
+            .select()
+            .from(entries)
+            .where(
+              and(
+                this.scoped,
+                eq(entries.typeKey, typeKey),
+                eq(entries.visitorId, viewer),
+                ne(entries.status, "published"),
+              ),
+            )
+        : [];
+
+    return [...published, ...own].map((row) => ({
+      ...row.data,
+      id: row.id,
+      slug: row.slug ?? undefined,
+      [VISITOR_KEY]: row.visitorId ?? undefined,
+      [DRAFT_KEY]: row.status !== "published",
+    }));
+  }
+
+  /**
+   * Every row of a type, published or not, for the availability generators.
+   *
+   * Marked as drafts so nothing renders them — what reads these is the
+   * occupancy calculation, which cares that a room is taken rather than that
+   * anybody has approved saying so.
+   */
+  async everyOfType(typeKey: string): Promise<Entry[]> {
+    const rows = await this.rowsOfType(typeKey);
+    return rows.map((row) => ({
+      ...row.data,
+      id: row.id,
+      slug: row.slug ?? undefined,
+      [VISITOR_KEY]: row.visitorId ?? undefined,
+      [DRAFT_KEY]: row.status !== "published",
+    }));
   }
 
   async countsByType(): Promise<Record<string, number>> {

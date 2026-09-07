@@ -1,0 +1,32 @@
+key: account
+path: /account
+title: Your stays
+seo:
+  noindex: true
+blocks:
+  - type: section
+    style: { padding: { y: xl, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: Your stays, level: 1 }
+        style: { fontSize: lg }
+      # Sign in, register or sign out — whichever applies to whoever is asking.
+      - type: account
+        attrs: { title: "" }
+      # `mine` is answered from the session cookie, never from a parameter, and
+      # returns nothing at all when nobody is signed in (ADR 0027 §2). So this
+      # page is public and still shows one guest only their own bookings.
+      - type: list
+        style: { gap: md }
+        data:
+          from: booking
+          mine: true
+          sort: { field: checkIn, dir: desc }
+          limit: 20
+        item:
+          - type: card
+            style: { padding: md, border: hairline, radius: md }
+            attrs:
+              heading: "{{ item.reference }}"
+              body: "{{ item.checkIn }} to {{ item.checkOut }}"
+              meta: "Deposit {{ item.deposit | currency }} · {{ item.status }}"

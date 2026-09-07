@@ -1166,6 +1166,9 @@
                 "additionalProperties": false
               }
             },
+            "mine": {
+              "type": "boolean"
+            },
             "sort": {
               "anyOf": [
                 {

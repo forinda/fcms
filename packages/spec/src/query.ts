@@ -61,6 +61,15 @@ export const Query = z
     from: Key,
     /** Top-level AND only in v1. OR groups stay structured if they are ever added. */
     where: z.array(Condition).max(10).optional(),
+    /**
+     * Only the rows the signed-in visitor wrote (ADR 0027).
+     *
+     * The identity comes from the session, never from a parameter: a flag that
+     * could name *whose* rows to return is an enumeration endpoint with a nice
+     * syntax. Signed out, it matches nothing — which is what an empty "your
+     * stays" page should show anyway.
+     */
+    mine: z.boolean().optional(),
     sort: z.union([Sort, SortByParam]).optional(),
     /** Present when the visitor pages through results rather than seeing the first N. */
     page: Paging.optional(),

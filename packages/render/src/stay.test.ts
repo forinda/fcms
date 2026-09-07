@@ -118,6 +118,24 @@ describe("occupancy", () => {
     ).toEqual(["garden"]);
   });
 
+  it("counts a booking nobody has approved yet", () => {
+    // Occupancy is not display. A submission lands as a draft (ADR 0020 §3),
+    // and if that did not hold the room, a guest could book it and it would
+    // stay on sale — a double-booking with a moderation queue in front of it.
+    const held = [
+      {
+        id: "b9",
+        room: "garden",
+        checkIn: "2026-10-03",
+        checkOut: "2026-10-07",
+        _draft: true,
+      },
+    ];
+    expect(
+      search({ "check-in": "2026-10-04", "check-out": "2026-10-06" }, held).map((r) => r["slug"]),
+    ).toEqual(["attic"]);
+  });
+
   it("matches a booking that names its room as a reference", () => {
     const byRef = [
       { id: "b1", room: "ref:room/garden", checkIn: "2026-10-03", checkOut: "2026-10-07" },
