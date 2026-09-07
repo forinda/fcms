@@ -103,6 +103,31 @@ const scalarField = <T extends string>(type: T) =>
     })
     .strict();
 
+/**
+ * A number computed from rows of another type (ADR 0019 §4).
+ *
+ * A hotel's rating is the average of its reviews' scores, and its review count
+ * is how many there are. Both are facts about the hotel that live in another
+ * table, and both are things a visitor sorts and filters by — so they are
+ * **fields**, computed by the engine, rather than arithmetic in a template.
+ *
+ * Declared rather than computed in the page for three reasons: it can be
+ * indexed, it can be sorted and filtered like any other field, and it appears
+ * in the diff when it changes. A `{{ }}` that averaged a list would be none of
+ * those, and would be an expression language (ADR 0001).
+ */
+export const AggregateField = scalarField("aggregate").extend({
+  /** The type holding the rows — `review`. */
+  of: Key,
+  /** The reference field on that type pointing back here — `hotel`. */
+  on: FieldName,
+  /** Which of its fields to aggregate. Omitted for `count`. */
+  field: FieldName.optional(),
+  fn: z.enum(["count", "avg", "sum", "min", "max"]),
+  /** Rounding for `avg`, because "8.4" reads and "8.399999" does not. */
+  precision: z.number().int().min(0).max(4).default(1),
+});
+
 export const Field = z.intersection(
   z.object({ name: FieldName, label: Label }),
   z.union([
@@ -125,6 +150,7 @@ export const Field = z.intersection(
     scalarField("reference").extend({ to: Key, many: z.boolean().default(false) }),
     StateField,
     HoursField,
+    AggregateField,
   ]),
 );
 export type Field = z.infer<typeof Field>;

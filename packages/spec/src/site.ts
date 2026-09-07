@@ -167,6 +167,44 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     }
   }
 
+  // Aggregates name another type and a reference field on it. Both have to
+  // exist, or the value is silently always null — which reads as "no reviews
+  // yet" forever (ADR 0019 §4).
+  for (const type of spec.content) {
+    for (const field of type.fields) {
+      if (field.type !== "aggregate") continue;
+      const path = `/content/${type.key}/fields/${field.name}`;
+
+      const related = types.get(field.of);
+      if (!related) {
+        issues.push({ path, message: `aggregates over unknown content type "${field.of}"` });
+        continue;
+      }
+
+      const back = related.fields.find((f) => f.name === field.on);
+      if (!back) {
+        issues.push({
+          path,
+          message: `"${field.of}" has no field "${field.on}" to group by`,
+        });
+      } else if (back.type !== "reference") {
+        issues.push({
+          path,
+          message: `"${field.of}.${field.on}" is a ${back.type}, not a reference back to "${type.key}"`,
+        });
+      } else if (back.to !== type.key) {
+        issues.push({
+          path,
+          message: `"${field.of}.${field.on}" references "${back.to}", not "${type.key}"`,
+        });
+      }
+
+      if (field.fn !== "count" && !field.field) {
+        issues.push({ path, message: `${field.fn} needs a field of "${field.of}" to aggregate` });
+      }
+    }
+  }
+
   // Every `data.from` in every block of every page, at any depth.
   const walk = (blocks: readonly import("./pages.js").Block[], at: string) => {
     blocks.forEach((b, i) => {

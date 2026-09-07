@@ -93,7 +93,15 @@ function indexExpression(field: Field): string {
   }
 }
 
-const filterable = (f: Field): boolean => "filterable" in f && f.filterable === true;
+/**
+ * Worth an index: declared filterable, and actually stored.
+ *
+ * An aggregate is computed on read (ADR 0019 §4) and never written to `data`,
+ * so an expression index over it would index nothing while reporting that the
+ * field is fast — the worst of both.
+ */
+const filterable = (f: Field): boolean =>
+  "filterable" in f && f.filterable === true && f.type !== "aggregate";
 
 function fieldsOf(type: ContentType | undefined): Map<string, Field> {
   return new Map((type?.fields ?? []).map((f) => [f.name, f]));

@@ -18,6 +18,7 @@ import { CORE_BLOCKS, unknownBlock, type BlockType } from "./blocks.js";
 import { blockCss, siteCss } from "./css.js";
 import {
   matches,
+  runQueryExcluding,
   runQueryPage,
   withDerived,
   type Entry,
@@ -132,9 +133,22 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
       ? walk.spec.content.find((t) => t.key === attrs["for"])
       : undefined;
 
+  // A facet counts across the query with its own filter lifted, which only it
+  // needs and only it can name.
+  const facetRows =
+    type.name === "facets" && walk.primary
+      ? runQueryExcluding(
+          walk.source,
+          walk.primary.query,
+          walk.params,
+          String(attrs["param"] ?? attrs["field"] ?? ""),
+        )
+      : undefined;
+
   return type.render({
     className: cls,
     attrs,
+    ...(facetRows ? { rows: facetRows } : {}),
     request: {
       params: walk.params,
       path: walk.path,

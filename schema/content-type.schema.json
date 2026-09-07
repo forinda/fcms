@@ -751,6 +751,89 @@
               "label",
               "type"
             ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-zA-Z0-9]*$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "type": {
+                "type": "string",
+                "const": "aggregate"
+              },
+              "required": {
+                "default": false,
+                "type": "boolean"
+              },
+              "unique": {
+                "default": false,
+                "type": "boolean"
+              },
+              "filterable": {
+                "default": false,
+                "type": "boolean"
+              },
+              "help": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200
+              },
+              "note": {
+                "type": "string",
+                "maxLength": 2000
+              },
+              "of": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+              },
+              "on": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-zA-Z0-9]*$"
+              },
+              "field": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64,
+                "pattern": "^[a-z][a-zA-Z0-9]*$"
+              },
+              "fn": {
+                "type": "string",
+                "enum": [
+                  "count",
+                  "avg",
+                  "sum",
+                  "min",
+                  "max"
+                ]
+              },
+              "precision": {
+                "default": 1,
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "name",
+              "label",
+              "type",
+              "of",
+              "on",
+              "fn"
+            ]
           }
         ]
       }

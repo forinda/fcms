@@ -38,6 +38,13 @@ export interface BlockContext {
     /** The page's primary query, so a filter form can offer exactly what it reads. */
     readonly query?: Query;
   };
+  /**
+   * Rows the page's query matched under every filter *except* this block's own.
+   *
+   * What a facet counts. Given to every block for uniformity; only `facets`
+   * reads it.
+   */
+  readonly rows?: readonly Record<string, unknown>[];
 }
 
 export interface BlockType {
@@ -252,6 +259,77 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
           fragment(
             ...inputs,
             el("button", { type: "submit" }, raw(esc(String(attrs["submit"] ?? "Search")))),
+          ),
+        );
+      },
+    }),
+    define({
+      name: "facets",
+      summary: "Filter options for one field, with how many rows each would match.",
+      attrs: ["for", "field", "param", "title"],
+      render: ({ className, attrs, request, rows }) => {
+        const field = String(attrs["field"] ?? "");
+        const param = String(attrs["param"] ?? field);
+        if (!field || !rows) return raw("");
+
+        // Counted over the rows the *other* filters left, with this facet's own
+        // filter excluded — the standard behaviour, and the reason "4 stars ·
+        // 251" stays useful after you tick it: the other options do not all
+        // drop to zero.
+        const counts = new Map<string, number>();
+        for (const row of rows) {
+          const value = row[field];
+          if (value === undefined || value === null || value === "") continue;
+          const key = String(value);
+          counts.set(key, (counts.get(key) ?? 0) + 1);
+        }
+
+        const chosen = (() => {
+          const value = request?.params[param];
+          return typeof value === "string" ? value : Array.isArray(value) ? value[0] : undefined;
+        })();
+
+        const href = (value: string | undefined) => {
+          const query = new URLSearchParams();
+          for (const [key, raw_] of Object.entries(request?.params ?? {})) {
+            // Paging resets: page 7 of the old filter is not page 7 of the new
+            // one, and landing on an empty page reads as "no results".
+            if (key === param || key === "page" || raw_ === undefined) continue;
+            query.set(key, Array.isArray(raw_) ? (raw_[0] ?? "") : String(raw_));
+          }
+          if (value !== undefined) query.set(param, value);
+          const search = query.toString();
+          return search ? `${request?.path ?? ""}?${search}` : (request?.path ?? "");
+        };
+
+        const options = [...counts.entries()]
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .map(([value, count]) =>
+            el(
+              "li",
+              value === chosen ? { "aria-current": "true" } : {},
+              fragment(
+                el("a", { href: href(value) }, raw(esc(value))),
+                el("span", { class: "fx-facet-count" }, raw(esc(String(count)))),
+              ),
+            ),
+          );
+
+        return el(
+          "div",
+          { class: `fx-facets ${className}` },
+          fragment(
+            attrs["title"] ? el("h3", {}, raw(esc(String(attrs["title"])))) : raw(""),
+            el(
+              "ul",
+              {},
+              fragment(
+                ...options,
+                chosen !== undefined
+                  ? el("li", {}, el("a", { href: href(undefined) }, raw(esc("Clear"))))
+                  : raw(""),
+              ),
+            ),
           ),
         );
       },
