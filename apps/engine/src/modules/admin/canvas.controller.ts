@@ -10,7 +10,7 @@
  * "view"; it links here now.
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
-import { CORE_BLOCKS } from "@forinda-cms/render";
+import { BLOCKS } from "@/plugins";
 import type { Block } from "@forinda-cms/spec";
 
 import { SiteSpecUseCase } from "@/shared/use-cases";
@@ -37,7 +37,7 @@ export class CanvasController {
     const error = typeof query["error"] === "string" ? query["error"] : undefined;
 
     const block = selected ? blockAt(page.blocks, selected) : undefined;
-    const type = block ? CORE_BLOCKS[block.type] : undefined;
+    const type = block ? BLOCKS[block.type] : undefined;
 
     html(
       ctx,
@@ -48,7 +48,7 @@ export class CanvasController {
         body: canvas({
           spec,
           page,
-          registry: CORE_BLOCKS,
+          registry: BLOCKS,
           selected,
           error,
           // The page as the site serves it, in the site's own theme. `?edit`
