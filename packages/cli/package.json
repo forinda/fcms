@@ -20,6 +20,7 @@
   "dependencies": {
     "@forinda-cms/lang": "workspace:*",
     "@forinda-cms/render": "workspace:*",
+    "@forinda-cms/sdk": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "commander": "^15.0.0",
     "yaml": "^2.8.1"

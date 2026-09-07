@@ -105,6 +105,9 @@ importers:
       '@forinda-cms/render':
         specifier: workspace:*
         version: link:../render
+      '@forinda-cms/sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@forinda-cms/spec':
         specifier: workspace:*
         version: link:../spec
@@ -201,6 +204,19 @@ importers:
         version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
   packages/render:
+    dependencies:
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:../spec
+    devDependencies:
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+      vitest:
+        specifier: ^4.1.2
+        version: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+
+  packages/sdk:
     dependencies:
       '@forinda-cms/spec':
         specifier: workspace:*

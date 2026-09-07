@@ -9,15 +9,18 @@
  * MCP server means two machine doors to keep in sync for one audience. MCP is
  * the machine door.
  *
- * Phase 0a ships the three commands that need no server. The rest are declared
- * here as stubs rather than hidden, so `fcms --help` tells the truth about what
- * the tool will become instead of pretending the surface is finished.
+ * Two groups, and the split is real rather than cosmetic: `validate`, `fmt`,
+ * `diff` and `dev` work on a directory and need nothing else, while `link`,
+ * `login`, `status`, `pull`, `plan` and `apply` talk to a server through
+ * `@forinda-cms/sdk` — never to a database. That is ADR 0002 seam 4, and it is
+ * what makes Phase 1's MCP server a second consumer instead of a rewrite.
  */
 import { resolve } from "node:path";
 import { Command, InvalidArgumentError, Option } from "commander";
 
 import { dev, diff, fmt, validate } from "./commands.js";
-import { dim, yellow } from "./report.js";
+import { apply, link, login, logout, plan, pull, status } from "./remote.js";
+import { dim } from "./report.js";
 
 function port(value: string): number {
   const n = Number(value);
@@ -25,20 +28,6 @@ function port(value: string): number {
     throw new InvalidArgumentError("must be a port between 1 and 65535.");
   }
   return n;
-}
-
-/** Not yet implemented, and honest about why rather than silently missing. */
-function comingInPhase0b(name: string, what: string): Command {
-  return new Command(name)
-    .description(`${what} ${dim("(Phase 0b)")}`)
-    .allowUnknownOption()
-    .action(() => {
-      console.error(
-        `${yellow("not yet")} \`fcms ${name}\` needs a server to talk to — it arrives with Phase 0b.`,
-      );
-      console.error(dim("  Phase 0a is local only: validate, fmt, dev."));
-      process.exit(2);
-    });
 }
 
 export function buildProgram(): Command {
@@ -83,20 +72,67 @@ export function buildProgram(): Command {
       dev(resolve(dir), options.port);
     });
 
-  for (const [name, what] of [
-    ["login", "authenticate against a forinda-cms server"],
-    ["link", "link this directory to a remote site"],
-    ["pull", "render the remote spec back to canonical files"],
-    ["plan", "diff local files against the remote spec"],
-    ["apply", "apply a plan, gating destructive changes"],
-  ] as const) {
-    program.addCommand(comingInPhase0b(name, what));
-  }
+  program
+    .command("link")
+    .argument("<url>", "base URL of the forinda-cms server")
+    .argument("[dir]", "spec directory", ".")
+    .description("link this directory to a site")
+    .action((url: string, dir: string) => process.exit(link(resolve(dir), url)));
+
+  program
+    .command("login")
+    .argument("[dir]", "spec directory", ".")
+    .option("--url <url>", "server to sign in to, if this directory is not linked")
+    .option("--email <email>", "owner email, prompted for when absent")
+    .description("authenticate against a forinda-cms server")
+    .action(async (dir: string, options: { url?: string; email?: string }) => {
+      // The password is never an option: an argument is visible in `ps` and in
+      // shell history. `FCMS_PASSWORD` covers CI, a prompt covers a person.
+      process.exit(await login(resolve(dir), options));
+    });
+
+  program
+    .command("logout")
+    .argument("[dir]", "spec directory", ".")
+    .option("--url <url>", "server to forget, if this directory is not linked")
+    .description("forget the stored token for a server")
+    .action((dir: string, options: { url?: string }) =>
+      process.exit(logout(resolve(dir), options.url)),
+    );
+
+  program
+    .command("status")
+    .argument("[dir]", "spec directory", ".")
+    .description("what the linked site looks like right now")
+    .action(async (dir: string) => process.exit(await status(resolve(dir))));
+
+  program
+    .command("pull")
+    .argument("[dir]", "spec directory", ".")
+    .description("render the remote spec back to canonical files")
+    .action(async (dir: string) => process.exit(await pull(resolve(dir))));
+
+  program
+    .command("plan")
+    .argument("[dir]", "spec directory", ".")
+    .description("diff local files against the remote spec — exits 2 if destructive")
+    .action(async (dir: string) => process.exit(await plan(resolve(dir))));
+
+  program
+    .command("apply")
+    .argument("[dir]", "spec directory", ".")
+    .option("-y, --yes", "confirm destructive changes")
+    .description("apply local files to the linked site, gating destructive changes")
+    .action(async (dir: string, options: { yes?: boolean }) =>
+      process.exit(await apply(resolve(dir), options)),
+    );
 
   program.addHelpText(
     "after",
-    `\n${dim("Phase 0a is local: a spec directory, no database, no account.")}\n` +
-      `${dim("  fcms dev ./examples/salon")}\n`,
+    `\n${dim("Local, no server needed:")}\n` +
+      `${dim("  fcms dev ./examples/salon")}\n` +
+      `\n${dim("Against a server:")}\n` +
+      `${dim("  fcms link https://example.com && fcms login && fcms plan")}\n`,
   );
 
   return program;

@@ -1,6 +1,7 @@
 import { defineModules } from "@forinda/kickjs";
 
 import { AdminModule } from "./admin/admin.module";
+import { ApiModule } from "./api/api.module";
 import { SiteModule } from "./site/site.module";
 
 /**
@@ -11,4 +12,4 @@ import { SiteModule } from "./site/site.module";
  * reason and for a better one: ADR 0008 §4 splits the surfaces, and the URL
  * should say which one a request is in.
  */
-export const modules = defineModules().mount(AdminModule()).mount(SiteModule());
+export const modules = defineModules().mount(AdminModule()).mount(ApiModule()).mount(SiteModule());

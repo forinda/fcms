@@ -372,7 +372,7 @@ function diffLogic(before: SiteSpec, after: SiteSpec): SpecChange[] {
         additive(`/logic/${key}`, `Turns on the automation that runs ${describeTrigger(after_)}.`),
       );
     }
-    if (JSON.stringify(before_.steps) !== JSON.stringify(after_.steps)) {
+    if (!same(before_.steps, after_.steps)) {
       out.push(additive(`/logic/${key}/steps`, `Changes what happens ${describeTrigger(after_)}.`));
     }
   }
@@ -400,18 +400,47 @@ function diffWiring(before: SiteSpec, after: SiteSpec): SpecChange[] {
   return out;
 }
 
+/**
+ * Deep equality that ignores key order.
+ *
+ * `JSON.stringify(a) !== JSON.stringify(b)` looks like a free deep comparison
+ * and is not: it compares *insertion order*. A spec that has been through
+ * Postgres comes back with `jsonb`'s own key order, so a spec compared against
+ * the copy of itself that was just stored reported changed colours and a
+ * changed layout — `fcms plan` invented two edits immediately after a
+ * successful `fcms apply`, on every site.
+ *
+ * Arrays keep their order, because in a spec an array *is* ordered: blocks on a
+ * page and steps in a flow mean something different rearranged.
+ */
+function same(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((item, i) => same(item, b[i]));
+  }
+
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = Object.keys(left);
+  if (keys.length !== Object.keys(right).length) return false;
+  return keys.every((key) => key in right && same(left[key], right[key]));
+}
+
 function diffSite(before: SiteSpec, after: SiteSpec): SpecChange[] {
   const out: SpecChange[] = [];
   if (before.name !== after.name) {
     out.push(additive("/name", `Renames the site from ${before.name} to ${after.name}.`));
   }
-  if (JSON.stringify(before.theme.colors) !== JSON.stringify(after.theme.colors)) {
+  if (!same(before.theme.colors, after.theme.colors)) {
     out.push(additive("/theme/colors", "Changes the site colours. This affects every page."));
   }
-  if (JSON.stringify(before.theme.fonts) !== JSON.stringify(after.theme.fonts)) {
+  if (!same(before.theme.fonts, after.theme.fonts)) {
     out.push(additive("/theme/fonts", "Changes the site fonts. This affects every page."));
   }
-  if (JSON.stringify(before.layout) !== JSON.stringify(after.layout)) {
+  if (!same(before.layout, after.layout)) {
     out.push(additive("/layout", "Changes the header or footer, which appear on every page."));
   }
   return out;
