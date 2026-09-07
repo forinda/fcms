@@ -105,14 +105,24 @@ export class WorkflowUseCase {
    * The dedupe key is the workflow and the minute, so two app instances ticking
    * at the same second enqueue one run between them — the unique index decides,
    * rather than a lock somebody has to remember to take.
+   *
+   * Which minute it is comes from the **database**, for the same reason the
+   * claim does: two instances with skewed clocks either side of a boundary
+   * compute different keys, both keys are unique, and the schedule that was
+   * supposed to run once runs twice. The unique index can only deduplicate
+   * things that agree on what to call the minute.
+   *
+   * @param now Passed by tests so a schedule is deterministic. Absent in
+   *   production, where the database is asked.
    */
-  async enqueueDue(spec: SiteSpec, now = new Date()): Promise<number> {
-    const minute = now.toISOString().slice(0, 16);
+  async enqueueDue(spec: SiteSpec, now?: Date): Promise<number> {
+    const at = now ?? (await this.databaseNow());
+    const minute = at.toISOString().slice(0, 16);
     const due = spec.logic.filter(
       (w) =>
         w.enabled !== false &&
         w.trigger.on === "schedule" &&
-        parseCron(w.trigger.cron)?.matches(now) === true,
+        parseCron(w.trigger.cron)?.matches(at) === true,
     );
     if (due.length === 0) return 0;
 
@@ -343,6 +353,17 @@ export class WorkflowUseCase {
       .where(eq(workflowRuns.id, run.id))
       .returning();
     return row ?? run;
+  }
+
+  /**
+   * The database's idea of the time.
+   *
+   * One round trip per tick, which buys the only thing that makes a dedupe key
+   * meaningful: every instance naming the same minute the same way.
+   */
+  private async databaseNow(): Promise<Date> {
+    const [row] = await this.db.execute<{ now: Date }>(sql`select now() as now`);
+    return row?.now ? new Date(row.now) : new Date();
   }
 
   private async entry(id: string): Promise<EntryRow | undefined> {
