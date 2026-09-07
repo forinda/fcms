@@ -20,6 +20,29 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    # The database tests skip themselves when DATABASE_URL is unset, which keeps
+    # `pnpm verify` runnable on a laptop with no Postgres. That would make them
+    # skip silently in CI too — so CI supplies one, and the guarantees the
+    # dossier rests on (undo, the destructive gate, site scoping) are actually
+    # exercised on every pull request rather than only when someone remembers.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: forinda_cms
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/forinda_cms
+
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +59,9 @@ jobs:
       # (doc 09 §1) apply on top: build scripts run only for allowlisted
       # packages, and `minimumReleaseAge` quarantines brand-new releases.
       - run: pnpm install --frozen-lockfile
+
+      - name: migrate
+        run: pnpm --filter @forinda-cms/db db:migrate
 
       - run: pnpm verify
 
