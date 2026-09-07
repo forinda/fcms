@@ -647,7 +647,9 @@ describe("automations", () => {
   });
 
   it("catches an action nothing implements", () => {
-    const result = validateSpec(withLogic([{ action: "sms.send", params: {} }]));
+    // `sms.send` is implemented now, so the case needs an action that is not —
+    // which is the point of the check rather than a detail of it.
+    const result = validateSpec(withLogic([{ action: "carrier.pigeon", params: {} }]));
     expect(result.ok === false && result.issues[0]!.message).toMatch(/nothing would run/);
   });
 

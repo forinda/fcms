@@ -29,6 +29,15 @@ export interface TriggerEvent {
 
 /** Five attempts over about ten minutes, then it stops and says why. */
 const MAX_ATTEMPTS = 5;
+
+/**
+ * How far an automation may set off another one.
+ *
+ * Three is enough for "the payment confirms the booking, the confirmation texts
+ * the customer, the text updates a log" and short of anything that reads like a
+ * loop somebody meant.
+ */
+const MAX_DEPTH = 3;
 const BACKOFF_SECONDS = [10, 30, 120, 600];
 
 @Service({ scope: Lifetime.REQUEST })
@@ -44,7 +53,7 @@ export class WorkflowUseCase {
    * Called after the write it describes has committed — a workflow that fired
    * for a row that then failed to save would be worse than one that fired late.
    */
-  async enqueue(spec: SiteSpec, event: TriggerEvent): Promise<number> {
+  async enqueue(spec: SiteSpec, event: TriggerEvent, depth = 0): Promise<number> {
     const due = spec.logic.filter((w) => w.enabled !== false && fires(w, event));
     if (due.length === 0) return 0;
 
@@ -55,6 +64,9 @@ export class WorkflowUseCase {
         workflowKey: w.key,
         trigger: event.on,
         entryId: event.entryId,
+        // How far this is from something a person did, so a chain can stop
+        // without a column of its own.
+        ...(depth > 0 ? { detail: { depth } } : {}),
       })),
     );
     return due.length;
@@ -163,7 +175,13 @@ export class WorkflowUseCase {
           and(
             eq(workflowRuns.siteId, this.scope.siteId),
             eq(workflowRuns.status, "pending"),
-            lte(workflowRuns.runAt, new Date()),
+            // The database's clock, not this process's. `runAt` is stamped by
+            // `defaultNow()` on insert, so comparing it against a `Date` from
+            // here means two clocks decide whether a run is due — and a
+            // database a few milliseconds ahead makes a row that was just
+            // enqueued invisible. It passed locally, where both clocks are the
+            // same one, and failed in CI, where they are not.
+            lte(workflowRuns.runAt, sql`now()`),
           ),
         )
         .orderBy(workflowRuns.runAt)
@@ -203,8 +221,10 @@ export class WorkflowUseCase {
     const entry = run.entryId ? await this.entry(run.entryId) : undefined;
     const type = spec.content.find((t) => t.key === entry?.typeKey);
     const steps: string[] = [];
-    const dryRun =
-      run.status === "testing" || (run.detail as { test?: boolean } | null)?.test === true;
+    const detail = run.detail as { test?: boolean; depth?: number } | null;
+    const dryRun = run.status === "testing" || detail?.test === true;
+    /** How far this run is from something a person did (ADR 0032, chaining). */
+    const depth = detail?.depth ?? 0;
 
     /**
      * What a parameter's `{{ … }}` sees (ADR 0029 §3).
@@ -245,7 +265,8 @@ export class WorkflowUseCase {
           params,
           values,
           dryRun,
-          setState: (id, field, to) => this.setState(id, field, to),
+          setState: (id, field, to) =>
+            this.setState(spec, id, entry?.typeKey ?? "", field, to, depth),
         });
 
         // Named steps publish what they produced; unnamed ones do not, so an
@@ -255,7 +276,11 @@ export class WorkflowUseCase {
         }
         steps.push(`${step.key ?? step.action}: ${result.note}`);
       }
-      return this.finish(run, "done", { steps, ...(dryRun ? { test: true } : {}) });
+      return this.finish(run, "done", {
+        steps,
+        ...(dryRun ? { test: true } : {}),
+        ...(depth > 0 ? { depth } : {}),
+      });
     } catch (error) {
       // A test run does not retry: nobody is waiting five minutes to find out
       // what a preview would have done.
@@ -288,7 +313,10 @@ export class WorkflowUseCase {
         attempts,
         lastError: error,
         detail: { steps },
-        runAt: new Date(Date.now() + wait * 1000),
+        // Also the database's clock, for the same reason the claim uses it:
+        // one clock decides when a run is due, and it is the one that stamped
+        // the row.
+        runAt: sql`now() + make_interval(secs => ${wait})`,
         updatedAt: new Date(),
       })
       .where(eq(workflowRuns.id, run.id))
@@ -327,7 +355,14 @@ export class WorkflowUseCase {
   }
 
   /** The one write an action may make, and only through here. */
-  private async setState(entryId: string, field: string, to: string): Promise<void> {
+  private async setState(
+    spec: SiteSpec,
+    entryId: string,
+    typeKey: string,
+    field: string,
+    to: string,
+    depth: number,
+  ): Promise<void> {
     await this.db
       .update(entries)
       .set({
@@ -337,6 +372,12 @@ export class WorkflowUseCase {
         updatedAt: new Date(),
       })
       .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, entryId)));
+
+    // Chaining stops somewhere. Two automations that transition each other are
+    // a loop an owner writes by accident, and a queue that fills forever is
+    // worse than a chain that stops.
+    if (depth >= MAX_DEPTH || !typeKey) return;
+    await this.enqueue(spec, { on: "entry.transitioned", typeKey, entryId, to }, depth + 1);
   }
 
   /** The runs an owner can see, newest first. */

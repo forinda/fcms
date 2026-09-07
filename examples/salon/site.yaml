@@ -60,8 +60,13 @@ wiring:
     kind: webhook
     label: Salon chat
     config: { url: "https://hooks.example.test/salon" }
+  # `preview` writes the message onto the run and delivers nothing, in those
+  # words (ADR 0032 §2) — so this example runs as written, and a salon with an
+  # Africa's Talking account changes one line.
   - key: notify
     kind: sms
-    config: { sender: RIVERSIDE }
+    label: Customer texts
+    config: { provider: preview, sender: RIVERSIDE }
     secrets:
       apiKey: secret:AT_API_KEY
+      username: secret:AT_USERNAME

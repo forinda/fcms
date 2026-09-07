@@ -1,0 +1,11 @@
+key: text-the-customer
+label: Text the customer when their booking is confirmed
+# The automation this platform has been able to describe since Phase 0 and could
+# not run until ADR 0032. One recipient, from the booking that triggered it.
+trigger: { on: entry.transitioned, type: booking, to: confirmed }
+steps:
+  - action: sms.send
+    params:
+      through: notify
+      to: "{{ entry.customerPhone }}"
+      body: "Hi {{ entry.customerName }}, your appointment is confirmed. Riverside Salon."
