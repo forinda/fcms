@@ -18,3 +18,4 @@ export * from "./entries.js";
 export * from "./assets.js";
 export * from "./owners.js";
 export * from "./visitors.js";
+export * from "./payments.js";

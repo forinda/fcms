@@ -18,6 +18,7 @@ import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 import type { ContentType } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
+import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
 import { EntryWriteUseCase } from "./use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
@@ -35,6 +36,8 @@ export class ContentController {
   @Inject(EntryWriteUseCase) private readonly writer!: EntryWriteUseCase;
   @Inject(SiteHistoryUseCase) private readonly changes!: SiteHistoryUseCase;
   @Inject(UndoSpecUseCase) private readonly undoLast!: UndoSpecUseCase;
+  @Inject(PaymentRepository) private readonly payments!: PaymentRepository;
+  @Inject(PaymentUseCase) private readonly pay!: PaymentUseCase;
 
   /** Types, their row counts, and what is deliberately absent. */
   @Get("/")
@@ -239,7 +242,8 @@ ${entryForm(type, entry.data, {
   action: `/admin/content/${type.key}/${entry.id}`,
   slug: entry.slug,
   deleteAction: `/admin/content/${type.key}/${entry.id}/delete`,
-})}`,
+})}
+${paymentsPanel(await this.payments.forEntry(entry.id), `/admin/content/${type.key}/${entry.id}`)}`,
       }),
     );
   }
@@ -275,6 +279,27 @@ ${entryForm(type, data, {
 })}`,
       }),
     );
+  }
+
+  /**
+   * "The money arrived."
+   *
+   * The only way a `payment.manual` charge settles, because there is nobody to
+   * ask — cash in a salon is confirmed by the person who took it (ADR 0023 §5).
+   * Deliberately not available for a provider that can be asked: an owner
+   * marking an M-Pesa payment paid by hand would be overriding the provider.
+   */
+  @Post("/content/:type/:id/paid")
+  async settle(ctx: Ctx): Promise<void> {
+    const params = ctx.params as Record<string, string>;
+    const body = (ctx.body ?? {}) as Record<string, unknown>;
+    const payment = await this.payments.byId(String(body["payment"] ?? ""));
+
+    if (payment && payment.provider === "payment.manual") {
+      await this.pay.settleManually(payment, ctx.require("actor").email);
+    }
+
+    redirect(ctx, `/admin/content/${params["type"]}/${params["id"]}`);
   }
 
   @Post("/content/:type/:id/delete")
@@ -332,4 +357,44 @@ ${
     await this.undoLast.execute();
     redirect(ctx, "/admin/history");
   }
+}
+
+/**
+ * What was charged for this entry, and the one action an owner has.
+ *
+ * Shown on the entry rather than on a payments screen of its own: the question
+ * an owner has is "did this booking get paid", and the booking is where they
+ * are already looking.
+ */
+function paymentsPanel(
+  rows: readonly import("@forinda-cms/db").PaymentRow[],
+  base: string,
+): string {
+  if (rows.length === 0) return "";
+
+  const row = (payment: (typeof rows)[number]) => {
+    const amount = `${esc(payment.currency)} ${(payment.amount / 100).toFixed(2)}`;
+    const when = payment.paidAt ? payment.paidAt.toISOString().slice(0, 10) : "";
+    // Only a provider with nobody to ask can be settled by hand — otherwise an
+    // owner would be overriding the provider's own answer.
+    const settle =
+      payment.status === "pending" && payment.provider === "payment.manual"
+        ? `<form method="post" action="${esc(base)}/paid" class="inline">
+             <input type="hidden" name="payment" value="${esc(payment.id)}">
+             <button type="submit">Mark as paid</button>
+           </form>`
+        : "";
+    const unverified = PROVIDERS[payment.provider]?.unverified
+      ? ' <span class="pill">unverified provider</span>'
+      : "";
+
+    return `<tr><td>${amount}</td><td>${esc(payment.status)}${unverified}</td>
+      <td>${esc(payment.via)}</td><td>${esc(when)}</td><td>${settle}</td></tr>`;
+  };
+
+  return `<section class="payments">
+  <h2>Payments</h2>
+  <table><thead><tr><th>Amount</th><th>Status</th><th>Method</th><th>Paid</th><th></th></tr></thead>
+  <tbody>${rows.map(row).join("")}</tbody></table>
+</section>`;
 }

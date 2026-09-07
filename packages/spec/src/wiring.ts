@@ -13,6 +13,14 @@ import { Key, Label, SecretRef } from "./primitives.js";
 export const INTEGRATION_KINDS = [
   "payment.mpesa",
   "payment.card",
+  /**
+   * Pay on arrival, by bank transfer, in cash — the owner confirms it.
+   *
+   * Not a placeholder (ADR 0023 §5): it takes no credentials, so it is the only
+   * way to charge for something before a business has a shortcode, and it is
+   * what most sites want on the day they launch.
+   */
+  "payment.manual",
   "email",
   "sms",
   "calendar",

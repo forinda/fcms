@@ -386,6 +386,30 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     }
   }
 
+  // A payable type must name an integration that exists and can take money.
+  const integrations = new Map(spec.wiring.map((i) => [i.key, i]));
+  for (const type of spec.content) {
+    if (!type.payment) continue;
+    const at = `/content/${type.key}/payment`;
+    const integration = integrations.get(type.payment.via);
+
+    if (!integration) {
+      issues.push({ path: `${at}/via`, message: `unknown integration "${type.payment.via}"` });
+    } else if (!integration.kind.startsWith("payment.")) {
+      issues.push({
+        path: `${at}/via`,
+        message: `"${type.payment.via}" is a ${integration.kind} integration, which cannot take a payment`,
+      });
+    } else if (integration.enabled === false) {
+      // Otherwise the form takes the booking and the payment silently never
+      // happens — the failure an owner discovers from their bank statement.
+      issues.push({
+        path: `${at}/via`,
+        message: `"${type.payment.via}" is turned off, so nothing can be charged through it`,
+      });
+    }
+  }
+
   // Access rules for types that no longer exist — usually a rename left behind.
   for (const key of Object.keys(spec.access.types ?? {})) {
     if (!types.has(key)) {
