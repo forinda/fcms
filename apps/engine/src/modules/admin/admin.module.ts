@@ -9,6 +9,7 @@ import { defineModule } from "@forinda/kickjs";
 
 import { AdminController } from "./admin.controller";
 import { AssistController } from "./assist.controller";
+import { AutomationController } from "./automation.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 import { MediaController } from "./media.controller";
@@ -37,6 +38,9 @@ export const AdminModule = defineModule({
         // specific route and reads better first.
         { path: "/admin", controller: AssistController },
         { path: "/admin", controller: CanvasController },
+        // Before the content controller, which owns `/automations` itself: the
+        // list lives there, one automation lives here.
+        { path: "/admin", controller: AutomationController },
         { path: "/admin", controller: MediaController },
         { path: "/admin", controller: ContentController },
       ];

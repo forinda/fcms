@@ -273,6 +273,12 @@ ul.blocks ul{border-left:1px solid var(--line)}
 .canvas .add{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
 .canvas .add .row{display:flex;gap:.4rem}
 .canvas .add select,.canvas .add input{flex:1;min-width:0}
+.new-automation{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}
+.new-automation .row{display:flex;gap:.4rem;flex-wrap:wrap}
+.new-automation input{flex:1;min-width:10rem}
+.stage .run{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;margin-bottom:.6rem}
+.stage .run.destructive{border-color:var(--bad)}
+.stage .run ol{margin:.3rem 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--muted)}
 .canvas .components{margin-top:1.1rem;border-top:1px solid var(--line);padding-top:.9rem}
 .canvas .components h3{margin:0 0 .3rem;font-size:.72rem;text-transform:uppercase;
   letter-spacing:.07em;color:var(--muted)}

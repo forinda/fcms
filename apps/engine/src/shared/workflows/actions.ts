@@ -49,7 +49,38 @@ export interface ActionResult {
   readonly value?: unknown;
 }
 
+/**
+ * One thing a step needs, declared (ADR 0030 §2).
+ *
+ * The runner reads this to know what a step takes; the builder's panel reads
+ * the same list to know what to ask for. One source, two consumers — a
+ * hand-written form per action is the drift ADR 0004 guards against, one layer
+ * down, and it goes stale the first time somebody adds an action without
+ * opening the view.
+ */
+export interface ActionParam {
+  readonly name: string;
+  readonly label: string;
+  /**
+   * What kind of value, so the panel can offer the right choices rather than a
+   * text box that accepts a webhook that does not exist.
+   *
+   *   - `integration` — one of this site's declared integrations, of `of` kind
+   *   - `state`       — one of the watched type's declared states
+   *   - `template`    — the weak template language, with a hint
+   *   - `text`        — a plain string
+   */
+  readonly kind: "integration" | "state" | "template" | "text";
+  /** For `integration`: which kind of integration may be chosen. */
+  readonly of?: string;
+  readonly required?: boolean;
+  readonly help?: string;
+}
+
 export interface Action {
+  /** One line, shown in the palette and given to the AI. */
+  readonly summary: string;
+  readonly params: readonly ActionParam[];
   run(ctx: ActionContext): Promise<ActionResult>;
 }
 
@@ -108,6 +139,16 @@ export function reachable(url: string): boolean {
 }
 
 const transition: Action = {
+  summary: "Move an entry along a status it already declares.",
+  params: [
+    {
+      name: "to",
+      label: "Move to",
+      kind: "state",
+      required: true,
+      help: "Only a state the type declares, along a transition it allows.",
+    },
+  ],
   async run({ entry, type, params, setState, dryRun }): Promise<ActionResult> {
     if (!entry || !type) return { note: "skipped: nothing to move" };
 
@@ -136,6 +177,17 @@ const transition: Action = {
 };
 
 const webhookPost: Action = {
+  summary: "Post the entry to somewhere you have declared.",
+  params: [
+    {
+      name: "to",
+      label: "Send to",
+      kind: "integration",
+      of: "webhook",
+      required: true,
+      help: "The address lives on the integration, so a step cannot invent one.",
+    },
+  ],
   async run({ spec, entry, type, params, dryRun }): Promise<ActionResult> {
     const integration = spec.wiring.find((i) => i.key === String(params["to"] ?? ""));
     if (!integration || integration.kind !== "webhook") {
@@ -198,6 +250,24 @@ function secretHeaders(integration: Integration): Record<string, string> {
  * and a step cannot add one.
  */
 const httpRequest: Action = {
+  summary: "Call a service you have declared, and keep what it answered.",
+  params: [
+    { name: "to", label: "Service", kind: "integration", of: "api", required: true },
+    {
+      name: "path",
+      label: "Path",
+      kind: "template",
+      required: true,
+      help: "Joined to the service's base URL — `/customers/{{ entry.email }}`.",
+    },
+    { name: "method", label: "Method", kind: "text", help: "GET unless you say otherwise." },
+    {
+      name: "body",
+      label: "Body",
+      kind: "template",
+      help: "Sent as-is. Give the step a key to read the answer later.",
+    },
+  ],
   async run({ spec, params, dryRun }): Promise<ActionResult> {
     const integration = spec.wiring.find((i) => i.key === String(params["to"] ?? ""));
     if (!integration || integration.kind !== "api") {

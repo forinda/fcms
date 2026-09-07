@@ -346,9 +346,9 @@ ${
   <thead><tr><th>Automation</th><th>Runs when</th><th>Steps</th><th></th></tr></thead>
   <tbody>${declared
     .map(
-      (
-        w,
-      ) => `<tr><td>${esc(w.key)}${w.enabled === false ? ' <span class="pill">off</span>' : ""}</td>
+      (w) => `<tr><td><a href="/admin/automations/${esc(w.key)}">${esc(w.key)}</a>${
+        w.enabled === false ? ' <span class="pill">off</span>' : ""
+      }</td>
       <td class="muted">${esc(w.trigger.on)}</td><td class="muted">${w.steps.length}</td>
       <td><form method="post" action="/admin/automations/${esc(w.key)}/test" class="inline">
         <button type="submit">Try it</button>
@@ -356,6 +356,28 @@ ${
     )
     .join("")}</tbody></table>`
 }
+<form method="post" action="/admin/automations" class="new-automation">
+  <h2>New automation</h2>
+  <div class="row">
+    <input name="key" placeholder="tell-the-kitchen" required>
+    <select name="on">
+      <option value="entry.created">when something is created</option>
+      <option value="entry.updated">when something changes</option>
+      <option value="entry.transitioned">when something changes status</option>
+      <option value="payment.succeeded">when a payment succeeds</option>
+      <option value="schedule">on a schedule</option>
+    </select>
+    <select name="type">
+      ${(spec?.content ?? [])
+        .filter((t) => !t.derived)
+        .map((t) => `<option value="${esc(t.key)}">${esc(t.label)}</option>`)
+        .join("")}
+    </select>
+    <button type="submit">Create</button>
+  </div>
+  <p class="help">A schedule ignores the type and runs at 9am until you change it.</p>
+</form>
+
 <h2>Recent runs</h2>
 ${
   runs.length === 0
