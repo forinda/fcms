@@ -15,11 +15,14 @@
 #   runtime what ships: node, the bundle, the migrations, nothing else
 
 ARG NODE_VERSION=24-alpine
-ARG PNPM_VERSION=10.18.0
+ARG PNPM_VERSION=11.24.0
 
 FROM node:${NODE_VERSION} AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
+# The version comes from `packageManager` in package.json — corepack reads it,
+# `pnpm/action-setup` reads it in CI, and a developer's corepack reads it
+# locally. One answer, three consumers.
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /repo
 
