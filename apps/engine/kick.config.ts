@@ -1,18 +1,18 @@
-import { defineConfig } from '@forinda/kickjs-cli'
+import { defineConfig } from "@forinda/kickjs-cli";
 
 export default defineConfig({
-  pattern: 'minimal',
+  pattern: "minimal",
   // The HTTP engine this app boots on (matches `bootstrap({ runtime })` in
   // src/index.ts). Dep-aware commands read it: `kick add upload` installs the
   // engine's multipart driver, `kick doctor` checks the engine peers, and
   // `kick typegen` flips the runtime escape-hatch types to this engine.
-  runtime: 'express',
+  runtime: "express",
   // Pinned so `kick add` and other dep-installing commands always use the
   // project's intended package manager, regardless of which lockfile exists.
-  packageManager: 'pnpm',
+  packageManager: "pnpm",
   modules: {
-    dir: 'src/modules',
-    repo: 'inmemory',
+    dir: "src/modules",
+    repo: "inmemory",
     pluralize: true,
   },
 
@@ -23,35 +23,35 @@ export default defineConfig({
   // to `'zod'` if you ship Zod schemas without `fromZod()` wrapping, or
   // set `schemaValidator: false` to skip schema-driven body typing.
   typegen: {
-    schemaValidator: 'kickjs-schema',
+    schemaValidator: "kickjs-schema",
   },
 
   commands: [
     {
-      name: 'test',
-      description: 'Run tests with Vitest',
-      steps: 'vitest run',
+      name: "test",
+      description: "Run tests with Vitest",
+      steps: "vitest run",
     },
     {
-      name: 'lint',
-      description: 'Lint with oxlint',
-      steps: 'oxlint src/',
+      name: "lint",
+      description: "Lint with oxlint",
+      steps: "oxlint src/",
     },
     {
-      name: 'format',
-      description: 'Format code with oxfmt',
-      steps: 'oxfmt src/',
+      name: "format",
+      description: "Format code with oxfmt",
+      steps: "oxfmt src/",
     },
     {
-      name: 'format:check',
-      description: 'Check formatting without writing',
-      steps: 'oxfmt --check src/',
+      name: "format:check",
+      description: "Check formatting without writing",
+      steps: "oxfmt --check src/",
     },
     {
-      name: 'ci:check',
-      description: 'Run typecheck + lint + format check',
-      steps: ['kick typecheck', 'oxlint src/', 'oxfmt --check src/'],
-      aliases: ['verify'],
+      name: "ci:check",
+      description: "Run typecheck + lint + format check",
+      steps: ["kick typecheck", "oxlint src/", "oxfmt --check src/"],
+      aliases: ["verify"],
     },
   ],
-})
+});

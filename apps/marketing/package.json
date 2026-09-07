@@ -1,0 +1,16 @@
+{
+  "name": "@forinda-cms/marketing",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The marketing site: what this is, who it is for, and how to install it.",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro build --silent"
+  },
+  "dependencies": {
+    "astro": "catalog:"
+  }
+}

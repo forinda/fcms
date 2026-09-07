@@ -27,11 +27,12 @@ RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 WORKDIR /repo
 
 FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
-COPY tsconfig.json kick.config.ts vite.config.ts ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json .npmrc* ./
+# The engine only. The marketing site is a separate app with a separate
+# lifetime — it ships to a CDN, not into this image — and copying it here would
+# put its dependencies in the build for nothing.
+COPY apps/engine apps/engine
 COPY packages packages
-COPY src src
-COPY scripts scripts
 # `--frozen-lockfile` so an image never resolves something different from what
 # was reviewed. The supply-chain settings in pnpm-workspace.yaml apply on top:
 # build scripts run only for allowlisted packages, and `minimumReleaseAge`
@@ -41,14 +42,14 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 FROM deps AS build
 ENV NODE_ENV=production
-RUN pnpm exec kick build
+RUN pnpm --filter @forinda-cms/engine exec kick build
 
 FROM build AS deploy
-# `--filter` names the project: a workspace root with seven packages under it
-# has no single default, and without this `pnpm deploy` fails the build with
+# `--filter` names the project: a workspace with several packages under it has
+# no single default, and without this `pnpm deploy` fails the build with
 # `ERR_PNPM_CANNOT_DEPLOY_MANY`.
-RUN pnpm --filter=forinda-cms deploy --legacy --prod /out \
- && cp -r dist /out/dist \
+RUN pnpm --filter=@forinda-cms/engine deploy --legacy --prod /out \
+ && cp -r apps/engine/dist /out/dist \
  && cp -r packages/db/migrations /out/migrations
 
 FROM node:${NODE_VERSION} AS runtime

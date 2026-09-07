@@ -18,7 +18,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fragmentJsonSchemas } from "@forinda-cms/spec";
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// The repo root, two levels up now that the engine is an app. The schemas are
+// a repo-level artifact — editors point at them by path, so they stay put.
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const OUT_DIR = join(ROOT, "schema");
 
 /**

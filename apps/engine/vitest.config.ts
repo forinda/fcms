@@ -1,10 +1,14 @@
-import { defineConfig, mergeConfig } from 'vitest/config'
-import { loadEnv } from 'vite'
-import { fileURLToPath } from 'node:url'
-import viteConfig from './vite.config.ts'
+import { defineConfig, mergeConfig } from "vitest/config";
+import { loadEnv } from "vite";
+import { fileURLToPath } from "node:url";
+import viteConfig from "./vite.config.ts";
 
 /**
- * Load `.env.test` before the suite runs.
+ * Load the repo's `.env.test` before the suite runs.
+ *
+ * At the repo root, not in this app: every workspace suite that touches the
+ * database reads the same file, and one set of throwaway credentials for the
+ * whole repo is the point of it.
  *
  * The app's own suites live under `src/` now — the repositories, the use-cases
  * and auth moved out of the workspace package — and they talk to a real
@@ -15,8 +19,10 @@ import viteConfig from './vite.config.ts'
  * **The shell wins.** A committed default cannot be right on every machine, so
  * an exported variable overrides the file rather than the other way round.
  */
-for (const [key, value] of Object.entries(loadEnv('test', fileURLToPath(new URL('.', import.meta.url)), ''))) {
-  process.env[key] ??= value
+for (const [key, value] of Object.entries(
+  loadEnv("test", fileURLToPath(new URL("../..", import.meta.url)), ""),
+)) {
+  process.env[key] ??= value;
 }
 
 // A `vitest.config.ts` OVERRIDES `vite.config.ts` outright — vitest does not
@@ -29,8 +35,8 @@ export default mergeConfig(
   defineConfig({
     test: {
       globals: true,
-      environment: 'node',
-      include: ['src/**/*.test.ts'],
+      environment: "node",
+      include: ["src/**/*.test.ts"],
     },
   }),
-)
+);

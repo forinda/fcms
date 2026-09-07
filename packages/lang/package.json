@@ -16,10 +16,11 @@
   },
   "dependencies": {
     "@forinda-cms/spec": "workspace:*",
-    "yaml": "^2.8.1"
+    "yaml": "catalog:"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

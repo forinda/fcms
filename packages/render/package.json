@@ -17,7 +17,8 @@
     "@forinda-cms/spec": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
-    "vitest": "^4.1.2"
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

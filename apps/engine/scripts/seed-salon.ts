@@ -22,7 +22,7 @@ if (!url) {
 
 const ORG = process.env["ORG_ID"] ?? "default";
 const SITE = process.env["SITE_ID"] ?? "default";
-const root = join(dirname(fileURLToPath(import.meta.url)), "../examples/salon");
+const root = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/salon");
 
 const files: Record<string, string> = {
   "site.yaml": readFileSync(join(root, "site.yaml"), "utf8"),
