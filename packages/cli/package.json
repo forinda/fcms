@@ -2,11 +2,11 @@
   "name": "@forinda-cms/cli",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "description": "fcms — the management CLI. Netlify-shaped, not WP-CLI-shaped.",
   "bin": {
     "fcms": "./src/bin.ts"
   },
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {

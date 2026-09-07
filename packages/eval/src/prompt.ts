@@ -10,9 +10,9 @@
  * artifact the YAML language server consumes — ADR 0006), the current spec, the
  * profile rules that a schema cannot express, and the task.
  */
-import { siteSpecJsonSchema } from '@forinda-cms/spec'
+import { siteSpecJsonSchema } from "@forinda-cms/spec";
 
-import type { Task } from './tasks.js'
+import type { Task } from "./tasks.js";
 
 export const SYSTEM = `You edit a website specification written in YAML.
 
@@ -68,32 +68,32 @@ the schema. An honest refusal is the correct answer and is scored as correct.
 If the change is expressible: reply with the complete updated specification as a
 single YAML document inside one \`\`\`yaml fenced block, and nothing else.
 If it is not: reply with \`CANNOT_EXPRESS\` followed by one short paragraph
-explaining why and what would be needed.`
+explaining why and what would be needed.`;
 
 export function buildUserMessage(currentSpecYaml: string, task: Task): string {
   return [
-    '## JSON Schema',
-    '',
-    '```json',
+    "## JSON Schema",
+    "",
+    "```json",
     JSON.stringify(siteSpecJsonSchema()),
-    '```',
-    '',
-    '## Current specification',
-    '',
-    '```yaml',
+    "```",
+    "",
+    "## Current specification",
+    "",
+    "```yaml",
     currentSpecYaml,
-    '```',
-    '',
-    '## Requested change',
-    '',
+    "```",
+    "",
+    "## Requested change",
+    "",
     task.instruction,
-  ].join('\n')
+  ].join("\n");
 }
 
 /** Pull the YAML out of a fenced block, tolerating a missing language tag. */
 export function extractYaml(response: string): string | undefined {
-  const fenced = /```(?:yaml|yml)?\s*\n([\s\S]*?)```/.exec(response)
-  return fenced?.[1]?.trim()
+  const fenced = /```(?:yaml|yml)?\s*\n([\s\S]*?)```/.exec(response);
+  return fenced?.[1]?.trim();
 }
 
 /**
@@ -105,7 +105,7 @@ export function extractYaml(response: string): string | undefined {
  * judgement.
  */
 export function declined(response: string): boolean {
-  if (/CANNOT_EXPRESS/.test(response)) return true
-  if (extractYaml(response)) return false
-  return /\b(cannot|can't|not possible|unable to|isn't possible|no way to)\b/i.test(response)
+  if (/CANNOT_EXPRESS/.test(response)) return true;
+  if (extractYaml(response)) return false;
+  return /\b(cannot|can't|not possible|unable to|isn't possible|no way to)\b/i.test(response);
 }

@@ -30,6 +30,9 @@ importers:
         specifier: ^4.3.6
         version: 4.5.4
     devDependencies:
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:packages/spec
       '@forinda/kickjs-cli':
         specifier: ^8.1.5
         version: 8.1.5(dotenv@17.4.2)(express@5.2.1)(serve-static@2.2.1)(typescript@7.0.2)(zod@4.5.4)
@@ -60,6 +63,9 @@ importers:
       supertest:
         specifier: ^7.2.2
         version: 7.2.2
+      tsx:
+        specifier: ^4.23.13
+        version: 4.23.13
       typescript:
         specifier: ^7.0.2
         version: 7.0.2

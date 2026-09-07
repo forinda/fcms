@@ -7,9 +7,9 @@
  * because the type says it is an Event, the JSON-LD is generated rather than
  * guessed, which is the thing WordPress structurally cannot do.
  */
-import { z } from 'zod'
+import { z } from "zod";
 
-import { FieldName, Key, Label, Note, TemplateString } from './primitives.js'
+import { FieldName, Key, Label, Note, TemplateString } from "./primitives.js";
 
 /**
  * A weekly opening-hours field.
@@ -22,29 +22,43 @@ import { FieldName, Key, Label, Note, TemplateString } from './primitives.js'
  *
  * Useful past bookings, too: a restaurant's opening hours are the same field.
  */
-const TIME = /^([01]?\d|2[0-3]):[0-5]\d$/
+const TIME = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 export const HoursField = z
   .object({
-    type: z.literal('hours'),
+    type: z.literal("hours"),
     required: z.boolean().default(false),
     help: Label.optional(),
     note: Note,
   })
-  .strict()
+  .strict();
 
 export const WeekHours = z
   .object({
-    mon: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    tue: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    wed: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    thu: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    fri: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    sat: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
-    sun: z.array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict()).optional(),
+    mon: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    tue: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    wed: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    thu: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    fri: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    sat: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
+    sun: z
+      .array(z.object({ from: z.string().regex(TIME), to: z.string().regex(TIME) }).strict())
+      .optional(),
   })
-  .strict()
-export type WeekHours = z.infer<typeof WeekHours>
+  .strict();
+export type WeekHours = z.infer<typeof WeekHours>;
 
 /**
  * A `state` field (ADR 0009 §4) — declared transitions, so "guide transitions"
@@ -53,25 +67,28 @@ export type WeekHours = z.infer<typeof WeekHours>
  */
 export const StateField = z
   .object({
-    type: z.literal('state'),
+    type: z.literal("state"),
     initial: Key,
     values: z.array(Key).min(2),
     transitions: z.array(z.object({ from: Key, to: z.array(Key).min(1) }).strict()).min(1),
   })
   .strict()
   .superRefine((f, ctx) => {
-    const known = new Set(f.values)
+    const known = new Set(f.values);
     if (!known.has(f.initial)) {
-      ctx.addIssue({ code: 'custom', message: `initial state "${f.initial}" is not in values` })
+      ctx.addIssue({ code: "custom", message: `initial state "${f.initial}" is not in values` });
     }
     for (const t of f.transitions) {
       for (const name of [t.from, ...t.to]) {
         if (!known.has(name)) {
-          ctx.addIssue({ code: 'custom', message: `transition references unknown state "${name}"` })
+          ctx.addIssue({
+            code: "custom",
+            message: `transition references unknown state "${name}"`,
+          });
         }
       }
     }
-  })
+  });
 
 const scalarField = <T extends string>(type: T) =>
   z
@@ -84,29 +101,33 @@ const scalarField = <T extends string>(type: T) =>
       help: Label.optional(),
       note: Note,
     })
-    .strict()
+    .strict();
 
 export const Field = z.intersection(
   z.object({ name: FieldName, label: Label }),
   z.union([
-    scalarField('text').extend({ max: z.number().int().positive().optional() }),
-    scalarField('richtext'),
-    scalarField('number').extend({ min: z.number().optional(), max: z.number().optional() }),
-    scalarField('boolean'),
-    scalarField('date'),
-    scalarField('datetime'),
-    scalarField('email'),
-    scalarField('phone'),
-    scalarField('url'),
-    scalarField('asset').extend({ accept: z.enum(['image', 'video', 'document', 'any']).default('any') }),
-    scalarField('select').extend({ options: z.array(z.object({ value: Key, label: Label })).min(1) }),
+    scalarField("text").extend({ max: z.number().int().positive().optional() }),
+    scalarField("richtext"),
+    scalarField("number").extend({ min: z.number().optional(), max: z.number().optional() }),
+    scalarField("boolean"),
+    scalarField("date"),
+    scalarField("datetime"),
+    scalarField("email"),
+    scalarField("phone"),
+    scalarField("url"),
+    scalarField("asset").extend({
+      accept: z.enum(["image", "video", "document", "any"]).default("any"),
+    }),
+    scalarField("select").extend({
+      options: z.array(z.object({ value: Key, label: Label })).min(1),
+    }),
     /** A relation to another content type. Integrity is declared, not implied. */
-    scalarField('reference').extend({ to: Key, many: z.boolean().default(false) }),
+    scalarField("reference").extend({ to: Key, many: z.boolean().default(false) }),
     StateField,
     HoursField,
   ]),
-)
-export type Field = z.infer<typeof Field>
+);
+export type Field = z.infer<typeof Field>;
 
 /**
  * schema.org mapping — set once at type-definition time, so every entry emits
@@ -116,13 +137,23 @@ export type Field = z.infer<typeof Field>
 export const JsonLdMapping = z
   .object({
     type: z.enum([
-      'Article', 'BlogPosting', 'Event', 'Product', 'Service', 'LocalBusiness',
-      'Person', 'Organization', 'Recipe', 'JobPosting', 'FAQPage', 'Review',
+      "Article",
+      "BlogPosting",
+      "Event",
+      "Product",
+      "Service",
+      "LocalBusiness",
+      "Person",
+      "Organization",
+      "Recipe",
+      "JobPosting",
+      "FAQPage",
+      "Review",
     ]),
     /** schema.org property → field name on this type. */
     properties: z.record(z.string(), FieldName),
   })
-  .strict()
+  .strict();
 
 /**
  * A **derived** content type: rows computed by the platform, not stored.
@@ -142,25 +173,33 @@ export const JsonLdMapping = z
  */
 export const ScheduleSource = z
   .object({
-    kind: z.literal('schedule'),
+    kind: z.literal("schedule"),
     /** Who or what is being booked, and where their working hours live. */
     resource: z.object({ type: Key, hours: FieldName }).strict(),
     /** What occupies time, and how to read a booking's span from it. */
     occupied: z
       .object({ type: Key, resource: FieldName, start: FieldName, minutes: FieldName })
       .strict(),
-    slot: z.object({ minutes: z.number().int().min(1).max(1440), buffer: z.number().int().min(0).default(0) }).strict(),
+    slot: z
+      .object({
+        minutes: z.number().int().min(1).max(1440),
+        buffer: z.number().int().min(0).default(0),
+      })
+      .strict(),
     window: z
       .object({
         days: z.number().int().min(1).max(365),
-        leadTime: z.object({ hours: z.number().int().min(0) }).strict().optional(),
+        leadTime: z
+          .object({ hours: z.number().int().min(0) })
+          .strict()
+          .optional(),
       })
       .strict(),
   })
-  .strict()
+  .strict();
 
-export const DerivedSource = z.discriminatedUnion('kind', [ScheduleSource])
-export type DerivedSource = z.infer<typeof DerivedSource>
+export const DerivedSource = z.discriminatedUnion("kind", [ScheduleSource]);
+export type DerivedSource = z.infer<typeof DerivedSource>;
 
 export const ContentType = z
   .object({
@@ -186,13 +225,16 @@ export const ContentType = z
   })
   .strict()
   .superRefine((t, ctx) => {
-    const names = t.fields.map((f) => f.name)
+    const names = t.fields.map((f) => f.name);
     for (const dup of names.filter((n, i) => names.indexOf(n) !== i)) {
-      ctx.addIssue({ code: 'custom', message: `duplicate field "${dup}" on type "${t.key}"` })
+      ctx.addIssue({ code: "custom", message: `duplicate field "${dup}" on type "${t.key}"` });
     }
     if (t.titleField && !names.includes(t.titleField)) {
-      ctx.addIssue({ code: 'custom', message: `titleField "${t.titleField}" is not a field of "${t.key}"` })
+      ctx.addIssue({
+        code: "custom",
+        message: `titleField "${t.titleField}" is not a field of "${t.key}"`,
+      });
     }
-  })
+  });
 
-export type ContentType = z.infer<typeof ContentType>
+export type ContentType = z.infer<typeof ContentType>;

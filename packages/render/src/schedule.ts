@@ -25,25 +25,25 @@
  * rather than solved — but it is a real bug the moment the site is deployed
  * somewhere its business is not.
  */
-import { WeekHours, type DerivedSource } from '@forinda-cms/spec'
+import { WeekHours, type DerivedSource } from "@forinda-cms/spec";
 
-import type { Entry, EntrySource } from './entries.js'
+import type { Entry, EntrySource } from "./entries.js";
 
 /** `{ mon: [{ from: "09:00", to: "17:00" }], … }` on the resource. */
 export interface DayWindow {
-  readonly from: string
-  readonly to: string
+  readonly from: string;
+  readonly to: string;
 }
 
-const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 function minutesOfDay(hhmm: string): number | undefined {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())
-  if (!m) return undefined
-  const h = Number(m[1])
-  const min = Number(m[2])
-  if (h > 23 || min > 59) return undefined
-  return h * 60 + min
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return undefined;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return undefined;
+  return h * 60 + min;
 }
 
 /**
@@ -54,14 +54,14 @@ function minutesOfDay(hhmm: string): number | undefined {
  * "available" is two people in one chair.
  */
 function windowsFor(hours: unknown, date: Date): DayWindow[] {
-  const parsed = WeekHours.safeParse(hours)
-  if (!parsed.success) return []
-  return parsed.data[DAY_KEYS[date.getDay()]!] ?? []
+  const parsed = WeekHours.safeParse(hours);
+  if (!parsed.success) return [];
+  return parsed.data[DAY_KEYS[date.getDay()]!] ?? [];
 }
 
 interface Busy {
-  readonly start: number
-  readonly end: number
+  readonly start: number;
+  readonly end: number;
 }
 
 /**
@@ -74,30 +74,30 @@ interface Busy {
  */
 function busySpans(
   source: EntrySource,
-  derived: Extract<DerivedSource, { kind: 'schedule' }>,
+  derived: Extract<DerivedSource, { kind: "schedule" }>,
   resourceId: string,
 ): { spans: Busy[]; unreadable: boolean } {
-  const spans: Busy[] = []
-  let unreadable = false
+  const spans: Busy[] = [];
+  let unreadable = false;
 
   for (const row of source.all(derived.occupied.type)) {
-    const owner = row[derived.occupied.resource]
-    if (String(owner ?? '') !== resourceId) continue
+    const owner = row[derived.occupied.resource];
+    if (String(owner ?? "") !== resourceId) continue;
 
-    const startsAt = Date.parse(String(row[derived.occupied.start] ?? ''))
-    const minutes = Number(row[derived.occupied.minutes])
+    const startsAt = Date.parse(String(row[derived.occupied.start] ?? ""));
+    const minutes = Number(row[derived.occupied.minutes]);
     if (Number.isNaN(startsAt) || !Number.isFinite(minutes) || minutes <= 0) {
-      unreadable = true
-      continue
+      unreadable = true;
+      continue;
     }
-    spans.push({ start: startsAt, end: startsAt + minutes * 60_000 })
+    spans.push({ start: startsAt, end: startsAt + minutes * 60_000 });
   }
-  return { spans, unreadable }
+  return { spans, unreadable };
 }
 
 export interface ScheduleOptions {
   /** Injected so the generator is deterministic and testable. */
-  readonly now: Date
+  readonly now: Date;
 }
 
 /**
@@ -106,43 +106,43 @@ export interface ScheduleOptions {
  */
 export function generateSchedule(
   source: EntrySource,
-  derived: Extract<DerivedSource, { kind: 'schedule' }>,
+  derived: Extract<DerivedSource, { kind: "schedule" }>,
   options: ScheduleOptions,
 ): Entry[] {
-  const { now } = options
-  const slotMs = derived.slot.minutes * 60_000
-  const bufferMs = derived.slot.buffer * 60_000
-  const earliest = now.getTime() + (derived.window.leadTime?.hours ?? 0) * 3_600_000
+  const { now } = options;
+  const slotMs = derived.slot.minutes * 60_000;
+  const bufferMs = derived.slot.buffer * 60_000;
+  const earliest = now.getTime() + (derived.window.leadTime?.hours ?? 0) * 3_600_000;
 
-  const out: Entry[] = []
+  const out: Entry[] = [];
 
   for (const resource of source.all(derived.resource.type)) {
-    const id = String(resource['slug'] ?? resource['id'] ?? '')
-    if (!id) continue
+    const id = String(resource["slug"] ?? resource["id"] ?? "");
+    if (!id) continue;
 
-    const { spans, unreadable } = busySpans(source, derived, id)
+    const { spans, unreadable } = busySpans(source, derived, id);
     // A booking we could not read means we do not know when this resource is
     // free. Offering slots anyway is the double-booking case, so offer none.
-    if (unreadable) continue
+    if (unreadable) continue;
 
     for (let dayOffset = 0; dayOffset < derived.window.days; dayOffset++) {
-      const day = new Date(now)
-      day.setDate(day.getDate() + dayOffset)
-      day.setHours(0, 0, 0, 0)
+      const day = new Date(now);
+      day.setDate(day.getDate() + dayOffset);
+      day.setHours(0, 0, 0, 0);
 
       for (const window of windowsFor(resource[derived.resource.hours], day)) {
-        const from = minutesOfDay(window.from)
-        const to = minutesOfDay(window.to)
-        if (from === undefined || to === undefined || to <= from) continue
+        const from = minutesOfDay(window.from);
+        const to = minutesOfDay(window.to);
+        if (from === undefined || to === undefined || to <= from) continue;
 
         for (let m = from; m + derived.slot.minutes <= to; m += derived.slot.minutes) {
-          const start = day.getTime() + m * 60_000
-          const end = start + slotMs
-          if (start < earliest) continue
+          const start = day.getTime() + m * 60_000;
+          const end = start + slotMs;
+          if (start < earliest) continue;
 
           // Inclusive overlap, widened by the buffer on both sides.
-          const clash = spans.some((b) => start < b.end + bufferMs && end + bufferMs > b.start)
-          if (clash) continue
+          const clash = spans.some((b) => start < b.end + bufferMs && end + bufferMs > b.start);
+          if (clash) continue;
 
           out.push({
             id: `${id}:${new Date(start).toISOString()}`,
@@ -150,11 +150,11 @@ export function generateSchedule(
             startsAt: new Date(start).toISOString(),
             endsAt: new Date(end).toISOString(),
             minutes: derived.slot.minutes,
-          })
+          });
         }
       }
     }
   }
 
-  return out
+  return out;
 }

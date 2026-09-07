@@ -6,15 +6,15 @@
  * occupies. Joining them is what turns "Required at pages.1.blocks.0.data.limit"
  * into something with a line number an editor can jump to.
  */
-import { LineCounter, isNode, parseAllDocuments, type Document } from 'yaml'
-import { validateSpec, type SiteSpec } from '@forinda-cms/spec'
+import { LineCounter, isNode, parseAllDocuments, type Document } from "yaml";
+import { validateSpec, type SiteSpec } from "@forinda-cms/spec";
 
-import type { Diagnostic } from './errors.js'
-import { STRICT_PARSE_OPTIONS, checkProfile, checkUnquotedTemplates } from './profile.js'
+import type { Diagnostic } from "./errors.js";
+import { STRICT_PARSE_OPTIONS, checkProfile, checkUnquotedTemplates } from "./profile.js";
 
 export type ParseResult =
   | { readonly ok: true; readonly spec: SiteSpec }
-  | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] }
+  | { readonly ok: false; readonly diagnostics: readonly Diagnostic[] };
 
 /**
  * Find the source position for a spec path, walking up until something is found.
@@ -30,11 +30,11 @@ function locatePath(
   path: readonly (string | number)[],
 ): { line?: number; col?: number } {
   for (let end = path.length; end >= 0; end--) {
-    const node = end === 0 ? doc.contents : doc.getIn(path.slice(0, end), true)
-    const offset = isNode(node) ? node.range?.[0] : undefined
-    if (offset !== undefined) return lineCounter.linePos(offset)
+    const node = end === 0 ? doc.contents : doc.getIn(path.slice(0, end), true);
+    const offset = isNode(node) ? node.range?.[0] : undefined;
+    if (offset !== undefined) return lineCounter.linePos(offset);
   }
-  return {}
+  return {};
 }
 
 /**
@@ -47,42 +47,42 @@ function locatePath(
  * human typed.
  */
 function templateHint(source: string, line?: number): string | undefined {
-  if (line === undefined) return undefined
-  const text = source.split(/\r?\n/)[line - 1]
+  if (line === undefined) return undefined;
+  const text = source.split(/\r?\n/)[line - 1];
   if (text && /\{\{/.test(text) && !/["']/.test(text)) {
-    return 'a value containing `{{` must be quoted — `heading: "{{ item.name }}"` — because `{` opens a YAML flow mapping.'
+    return 'a value containing `{{` must be quoted — `heading: "{{ item.name }}"` — because `{` opens a YAML flow mapping.';
   }
-  return undefined
+  return undefined;
 }
 
 /** Parse one document's worth of spec text. `file` only decorates diagnostics. */
 export function parseSpec(source: string, file?: string): ParseResult {
-  const lineCounter = new LineCounter()
-  const docs = parseAllDocuments(source, { ...STRICT_PARSE_OPTIONS, lineCounter })
+  const lineCounter = new LineCounter();
+  const docs = parseAllDocuments(source, { ...STRICT_PARSE_OPTIONS, lineCounter });
 
-  const withFile = (d: Diagnostic): Diagnostic => (file ? { ...d, file } : d)
+  const withFile = (d: Diagnostic): Diagnostic => (file ? { ...d, file } : d);
 
   // Rule 3 — a spec file is exactly one document. `---` separators are a way to
   // smuggle several specs into one file and there is no meaning for the second.
   if (docs.length > 1) {
-    const second = docs[1]!
-    const pos = second.range ? lineCounter.linePos(second.range[0]) : {}
+    const second = docs[1]!;
+    const pos = second.range ? lineCounter.linePos(second.range[0]) : {};
     return {
       ok: false,
       diagnostics: [
         withFile({
-          path: '/',
-          message: 'multiple YAML documents in one file',
+          path: "/",
+          message: "multiple YAML documents in one file",
           ...pos,
-          hint: 'remove the `---` separator; one file holds one document.',
+          hint: "remove the `---` separator; one file holds one document.",
         }),
       ],
-    }
+    };
   }
 
-  const doc = docs[0]
+  const doc = docs[0];
   if (!doc || doc.contents === null) {
-    return { ok: false, diagnostics: [withFile({ path: '/', message: 'the file is empty' })] }
+    return { ok: false, diagnostics: [withFile({ path: "/", message: "the file is empty" })] };
   }
 
   // Raw parser errors first — nothing downstream is meaningful if the text did
@@ -92,27 +92,34 @@ export function parseSpec(source: string, file?: string): ParseResult {
     return {
       ok: false,
       diagnostics: doc.errors.map((e) => {
-        const pos = lineCounter.linePos(e.pos[0])
-        const hint = templateHint(source, pos.line)
-        return withFile({ path: '/', message: e.message, ...pos, ...(hint ? { hint } : {}) })
+        const pos = lineCounter.linePos(e.pos[0]);
+        const hint = templateHint(source, pos.line);
+        return withFile({ path: "/", message: e.message, ...pos, ...(hint ? { hint } : {}) });
       }),
-    }
+    };
   }
 
   const profile = [
     ...checkUnquotedTemplates(source),
     ...checkProfile(doc, (offset) => (offset === undefined ? {} : lineCounter.linePos(offset))),
-  ]
-  if (profile.length > 0) return { ok: false, diagnostics: profile.map(withFile) }
+  ];
+  if (profile.length > 0) return { ok: false, diagnostics: profile.map(withFile) };
 
-  const result = validateSpec(doc.toJS())
-  if (result.ok) return { ok: true, spec: result.spec }
+  const result = validateSpec(doc.toJS());
+  if (result.ok) return { ok: true, spec: result.spec };
 
   return {
     ok: false,
     diagnostics: result.issues.map((issue) => {
-      const segments = issue.path.split('/').filter(Boolean).map((s) => (/^\d+$/.test(s) ? Number(s) : s))
-      return withFile({ path: issue.path, message: issue.message, ...locatePath(doc, lineCounter, segments) })
+      const segments = issue.path
+        .split("/")
+        .filter(Boolean)
+        .map((s) => (/^\d+$/.test(s) ? Number(s) : s));
+      return withFile({
+        path: issue.path,
+        message: issue.message,
+        ...locatePath(doc, lineCounter, segments),
+      });
     }),
-  }
+  };
 }

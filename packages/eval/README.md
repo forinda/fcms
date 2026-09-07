@@ -2,11 +2,11 @@
 
 **ADR 0007 test 3** — can a model author this language correctly?
 
-ADR 0006 chose a strict YAML profile primarily because *the model is a
-first-class author of this language* and YAML has more training data behind it
+ADR 0006 chose a strict YAML profile primarily because _the model is a
+first-class author of this language_ and YAML has more training data behind it
 than any alternative. That is a claim about model output validity, and the ADR
-said to measure it: *"if it is not clearly better than the bespoke alternative
-would plausibly be, the main argument is gone."*
+said to measure it: _"if it is not clearly better than the bespoke alternative
+would plausibly be, the main argument is gone."_
 
 This measures it.
 
@@ -33,12 +33,12 @@ Four rates, in the order a failure bites — a spec that does not parse never
 reaches validation, one that does not validate never reaches the checker, and
 one that validates but did the wrong thing is the failure that actually ships.
 
-| Rate | Of | Indicts |
-|---|---|---|
-| **parses** | everything emitted | the syntax choice (ADR 0006's headline metric) |
-| **validates** | everything that parsed | how learnable the schema is |
-| **correct** | everything valid | whether the language is obvious, not just expressible |
-| **respects ceiling** | the trap tasks | whether the model approximates when cornered |
+| Rate                 | Of                     | Indicts                                               |
+| -------------------- | ---------------------- | ----------------------------------------------------- |
+| **parses**           | everything emitted     | the syntax choice (ADR 0006's headline metric)        |
+| **validates**        | everything that parsed | how learnable the schema is                           |
+| **correct**          | everything valid       | whether the language is obvious, not just expressible |
+| **respects ceiling** | the trap tasks         | whether the model approximates when cornered          |
 
 ## The traps matter most
 
@@ -48,8 +48,8 @@ to say so.**
 
 A model that scores well on edits and invents an expression when cornered is
 worse than one that scores slightly lower and declines, because the first kind
-of failure reaches a customer. Doc 04 puts it plainly: *the AI builders that
-fail, fail by confidently producing something adjacent.* So a valid spec
+of failure reaches a customer. Doc 04 puts it plainly: _the AI builders that
+fail, fail by confidently producing something adjacent._ So a valid spec
 produced for an inexpressible request scores as **approximated**, not as partial
 credit, and it is the only outcome that makes the suite exit non-zero.
 
@@ -74,7 +74,7 @@ Neither needs building separately:
 - **A conformance suite for pluggable harnesses** (doc 11 §3). The same tasks
   run against any harness, which is the basis for saying one is certified.
 - **The seed of the eval set** doc 04 calls the compounding moat — the log of
-  *(prompt, spec state) → accepted patch* is harness-agnostic by construction.
+  _(prompt, spec state) → accepted patch_ is harness-agnostic by construction.
 
 ## Status
 
