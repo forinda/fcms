@@ -97,7 +97,23 @@ export function resolveAttrs(
 ): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(attrs ?? {})) {
-    out[key] = typeof value === "string" ? resolve(value, scope, fmt) : value;
+    out[key] = typeof value === "string" ? assetUrl(resolve(value, scope, fmt)) : value;
   }
   return out;
+}
+
+/**
+ * `asset:<id>` becomes the URL that serves it.
+ *
+ * Rewritten here rather than looked up, because the id *is* the address: the
+ * renderer stays a pure function of the spec and the rows, with no database
+ * behind it, which is what lets `fcms dev` render a site from files alone
+ * (ADR 0007's seam).
+ *
+ * A reference that is already a URL, or a path, is left alone — an author
+ * pasting a link should not have it rewritten.
+ */
+function assetUrl(value: string): string {
+  const match = /^asset:([0-9a-fA-F-]{6,64})$/.exec(value.trim());
+  return match ? `/media/${match[1]}` : value;
 }

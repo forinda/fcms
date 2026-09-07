@@ -16,6 +16,9 @@ import type { Db, Scope } from "@forinda-cms/db";
 import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
+/** What a uuid looks like — an id from a URL must not reach a uuid column raw. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 @Repository({ scope: Lifetime.REQUEST })
 export class EntryRepository {
   constructor(
@@ -28,6 +31,7 @@ export class EntryRepository {
   }
 
   async byId(id: string): Promise<EntryRow | null> {
+    if (!UUID.test(id)) return null;
     const [row] = await this.db
       .select()
       .from(entries)

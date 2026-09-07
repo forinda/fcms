@@ -11,6 +11,7 @@ import { AdminController } from "./admin.controller";
 import { AssistController } from "./assist.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
+import { MediaController } from "./media.controller";
 
 // Eagerly import every file in the module so decorators run and register in
 // the container. Broad by design, the way `kick g module` generates it: a
@@ -36,6 +37,7 @@ export const AdminModule = defineModule({
         // specific route and reads better first.
         { path: "/admin", controller: AssistController },
         { path: "/admin", controller: CanvasController },
+        { path: "/admin", controller: MediaController },
         { path: "/admin", controller: ContentController },
       ];
     },

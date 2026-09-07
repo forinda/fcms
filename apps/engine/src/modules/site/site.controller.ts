@@ -11,6 +11,7 @@ import { Autowired, Controller, Get, Inject, type Ctx, type RequestContext } fro
 import { PublicSite } from "@/route-flags";
 import { readCookie, SESSION_COOKIE } from "@/contributors/actor.contributor";
 import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
+import { MediaUseCase } from "@/modules/admin/use-cases/media.usecase";
 import { SiteService } from "./site.service";
 
 @Controller()
@@ -31,6 +32,9 @@ export class SiteController {
    */
   @Inject(AuthenticateUseCase) private readonly authenticate!: AuthenticateUseCase;
 
+  /** Reads uploaded files; see `media` below. */
+  @Inject(MediaUseCase) private readonly assets!: MediaUseCase;
+
   /** Is this the canvas, run by someone signed in? */
   private async mayPreview(ctx: Ctx): Promise<boolean> {
     const url = ctx.req.url ?? "";
@@ -48,6 +52,40 @@ export class SiteController {
     if (configured) return configured.replace(/\/$/, "");
     const host = ctx.require("site")?.host;
     return host ? `https://${host}` : undefined;
+  }
+
+  /**
+   * One uploaded file.
+   *
+   * Public, because a picture on a page is public by definition — the
+   * unguessable id is not a security boundary and is not treated as one.
+   *
+   * Cached immutably: the bytes are content-addressed, so an id always answers
+   * the same file. Changing a picture means uploading another, which is a
+   * different id.
+   */
+  @Get("/media/:id")
+  async asset(ctx: Ctx): Promise<void> {
+    const asset = await this.assets.byId(String((ctx.params as Record<string, string>)["id"]));
+    const bytes = asset ? await this.assets.read(asset.blobHash).catch(() => null) : null;
+
+    if (!asset || !bytes) {
+      ctx.res.statusCode = 404;
+      ctx.res.end();
+      return;
+    }
+
+    ctx.res.setHeader("content-type", asset.contentType);
+    ctx.res.setHeader("cache-control", "public, max-age=31536000, immutable");
+    // `nosniff` and an explicit disposition: only images and PDFs can be stored
+    // (the upload allowlist), and neither should ever be sniffed into something
+    // the browser will run from this origin.
+    ctx.res.setHeader("x-content-type-options", "nosniff");
+    ctx.res.setHeader(
+      "content-disposition",
+      `inline; filename="${asset.filename.replace(/["\\]/g, "")}"`,
+    );
+    ctx.res.end(bytes);
   }
 
   /**

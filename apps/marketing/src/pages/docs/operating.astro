@@ -33,8 +33,9 @@ import Page from '../../layouts/Page.astro'
   </p>
 
   <p>
-    Uploaded media is not in Postgres. Once the asset store lands, back its bucket up
-    alongside this.
+    Uploaded media lives on disk rather than in Postgres, and the backup covers both — a
+    backup that restores the site without its pictures is one you find out about at the worst
+    moment.
   </p>
 
   <h2>Upgrading</h2>

@@ -27,6 +27,7 @@
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "express": "catalog:",
+    "multer": "catalog:",
     "reflect-metadata": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
@@ -38,6 +39,7 @@
     "@forinda/kickjs-vite": "catalog:",
     "@swc/core": "catalog:",
     "@types/express": "catalog:",
+    "@types/multer": "catalog:",
     "@types/node": "catalog:",
     "@types/supertest": "catalog:",
     "supertest": "catalog:",

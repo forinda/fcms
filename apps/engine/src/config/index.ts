@@ -51,6 +51,15 @@ const envSchema = fromZod(
      */
     SECURE_COOKIES: z.coerce.boolean().default(false),
 
+    /**
+     * Where uploaded media is written.
+     *
+     * Beside the database in the install's data directory by default, so one
+     * volume covers both. Content-addressed on disk (ADR 0010), so the path is
+     * a hash and the same photo uploaded twice is one file.
+     */
+    MEDIA_DIR: z.string().default("./data/media"),
+
     /** Shown on the starter page a fresh install boots into. */
     SITE_NAME: z.string().optional(),
     SITE_TIMEZONE: z.string().default("UTC"),
