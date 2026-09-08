@@ -1,7 +1,7 @@
 # The image `install/compose.yaml` pulls.
 #
 # Phase 0b's install row (ADR 0002) says *published image*, and a compose file
-# pointing at `ghcr.io/forinda/forinda-cms:latest` is a promise until something
+# pointing at `ghcr.io/forinda/fcms:latest` is a promise until something
 # publishes it. This is that something.
 #
 # Two triggers, deliberately different:
@@ -50,11 +50,13 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v5
         with:
-          # Named rather than derived from `github.repository`: the image is
-          # what a user types into a compose file, so it follows the product
-          # name and not the repository's. The repository link on the package
-          # page comes from the source label, which the action still sets.
-          images: ghcr.io/forinda/forinda-cms
+          # Derived from the repository, not named. A ghcr package belongs to
+          # the repository that first pushed it, and `GITHUB_TOKEN` from a
+          # different one cannot write to it — pushing `forinda-cms` from the
+          # `fcms` repository failed with `denied: permission_denied:
+          # write_package`. Deriving it means the image follows the source
+          # wherever it lives, with no package permission to grant by hand.
+          images: ghcr.io/${{ github.repository }}
           # `2026.3` also publishes `2026`, so an operator can follow a year.
           # `latest` moves only on a tag — never on a merge to main, which is
           # what `:edge` is for.

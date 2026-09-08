@@ -11,7 +11,7 @@ That runs [`.github/workflows/release.yaml`](.github/workflows/release.yaml):
 
 | Published | Where | Tags |
 |---|---|---|
-| The image | `ghcr.io/forinda/forinda-cms` | `2026.4`, `2026`, `latest`, the commit sha |
+| The image | `ghcr.io/forinda/fcms` | `2026.4`, `2026`, `latest`, the commit sha |
 | The server | [`forinda-cms`](https://www.npmjs.com/package/forinda-cms) on npm | `2026.4` |
 | The CLI | [`@forinda-cms/cli`](https://www.npmjs.com/package/@forinda-cms/cli) on npm | `2026.4` |
 

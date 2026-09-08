@@ -48,7 +48,7 @@ services:
       options: { max-size: "10m", max-file: "3" }
 
   app:
-    image: ghcr.io/forinda/forinda-cms:${VERSION:-latest}
+    image: ghcr.io/forinda/fcms:${VERSION:-latest}
     restart: always
     depends_on:
       postgres:
