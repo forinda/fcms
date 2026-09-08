@@ -54,7 +54,7 @@ function editor() {
   return { edits: new AutomationEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 const trigger = { on: "entry.created", type: "booking" } as Workflow["trigger"];
 
 describe("creating one", () => {

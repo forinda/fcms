@@ -43,7 +43,7 @@ function editor() {
   return { edits: new PageEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 
 /** The tree that was applied, as `type:text` lines — readable in a failure. */
 function outline(spec_: SiteSpec, depth = 0, blocks?: readonly Block[]): string[] {

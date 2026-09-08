@@ -51,7 +51,7 @@ function editor() {
   return { edits: new SiteEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 
 const settings = (over: Record<string, unknown> = {}) => ({
   name: "Riverside Salon",

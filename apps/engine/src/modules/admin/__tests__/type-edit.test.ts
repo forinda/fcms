@@ -59,7 +59,7 @@ function editor() {
   return { edits: new TypeEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 const typeIn = (s: SiteSpec, key: string) => s.content.find((t) => t.key === key)!;
 const fieldIn = (s: SiteSpec, key: string, name: string) =>
   typeIn(s, key).fields.find((f) => f.name === name) as Record<string, unknown> | undefined;

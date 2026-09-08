@@ -7,6 +7,7 @@
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
 import { SiteSpecUseCase } from "@/shared/use-cases";
+import { roleOf, type Role } from "@/shared/roles";
 import { FlowEditUseCase, type EditResult } from "./use-cases/flow-edit.usecase";
 import { flowBuilder, flowList } from "./utils/flows.view";
 import { html, noSiteYet, notFound, redirect } from "./utils/http";
@@ -28,6 +29,7 @@ export class FlowsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `Journeys — ${found.title}`,
         trail: [
           { label: "Pages", href: "/admin/pages" },
@@ -53,7 +55,7 @@ export class FlowsController {
       key,
       str(body["choose"]),
       str(body["creates"]),
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     redirect(
@@ -80,6 +82,7 @@ export class FlowsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${flow.key} — journey`,
         trail: [
           { label: "Pages", href: "/admin/pages" },
@@ -100,7 +103,7 @@ export class FlowsController {
 
     const body = form(ctx);
     const [op, argument] = str(body["op"]).split(":");
-    const input = { actor: actor(ctx) };
+    const input = { actor: actor(ctx), role: role(ctx) };
     const pageKey = keyOf(ctx);
     const flowKey = flowOf(ctx);
 
@@ -140,7 +143,7 @@ export class FlowsController {
       flowOf(ctx),
       stepKey,
       { label: str(body["label"]), from: str(body["from"]), as: str(body["as"]) },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     this.back(ctx, result, stepKey);
@@ -153,6 +156,7 @@ export class FlowsController {
 
     const result = await this.edits.remove(spec, keyOf(ctx), flowOf(ctx), {
       actor: actor(ctx),
+      role: role(ctx),
       // Everything a journey holds is on the journey. Removing it is what the
       // button says it is, and history keeps the whole thing.
       allowDestructive: true,
@@ -175,6 +179,8 @@ export class FlowsController {
 const keyOf = (ctx: Ctx): string => String((ctx.params as Record<string, string>)["key"] ?? "");
 const flowOf = (ctx: Ctx): string => String((ctx.params as Record<string, string>)["flow"] ?? "");
 const actor = (ctx: Ctx): string => ctx.require("actor").email;
+/** The role on the session, never a role a request can claim for itself. */
+const role = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);
 const form = (ctx: Ctx): Record<string, unknown> => (ctx.body ?? {}) as Record<string, unknown>;
 const error = (ctx: Ctx): string | undefined => {
   const asked = (ctx.query as Record<string, unknown>)["error"];
@@ -184,3 +190,6 @@ const withError = (at: string, result: EditResult): string =>
   result.ok ? at : `${at}?error=${encodeURIComponent(result.error)}`;
 const str = (value: unknown): string =>
   typeof value === "string" ? value : Array.isArray(value) ? str(value[value.length - 1]) : "";
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

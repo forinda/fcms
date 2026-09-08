@@ -21,6 +21,7 @@ import {
   type Page,
 } from "@forinda-cms/spec";
 
+import type { Role } from "@/shared/roles";
 import { ApplySpecUseCase } from "./apply-spec.usecase";
 
 /** Where a block sits: the page it belongs to, then its index at each depth. */
@@ -38,6 +39,8 @@ export type EditTarget = { readonly page: string } | { readonly component: strin
 
 export interface EditInput {
   readonly actor: string;
+  /** What this person may propose — checked once, at the apply (ADR 0041). */
+  readonly role: Role;
   /** Set when a move would drop content the owner has not agreed to lose. */
   readonly allowDestructive?: boolean;
 }
@@ -177,6 +180,7 @@ export class PageEditUseCase {
     try {
       const { seq } = await this.applySpec.execute(SiteSpec.parse(draft), {
         actor: input.actor,
+        role: input.role,
         source: "canvas",
         // Unpublishing is classified destructive — it takes a live URL away —
         // and the person pressing the button in the canvas is the confirmation.
@@ -369,6 +373,7 @@ export class PageEditUseCase {
     try {
       const { seq } = await this.applySpec.execute(validated.data, {
         actor: input.actor,
+        role: input.role,
         source: "canvas",
         allowDestructive: input.allowDestructive === true,
       });

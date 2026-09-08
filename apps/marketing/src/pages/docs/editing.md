@@ -22,6 +22,23 @@ warning teaches people to skim the real one.
 Sign in at <code>/admin</code> on your own install. Everything below is that dashboard.
 </p>
 
+## More than one of you
+
+<em>People</em> is where you add whoever else needs to sign in, and choose what each of them may change:
+
+<table>
+<tbody>
+<tr><td>Can look, cannot change</td><td>Reads the site and its settings.</td></tr>
+<tr><td>Entries and pictures</td><td>The day-to-day: bookings, services, photos. Not the shape of the site.</td></tr>
+<tr><td>Everything about the site's content and shape</td><td>Pages, types, automations, the palette.</td></tr>
+<tr><td>Also the layout and the look</td><td>As above, with the site's layout.</td></tr>
+<tr><td>Also custom CSS, the CLI and plugins</td><td>The developer's account.</td></tr>
+<tr><td>Everything, including who else gets in</td><td>You.</td></tr>
+</tbody>
+</table>
+
+You set a first password and hand it over; they can change it once they are in. Nobody can change their own role or remove their own account, and the last owner cannot be removed — those are the ways a site ends up with nobody able to run it. Removing somebody signs them out everywhere immediately.
+
 ## The first time you sign in
 
 A brand-new site asks one question: what kind of site is this? Pick <em>bookings</em>, <em>enquiries</em>, or <em>nothing yet</em>, and you get a real site — pages, a form that works, and somewhere to put what you store. Everything in it can be changed straight afterwards, and the choice is recorded in history like any other change, so it can be undone.

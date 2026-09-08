@@ -16,6 +16,7 @@ import { FirstRunController } from "./first-run.controller";
 import { IntegrationsController } from "./integrations.controller";
 import { FlowsController } from "./flows.controller";
 import { MediaController } from "./media.controller";
+import { PeopleController } from "./people.controller";
 import { SettingsController } from "./settings.controller";
 import { TypesController } from "./types.controller";
 
@@ -55,6 +56,7 @@ export const AdminModule = defineModule({
         { path: "/admin", controller: AutomationController },
         { path: "/admin", controller: IntegrationsController },
         { path: "/admin", controller: MediaController },
+        { path: "/admin", controller: PeopleController },
         // Before the content controller, whose `/content/:type` is a different
         // tree: this one is the shape, that one is the rows.
         { path: "/admin", controller: TypesController },

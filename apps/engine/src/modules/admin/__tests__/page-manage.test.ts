@@ -35,7 +35,7 @@ function editor() {
   return { edits: new PageManageUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 const pageIn = (s: SiteSpec, key: string) => s.pages.find((p) => p.key === key)!;
 
 const settings = (over: Record<string, unknown> = {}) => ({

@@ -15,10 +15,19 @@ import type { Db, Scope } from "@forinda-cms/db";
 import { EntryRepository, PatchRepository, SpecRepository } from "@/shared/repositories";
 
 import { DB } from "@/shared/db";
+import { atLeast, refusal, roleOf, type Role } from "@/shared/roles";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface ApplySpecInput {
   readonly actor: string;
+  /**
+   * What the actor may propose (ADR 0008 §2).
+   *
+   * Required, not optional with a permissive default: every door into this —
+   * the admin, the CLI, MCP, the assistant, the installer — has to say who is
+   * knocking, and the compiler is what makes sure a new one does too.
+   */
+  readonly role: Role;
   /** chat | canvas | cli | mcp — recorded so history says which door a change came through. */
   readonly source: string;
   readonly harness?: string | undefined;
@@ -41,6 +50,20 @@ export interface ApplySpecResult {
   readonly seq: number;
   readonly changes: SpecChange[];
   readonly migration: MigrationStep[];
+}
+
+/**
+ * A change this actor may not make.
+ *
+ * Separate from `DestructiveChangeError` because they are different answers:
+ * one is "are you sure", the other is "not you". A screen that conflated them
+ * would offer a confirm button to somebody who cannot press it.
+ */
+export class NotAllowedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotAllowedError";
+  }
 }
 
 export class DestructiveChangeError extends Error {
@@ -111,6 +134,11 @@ export class ApplySpecUseCase {
   }
 
   async execute(next: SiteSpec, input: ApplySpecInput): Promise<ApplySpecResult> {
+    // Before anything else, including validation: what an actor may not
+    // propose, they may not have judged either.
+    const refused = notAllowed(input.role, next, await this.specs.find());
+    if (refused) throw new NotAllowedError(refused);
+
     // Validated on the way *in*, not only on the way out. A bad document was
     // survivable before — but it would surface at the next render rather than
     // at the write that caused it, with a patch already recorded and an inverse
@@ -168,6 +196,59 @@ export class ApplySpecUseCase {
     const zeros = Object.fromEntries(spec.content.map((t) => [t.key, 0]));
     return { ...zeros, ...(await this.entries.countsByType()) };
   }
+}
+
+/**
+ * The two things a role can stop, and nothing else.
+ *
+ * Not a permission per screen — ADR 0008's rule is that a role is a set of
+ * *changes*, so the check is over the change. Everything below `manager` edits
+ * entries and media rather than the spec, and tier-3 CSS is the developer's
+ * (ADR 0004: it is the one explicit escape hatch, and it is gated).
+ */
+function notAllowed(claimed: Role, next: SiteSpec, current: SiteSpec | null): string | null {
+  // Normalised first: a caller inventing a role gets the bottom of the ladder,
+  // never the benefit of an unrecognised name.
+  const role = roleOf(claimed);
+  if (!atLeast(role, "manager")) {
+    return refusal(role, "change how the site is put together");
+  }
+
+  if (!atLeast(role, "developer") && customCssChanged(next, current)) {
+    return refusal(role, "change the site's custom CSS");
+  }
+  return null;
+}
+
+/** Site-level or block-level tier 3, added, removed or edited. */
+function customCssChanged(next: SiteSpec, current: SiteSpec | null): boolean {
+  // Sorted: moving a block does not change its CSS, and refusing a reorder
+  // because tier 3 came out in a different order would be nonsense.
+  return JSON.stringify(cssOf(next).sort()) !== JSON.stringify(cssOf(current).sort());
+}
+
+function cssOf(spec: SiteSpec | null): string[] {
+  if (!spec) return [];
+  // Only the rules that exist. Collecting a `null` per page would make a first
+  // apply — where there is nothing to compare against — look like a change,
+  // and a manager could not publish a site at all.
+  const found: string[] = [];
+  if (spec.css !== undefined) found.push(spec.css);
+  const walk = (blocks: readonly { css?: string; children?: unknown[]; item?: unknown[] }[]) => {
+    for (const block of blocks) {
+      if (block.css !== undefined) found.push(block.css);
+      walk((block.children ?? []) as never);
+      walk((block.item ?? []) as never);
+    }
+  };
+  for (const page of spec.pages) {
+    if (page.css !== undefined) found.push(page.css);
+    walk(page.blocks as never);
+  }
+  for (const component of spec.components) walk(component.blocks as never);
+  walk((spec.layout?.header ?? []) as never);
+  walk((spec.layout?.footer ?? []) as never);
+  return found;
 }
 
 function summarise(changes: readonly SpecChange[], destructive: number): string {

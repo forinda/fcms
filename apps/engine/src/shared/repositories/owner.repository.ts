@@ -1,7 +1,7 @@
 /**
  * Owners and their sessions. Rows in, rows out.
  */
-import { and, desc, eq, gt, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, ne, or, sql } from "drizzle-orm";
 
 import {
   loginAttempts,
@@ -12,6 +12,9 @@ import {
 } from "@forinda-cms/db";
 import type { Db } from "@forinda-cms/db";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
+
+/** An id out of a URL must not reach a uuid column raw. */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class OwnerRepository {
   constructor(private readonly db: Db) {}
@@ -35,6 +38,7 @@ export class OwnerRepository {
     email: string;
     passwordHash: string;
     name?: string;
+    role?: string;
   }): Promise<OwnerRow> {
     const [row] = await this.db
       .insert(owners)
@@ -43,9 +47,72 @@ export class OwnerRepository {
         email: values.email.toLowerCase(),
         passwordHash: values.passwordHash,
         name: values.name ?? null,
+        ...(values.role ? { role: values.role } : {}),
       })
       .returning();
     return row!;
+  }
+
+  /** Everyone who can sign in, oldest first — the order they were added. */
+  async list(orgId: string): Promise<OwnerRow[]> {
+    return this.db
+      .select()
+      .from(owners)
+      .where(eq(owners.orgId, orgId))
+      .orderBy(asc(owners.createdAt));
+  }
+
+  /**
+   * One account, within one organization.
+   *
+   * `orgId` is not optional and not a filter applied afterwards: every id here
+   * arrives from a URL, and an account is only ever managed by somebody in the
+   * same organization. Looking one up unscoped and checking the org later is
+   * the shape that becomes a cross-tenant hole the first time a caller forgets
+   * the second half.
+   */
+  async findById(orgId: string, id: string): Promise<OwnerRow | null> {
+    if (!UUID.test(id)) return null;
+    const [row] = await this.db
+      .select()
+      .from(owners)
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async setRole(orgId: string, id: string, role: string): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    const rows = await this.db
+      .update(owners)
+      .set({ role })
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .returning({ id: owners.id });
+    return rows.length > 0;
+  }
+
+  /**
+   * Remove somebody.
+   *
+   * Their sessions go with them by the foreign key's cascade — an account that
+   * is gone but whose browser still works is not gone.
+   */
+  async remove(orgId: string, id: string): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    const rows = await this.db
+      .delete(owners)
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .returning({ id: owners.id });
+    return rows.length > 0;
+  }
+
+  /** How many accounts hold this role — asked before removing the last owner. */
+  async countWithRole(orgId: string, role: string): Promise<number> {
+    const rows = await this.db
+      .select({ id: owners.id })
+      .from(owners)
+      .where(and(eq(owners.orgId, orgId), eq(owners.role, role)));
+    return rows.length;
   }
 
   // ------------------------------------------------------------------ sessions
@@ -145,12 +212,15 @@ export class OwnerRepository {
    * session row under constant lock contention for information nobody needs to
    * the second.
    */
-  async touchSession(id: string, lastUsedAt: Date | null): Promise<void> {
+  async touchSession(id: string, ownerId: string, lastUsedAt: Date | null): Promise<void> {
     if (lastUsedAt && Date.now() - lastUsedAt.getTime() < 60_000) return;
-    await this.db
-      .update(ownerSessions)
-      .set({ lastUsedAt: new Date() })
-      .where(eq(ownerSessions.id, id));
+
+    const now = new Date();
+    await this.db.update(ownerSessions).set({ lastUsedAt: now }).where(eq(ownerSessions.id, id));
+    // The account's own clock, not only the session's. "Last seen" on the
+    // people screen is the question an owner asks about somebody else, and
+    // asking it of a session they cannot see is not an answer.
+    await this.db.update(owners).set({ lastSeenAt: now }).where(eq(owners.id, ownerId));
   }
 
   // ----------------------------------------------------------- login attempts

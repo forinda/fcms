@@ -150,9 +150,13 @@ suite("executing a plan (needs a database)", () => {
 
   it("creates the index it planned, and is idempotent", async () => {
     await reset();
-    await repo().applySpec(plain, { actor: "a", source: "cli" });
+    await repo().applySpec(plain, { actor: "a", role: "owner" as const, source: "cli" });
 
-    const { migration } = await repo().applySpec(indexed, { actor: "a", source: "cli" });
+    const { migration } = await repo().applySpec(indexed, {
+      actor: "a",
+      role: "owner" as const,
+      source: "cli",
+    });
     expect(migration.map((s) => s.kind)).toEqual(["create-index"]);
     expect(await indexExists(indexName(SITE, "service", "price"))).toBe(true);
 
@@ -165,7 +169,7 @@ suite("executing a plan (needs a database)", () => {
 
   it("does not purge values when the destructive half was not allowed", async () => {
     await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
+    await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
     await db.insert(entries).values({
       siteId: SITE,
       orgId: ORG,
@@ -175,7 +179,9 @@ suite("executing a plan (needs a database)", () => {
     });
 
     // The spec change itself is refused first, so nothing runs at all.
-    await expect(repo().applySpec(dropped, { actor: "a", source: "cli" })).rejects.toThrow();
+    await expect(
+      repo().applySpec(dropped, { actor: "a", role: "owner" as const, source: "cli" }),
+    ).rejects.toThrow();
     const [row] = await db
       .select()
       .from(entries)
@@ -185,7 +191,7 @@ suite("executing a plan (needs a database)", () => {
 
   it("purges values and drops the index when the change is confirmed", async () => {
     await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
+    await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
     await db.insert(entries).values({
       siteId: SITE,
       orgId: ORG,
@@ -196,6 +202,7 @@ suite("executing a plan (needs a database)", () => {
 
     const { migration } = await repo().applySpec(dropped, {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });
@@ -213,11 +220,15 @@ suite("executing a plan (needs a database)", () => {
 
   it("rolls the index back when the surrounding transaction fails", async () => {
     await reset();
-    await repo().applySpec(plain, { actor: "a", source: "cli" });
+    await repo().applySpec(plain, { actor: "a", role: "owner" as const, source: "cli" });
 
     // A spec the schema rejects on the way in, after the plan was computed.
     await expect(
-      repo().applySpec({ ...indexed, specVersion: 99 } as never, { actor: "a", source: "cli" }),
+      repo().applySpec({ ...indexed, specVersion: 99 } as never, {
+        actor: "a",
+        role: "owner" as const,
+        source: "cli",
+      }),
     ).rejects.toThrow();
 
     // The migration must not have escaped the failed transaction, or the
@@ -227,7 +238,7 @@ suite("executing a plan (needs a database)", () => {
 
   it("leaves another site's index alone", async () => {
     await reset();
-    await repo().applySpec(indexed, { actor: "a", source: "cli" });
+    await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
     expect(await indexExists(indexName("site_someone_else", "service", "price"))).toBe(false);
   });
 

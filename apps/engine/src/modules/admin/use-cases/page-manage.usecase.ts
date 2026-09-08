@@ -13,10 +13,13 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { SiteSpec, type Page } from "@forinda-cms/spec";
 
+import type { Role } from "@/shared/roles";
 import { ApplySpecUseCase } from "./apply-spec.usecase";
 
 export interface EditInput {
   readonly actor: string;
+  /** What this person may propose — checked once, at the apply (ADR 0041). */
+  readonly role: Role;
   readonly allowDestructive?: boolean;
 }
 
@@ -132,6 +135,7 @@ export class PageManageUseCase {
     try {
       const { seq } = await this.applySpec.execute(validated.data, {
         actor: input.actor,
+        role: input.role,
         source: "pages",
         allowDestructive: input.allowDestructive === true,
       });

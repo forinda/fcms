@@ -63,9 +63,14 @@ suite("redirects from the patch spine", () => {
 
   it("redirects a moved page without anyone writing a rule", async () => {
     await reset();
-    await repo().apply.execute(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/book")]), {
+      actor: "a",
+      role: "owner" as const,
+      source: "cli",
+    });
     await repo().apply.execute(specWith([page("book", "/appointments")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });
@@ -77,14 +82,20 @@ suite("redirects from the patch spine", () => {
 
   it("follows a page moved twice to its current address", async () => {
     await reset();
-    await repo().apply.execute(specWith([page("book", "/a")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/a")]), {
+      actor: "a",
+      role: "owner" as const,
+      source: "cli",
+    });
     await repo().apply.execute(specWith([page("book", "/b")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });
     await repo().apply.execute(specWith([page("book", "/c")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });
@@ -101,10 +112,12 @@ suite("redirects from the patch spine", () => {
     await reset();
     await repo().apply.execute(specWith([page("book", "/book"), page("home", "/")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
     });
     await repo().apply.execute(specWith([page("home", "/")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });
@@ -117,9 +130,14 @@ suite("redirects from the patch spine", () => {
 
   it("does not redirect a path another page now occupies", async () => {
     await reset();
-    await repo().apply.execute(specWith([page("book", "/book")]), { actor: "a", source: "cli" });
+    await repo().apply.execute(specWith([page("book", "/book")]), {
+      actor: "a",
+      role: "owner" as const,
+      source: "cli",
+    });
     await repo().apply.execute(specWith([page("book", "/appointments"), page("other", "/book")]), {
       actor: "a",
+      role: "owner" as const,
       source: "cli",
       allowDestructive: true,
     });

@@ -15,6 +15,8 @@
  * asserted.
  */
 import { Controller, Get, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { atLeast, refusal, roleOf, type Role } from "@/shared/roles";
 import type { ContentType, SiteSpec } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
@@ -104,6 +106,7 @@ export class ContentController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${spec.name} — Admin`,
         body: dashboard({ spec, counts, drafts, runs, payments, history }),
       }),
@@ -156,6 +159,7 @@ export class ContentController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${type.labelPlural ?? type.label} — Admin`,
         trail: [{ label: type.labelPlural ?? type.label }],
         body: entryList({
@@ -234,6 +238,18 @@ export class ContentController {
    */
   @Post("/content/:type/:id/status")
   async setStatus(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        page({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const params = ctx.params as Record<string, string>;
     const body = ctx.body as Record<string, unknown>;
     const status = body["status"] === "published" ? "published" : "draft";
@@ -255,6 +271,7 @@ export class ContentController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `New ${type.label}`,
         trail: [
           { label: type.labelPlural ?? type.label, href: `/admin/content/${key}` },
@@ -268,6 +285,18 @@ ${entryForm(type, {}, { action: `/admin/content/${key}/new`, choices })}`,
 
   @Post("/content/:type/new")
   async create(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        page({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const spec = await this.specs.execute();
     const key = String((ctx.params as Record<string, string>)["type"] ?? "");
     const type = spec?.content.find((t) => t.key === key);
@@ -285,6 +314,7 @@ ${entryForm(type, {}, { action: `/admin/content/${key}/new`, choices })}`,
       ctx,
       422,
       page({
+        role: viewerRole(ctx),
         title: `New ${type.label}`,
         trail: [
           { label: type.labelPlural ?? type.label, href: `/admin/content/${key}` },
@@ -315,6 +345,7 @@ ${entryForm(type, data, {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `Edit ${type.label}`,
         trail: [
           { label: type.labelPlural ?? type.label, href: `/admin/content/${type.key}` },
@@ -334,6 +365,18 @@ ${paymentsPanel(await this.payments.forEntry(entry.id), `/admin/content/${type.k
 
   @Post("/content/:type/:id")
   async update(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        page({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const spec = await this.specs.execute();
     const params = ctx.params as Record<string, string>;
     const type = spec?.content.find((t) => t.key === params["type"]);
@@ -349,6 +392,7 @@ ${paymentsPanel(await this.payments.forEntry(entry.id), `/admin/content/${type.k
       ctx,
       422,
       page({
+        role: viewerRole(ctx),
         title: `Edit ${type.label}`,
         trail: [
           { label: type.labelPlural ?? type.label, href: `/admin/content/${type.key}` },
@@ -376,6 +420,18 @@ ${entryForm(type, data, {
    */
   @Post("/content/:type/:id/paid")
   async settle(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        page({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const params = ctx.params as Record<string, string>;
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const payment = await this.payments.byId(String(body["payment"] ?? ""));
@@ -390,6 +446,18 @@ ${entryForm(type, data, {
 
   @Post("/content/:type/:id/delete")
   async remove(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        page({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const params = ctx.params as Record<string, string>;
     await this.writer.delete(String(params["id"]));
     redirect(ctx, `/admin/content/${params["type"]}`);
@@ -419,6 +487,7 @@ ${entryForm(type, data, {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Automations",
         trail: [{ label: "Automations" }],
         body: `<h1>Automations</h1>
@@ -518,6 +587,7 @@ ${
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "History",
         trail: [{ label: "History" }],
         body: `<h1>History</h1>
@@ -597,4 +667,19 @@ function paymentsPanel(
 function stepsOf(detail: Record<string, unknown> | null): string {
   const steps = detail?.["steps"];
   return Array.isArray(steps) ? steps.join(" · ") : String(detail?.["note"] ?? "");
+}
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);
+
+/**
+ * Everything that writes content needs at least an editor.
+ *
+ * A viewer can read the site and its spec (ADR 0008 §2) and change nothing —
+ * checked at the write rather than by hiding the button, because a hidden
+ * button is a decoration and a refused POST is a rule.
+ */
+function mayWrite(ctx: Ctx): string | null {
+  const role = roleOf(ctx.require("actor").role);
+  return atLeast(role, "editor") ? null : refusal(role, "change what is on the site");
 }

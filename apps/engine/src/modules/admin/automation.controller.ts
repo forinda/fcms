@@ -6,6 +6,8 @@
  * undo, as a change made from the CLI or by the assistant.
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { roleOf, type Role } from "@/shared/roles";
 import type { Workflow } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
@@ -40,6 +42,7 @@ export class AutomationController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${workflow.label ?? workflow.key} — automation`,
         trail: [{ label: "Automations", href: "/admin/automations" }, { label: workflow.key }],
         body: automation({
@@ -77,6 +80,7 @@ export class AutomationController {
 
     const result = await this.edits.create(spec, key, trigger, {
       actor: ctx.require("actor").email,
+      role: roleOf(ctx.require("actor").role),
     });
 
     redirect(
@@ -98,17 +102,21 @@ export class AutomationController {
     const [op, at] = String(body["op"] ?? "").split(":");
     const index = Number(at);
     const actor = ctx.require("actor").email;
+    const role = roleOf(ctx.require("actor").role);
 
     const result = await (async () => {
       switch (op) {
         case "add":
-          return this.edits.addStep(spec, key, String(body["action"] ?? "webhook.post"), { actor });
+          return this.edits.addStep(spec, key, String(body["action"] ?? "webhook.post"), {
+            actor,
+            role,
+          });
         case "up":
-          return this.edits.moveStep(spec, key, index, -1, { actor });
+          return this.edits.moveStep(spec, key, index, -1, { actor, role });
         case "down":
-          return this.edits.moveStep(spec, key, index, 1, { actor });
+          return this.edits.moveStep(spec, key, index, 1, { actor, role });
         case "del":
-          return this.edits.removeStep(spec, key, index, { actor });
+          return this.edits.removeStep(spec, key, index, { actor, role });
         default:
           return { ok: false as const, error: "Nothing to do." };
       }
@@ -143,7 +151,7 @@ export class AutomationController {
       key,
       index,
       { stepKey: String(body["stepKey"] ?? "").trim(), params },
-      { actor: ctx.require("actor").email },
+      { actor: ctx.require("actor").email, role: roleOf(ctx.require("actor").role) },
     );
 
     this.back(ctx, key, result, index);
@@ -158,6 +166,7 @@ export class AutomationController {
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const result = await this.edits.setEnabled(spec, key, String(body["enabled"]) === "true", {
       actor: ctx.require("actor").email,
+      role: roleOf(ctx.require("actor").role),
     });
 
     this.back(ctx, key, result);
@@ -169,7 +178,10 @@ export class AutomationController {
     const key = keyOf(ctx);
     if (!spec) return noSiteYet(ctx);
 
-    const result = await this.edits.remove(spec, key, { actor: ctx.require("actor").email });
+    const result = await this.edits.remove(spec, key, {
+      actor: ctx.require("actor").email,
+      role: roleOf(ctx.require("actor").role),
+    });
     redirect(
       ctx,
       result.ok
@@ -204,3 +216,6 @@ function keyOf(ctx: Ctx): string {
 }
 
 export { esc };
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

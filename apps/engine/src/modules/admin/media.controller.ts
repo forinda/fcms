@@ -7,10 +7,12 @@
  */
 import { Controller, Delete, FileUpload, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
+import { atLeast, refusal, roleOf } from "@/shared/roles";
+
 import { MediaUseCase } from "./use-cases/media.usecase";
 import { html, notFound, redirect } from "./utils/http";
 import { media } from "./utils/media.view";
-import { page as shell } from "./utils/view";
+import { esc, page as shell } from "./utils/view";
 
 @Controller()
 export class MediaController {
@@ -44,6 +46,18 @@ export class MediaController {
   @Post("/media")
   @FileUpload({ mode: "single", fieldName: "file" })
   async upload(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        shell({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const file = ctx.file as { buffer: Buffer; originalname: string; mimetype: string } | undefined;
     if (!file) return redirect(ctx, "/admin/media?error=Choose+a+file+first.");
 
@@ -56,6 +70,18 @@ export class MediaController {
 
   @Post("/media/:id/alt")
   async describe(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        shell({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     const body = ctx.body as Record<string, unknown>;
     await this.assets.setAlt(
       String((ctx.params as Record<string, string>)["id"]),
@@ -66,6 +92,18 @@ export class MediaController {
 
   @Post("/media/:id/delete")
   async remove(ctx: Ctx): Promise<void> {
+    const refused = mayWrite(ctx);
+    if (refused)
+      return html(
+        ctx,
+        403,
+        shell({
+          role: roleOf(ctx.require("actor").role),
+          title: "Not allowed",
+          body: `<h1>Not allowed</h1><p class="error" role="alert">${esc(refused)}</p>`,
+        }),
+      );
+
     await this.assets.remove(String((ctx.params as Record<string, string>)["id"]));
     redirect(ctx, "/admin/media");
   }
@@ -78,4 +116,16 @@ export class MediaController {
     ctx.res.statusCode = 204;
     ctx.res.end();
   }
+}
+
+/**
+ * Everything that writes content needs at least an editor.
+ *
+ * A viewer can read the site and its spec (ADR 0008 §2) and change nothing —
+ * checked at the write rather than by hiding the button, because a hidden
+ * button is a decoration and a refused POST is a rule.
+ */
+function mayWrite(ctx: Ctx): string | null {
+  const role = roleOf(ctx.require("actor").role);
+  return atLeast(role, "editor") ? null : refusal(role, "change what is on the site");
 }

@@ -25,6 +25,7 @@ import {
 import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
 import { PublicAuth } from "@/route-flags";
+import { roleOf } from "@/shared/roles";
 import {
   InvalidCredentialsError,
   LoginUseCase,
@@ -142,6 +143,9 @@ export class ApiController {
     try {
       const result = await this.applySpec.execute(next, {
         actor: ctx.require("actor").email,
+        // The role on the session the token opened. A harness inherits the
+        // token's role and never exceeds it (ADR 0008 §2).
+        role: roleOf(ctx.require("actor").role),
         // Which door this came through, from a closed set. History exists to
         // answer "what did the model change" as a query rather than an
         // inference (ADR 0015 §5), and it cannot if every API caller is
