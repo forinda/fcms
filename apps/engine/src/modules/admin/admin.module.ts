@@ -14,6 +14,7 @@ import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 import { FirstRunController } from "./first-run.controller";
 import { IntegrationsController } from "./integrations.controller";
+import { FlowsController } from "./flows.controller";
 import { MediaController } from "./media.controller";
 import { SettingsController } from "./settings.controller";
 import { TypesController } from "./types.controller";
@@ -45,6 +46,9 @@ export const AdminModule = defineModule({
         // Before the canvas: its `/pages/:key` would otherwise swallow
         // `/pages` and `/pages/:key/settings`, which are this controller's.
         { path: "/admin", controller: SettingsController },
+        // And before it for the same reason: `/pages/:key/flows` is a journey
+        // on a page, not a block on one.
+        { path: "/admin", controller: FlowsController },
         { path: "/admin", controller: CanvasController },
         // Before the content controller, which owns `/automations` itself: the
         // list lives there, one automation lives here.
