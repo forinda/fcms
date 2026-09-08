@@ -25,8 +25,24 @@ import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
 import { html, noSiteYet, notFound, readForm, redirect } from "./utils/http";
 import { STARTERS } from "@/shared/starters";
 import { dashboard } from "./utils/dashboard.view";
+import { entryList } from "./utils/entries.view";
 import { firstRun, untouched } from "./utils/first-run.view";
 import { entryForm, esc, page } from "./utils/view";
+
+/**
+ * A screenful.
+ *
+ * Twenty-five is enough to scan and small enough to render on a phone on a
+ * slow connection, which is the machine doc 14 says half this audience is on.
+ */
+const PER_PAGE = 25;
+
+const SORTS = ["newest", "oldest", "updated", "title"] as const;
+type Sort = (typeof SORTS)[number];
+
+/** The last value wins, and a missing one is an empty string, never undefined. */
+const str = (value: unknown): string =>
+  typeof value === "string" ? value : Array.isArray(value) ? str(value[value.length - 1]) : "";
 
 @Controller()
 export class ContentController {
@@ -91,16 +107,47 @@ export class ContentController {
     );
   }
 
+  /**
+   * A page of one type's entries, filtered and ordered (ADR 0037).
+   *
+   * Everything the screen offers is a query parameter, so a filtered list is a
+   * URL — bookmarkable, shareable, and something the dashboard can link
+   * straight into ("8 bookings not published" goes to the drafts).
+   */
   @Get("/content/:type")
   async list(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = String((ctx.params as Record<string, string>)["type"] ?? "");
     const type = spec?.content.find((t) => t.key === key);
-    if (!spec || !type) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
+    if (!type) return notFound(ctx);
 
-    const rows = await this.reader.rows(key);
-    const title = (data: Record<string, unknown>) =>
-      String(data[type.titleField ?? "name"] ?? data["title"] ?? "—");
+    const query = ctx.query as Record<string, unknown>;
+    const search = str(query["q"]).trim();
+    const status =
+      str(query["status"]) === "draft"
+        ? "draft"
+        : str(query["status"]) === "published"
+          ? "published"
+          : "";
+    const sort = SORTS.includes(str(query["sort"]) as Sort)
+      ? (str(query["sort"]) as Sort)
+      : "newest";
+    const pageNumber = Math.max(1, Number.parseInt(str(query["page"]), 10) || 1);
+
+    const { rows, total } = await this.reader.page(key, {
+      search,
+      status: status === "" ? undefined : status,
+      sort,
+      // Only fields that hold words: a search over a number or a boolean
+      // matches nothing anybody typed.
+      searchable: type.fields
+        .filter((f) => ["text", "richtext", "email", "phone", "url"].includes(f.type))
+        .map((f) => f.name),
+      titleField: type.titleField ?? "name",
+      limit: PER_PAGE,
+      offset: (pageNumber - 1) * PER_PAGE,
+    });
 
     html(
       ctx,
@@ -108,36 +155,16 @@ export class ContentController {
       page({
         title: `${type.labelPlural ?? type.label} — Admin`,
         trail: [{ label: type.labelPlural ?? type.label }],
-        body: `<h1>${esc(type.labelPlural ?? type.label)}</h1>
-${
-  type.derived
-    ? `<p class="muted">Computed from other content, so there is nothing to edit here.</p>`
-    : `<p><a href="/admin/content/${esc(key)}/new">Add ${esc(type.label.toLowerCase())}</a></p>`
-}
-${
-  rows.length === 0
-    ? `<p class="muted">Nothing yet.</p>`
-    : `<table>
-  <thead><tr><th>${esc(type.label)}</th><th>Slug</th><th>Status</th><th></th></tr></thead>
-  <tbody>${rows
-    .map(
-      (r) => `<tr>
-      <td>${esc(title(r.data))}</td>
-      <td class="muted">${esc(r.slug ?? "")}</td>
-      <td><span class="pill${r.status === "draft" ? "" : " live"}">${esc(r.status)}</span></td>
-      <td>${
-        type.derived
-          ? ""
-          : `<a href="/admin/content/${esc(key)}/${esc(r.id)}">edit</a>
-             <form method="post" action="/admin/content/${esc(key)}/${esc(r.id)}/status" class="inline">
-               <input type="hidden" name="status" value="${r.status === "draft" ? "published" : "draft"}">
-               <button class="link" type="submit">${r.status === "draft" ? "publish" : "unpublish"}</button>
-             </form>`
-      }</td>
-    </tr>`,
-    )
-    .join("")}</tbody></table>`
-}`,
+        body: entryList({
+          type,
+          rows,
+          total,
+          page: pageNumber,
+          perPage: PER_PAGE,
+          search,
+          status,
+          sort,
+        }),
       }),
     );
   }

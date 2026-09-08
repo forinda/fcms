@@ -11,7 +11,7 @@ import type { EntryRow } from "@forinda-cms/db";
 import type { Entry, EntrySource } from "@forinda-cms/render";
 import type { SiteSpec } from "@forinda-cms/spec";
 
-import { EntryRepository } from "@/shared/repositories";
+import { EntryRepository, type EntryPage, type EntryPageQuery } from "@/shared/repositories";
 
 @Service({ scope: Lifetime.REQUEST })
 export class EntryReadUseCase {
@@ -19,6 +19,11 @@ export class EntryReadUseCase {
 
   rows(typeKey: string): Promise<EntryRow[]> {
     return this.entries.rowsOfType(typeKey);
+  }
+
+  /** One screenful, filtered and ordered — what the admin's list reads. */
+  page(typeKey: string, query: EntryPageQuery): Promise<EntryPage> {
+    return this.entries.pageOfType(typeKey, query);
   }
 
   byId(id: string): Promise<EntryRow | null> {

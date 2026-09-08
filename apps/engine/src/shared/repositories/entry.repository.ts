@@ -7,7 +7,7 @@
  * cost of not using EAV.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { DRAFT_KEY, VISITOR_KEY, type Entry } from "@forinda-cms/render";
 
 import { entries, type EntryRow } from "@forinda-cms/db";
@@ -15,6 +15,74 @@ import type { Db, Scope } from "@forinda-cms/db";
 
 import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
+
+export interface EntryPageQuery {
+  /** Free text, matched against the slug and the fields the caller names. */
+  readonly search?: string | undefined;
+  readonly status?: "draft" | "published" | undefined;
+  readonly sort?: "newest" | "oldest" | "updated" | "title" | undefined;
+  /** Which fields the search looks inside, and which one `sort: "title"` uses. */
+  readonly searchable?: readonly string[] | undefined;
+  readonly titleField?: string | undefined;
+  readonly limit: number;
+  readonly offset: number;
+}
+
+export interface EntryPage {
+  readonly rows: EntryRow[];
+  /** Matching rows, not rows returned — what a pager needs. */
+  readonly total: number;
+}
+
+/**
+ * The filters, as SQL.
+ *
+ * Search is `ilike` over named fields rather than the whole document: casting
+ * `data` to text would match key names, so searching for "name" would return
+ * everything. ponytail: `ilike` cannot use the GIN index, which is fine into
+ * the tens of thousands of rows and is where a trigram index goes when it isn't.
+ */
+function conditions(query: EntryPageQuery) {
+  const out = [];
+  if (query.status) out.push(eq(entries.status, query.status));
+
+  const text = query.search?.trim();
+  if (text) {
+    // `%` and `_` are wildcards to `ilike`, and somebody will type one. A
+    // backslash is `ilike`'s default escape character.
+    const pattern = `%${text.replace(/[%_\\]/g, (c) => "\\" + c)}%`;
+    const fields = [...new Set([...(query.searchable ?? []), query.titleField ?? ""])].filter(
+      Boolean,
+    );
+    out.push(
+      or(
+        ilike(sql`coalesce(${entries.slug}, '')`, pattern),
+        ...fields.map((name) => ilike(sql`coalesce(${entries.data} ->> ${name}, '')`, pattern)),
+      ),
+    );
+  }
+  return out;
+}
+
+/**
+ * Newest first by default.
+ *
+ * Any order at all is an improvement — the list had none, so two loads could
+ * disagree — and newest-first is the one an owner wants: the booking that just
+ * arrived is the row they came to see.
+ */
+function ordering(query: EntryPageQuery) {
+  switch (query.sort) {
+    case "oldest":
+      return [asc(entries.createdAt), asc(entries.id)];
+    case "updated":
+      return [desc(entries.updatedAt), desc(entries.id)];
+    case "title":
+      return [asc(sql`lower(coalesce(${entries.data} ->> ${query.titleField ?? "title"}, ''))`)];
+    default:
+      return [desc(entries.createdAt), desc(entries.id)];
+  }
+}
 
 /** What a uuid looks like — an id from a URL must not reach a uuid column raw. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,6 +106,35 @@ export class EntryRepository {
       .where(and(this.scoped, eq(entries.id, id)))
       .limit(1);
     return row ?? null;
+  }
+
+  /**
+   * One screenful of a type, filtered and ordered — the admin's list.
+   *
+   * `rowsOfType` returns everything in whatever order Postgres feels like,
+   * which is fine for a fixture and wrong for a business: a salon writes a few
+   * thousand bookings a year, the page renders all of them, and the order can
+   * differ between two loads of the same screen. This is the query that screen
+   * actually wants — a page of rows, a total, and a way to find one.
+   */
+  async pageOfType(typeKey: string, query: EntryPageQuery): Promise<EntryPage> {
+    const where = and(this.scoped, eq(entries.typeKey, typeKey), ...conditions(query));
+
+    const [rows, [counted]] = await Promise.all([
+      this.db
+        .select()
+        .from(entries)
+        .where(where)
+        .orderBy(...ordering(query))
+        .limit(query.limit)
+        .offset(query.offset),
+      this.db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(entries)
+        .where(where),
+    ]);
+
+    return { rows, total: counted?.total ?? 0 };
   }
 
   /** Every row of a type, drafts included — the admin's view. */

@@ -40,6 +40,8 @@ The front page also lists your content types — Services, Bookings, Stylists, w
 
 The form is generated from what the type declares, so it validates the way the site does: a required field left empty is refused rather than saved blank, a number field will not take words, and a slug already in use is reported as such instead of failing later.
 
+Long lists stay usable: twenty-five at a time, newest first, with a search box that looks inside the entries themselves — a customer's name, a phone number — not only at their titles. You can show only drafts or only published, and order by name or by when something last changed. All of that lives in the address, so a filtered list is a link you can bookmark or send to somebody.
+
 A new entry starts as a <strong>draft</strong> — written, saved, and not visible to the public. Publish it from the list when it is ready, and unpublish it to take it down without deleting it. The dashboard says how many of each type are waiting.
 
 ## What a type holds
