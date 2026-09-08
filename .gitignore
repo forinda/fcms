@@ -17,3 +17,8 @@ coverage/
 data/
 # Copied from install/ at build time — one source of truth.
 apps/marketing/public/install/
+
+# Assembled into `packages/server` at pack time from three other packages —
+# built output, never edited by hand (ADR 0046).
+packages/server/app/
+packages/server/migrations/

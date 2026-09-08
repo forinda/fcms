@@ -26,6 +26,8 @@ count is low, and every prerequisite is stated before it is needed.
 <li>A few minutes. There is no account to create and nothing to license.</li>
 </ul>
 
+<p class="muted">No Docker? <a href="#without-docker">Node and a Postgres URL are enough</a>.</p>
+
 ## Install
 
 <div class="snippet">
@@ -57,6 +59,27 @@ Open <code>http://localhost:8080</code>. There is a working site, and your dashb
 <div class="note">
 
 <strong>There is no migration step and no setup command.</strong> The app migrates its own database and creates the first owner on boot, so <code>up</code> reaches a working site rather than a page telling you to run something else. Booting again changes nothing — migrations keep their ledger in the database, and the owner is created once.
+
+</div>
+
+<h2 id="without-docker">Without Docker</h2>
+
+Docker is the default because it brings the database and a version to pin along with it. It is not a requirement. If you have Node 22 or newer and a Postgres database somewhere — a VPS, a managed one, the one your host already gave you — this is the whole install:
+
+<div class="snippet">
+<header><span>terminal</span><button class="copy" type="button" data-copy="DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
+npx forinda-cms">Copy</button></header>
+<pre><code>DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
+npx forinda-cms</code></pre>
+</div>
+
+It migrates the database, creates the owner once, and serves on <code>PORT</code> (8080 by default). <code>npx forinda-cms --help</code> lists everything it reads — the same variables the compose file sets.
+
+<div class="note">
+
+<strong>What this path does not bring.</strong> No database, no TLS, no <code>backup.sh</code> — those came from compose. Put a reverse proxy in front of it for HTTPS, set <code>SECURE_COOKIES=true</code> and <code>TRUST_PROXY=true</code> behind one, point <code>MEDIA_DIR</code> at a directory that survives a redeploy, and take your own <code>pg_dump</code> backups.
 
 </div>
 
