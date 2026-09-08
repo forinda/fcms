@@ -13,6 +13,7 @@ import { AutomationController } from "./automation.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 import { MediaController } from "./media.controller";
+import { TypesController } from "./types.controller";
 
 // Eagerly import every file in the module so decorators run and register in
 // the container. Broad by design, the way `kick g module` generates it: a
@@ -42,6 +43,9 @@ export const AdminModule = defineModule({
         // list lives there, one automation lives here.
         { path: "/admin", controller: AutomationController },
         { path: "/admin", controller: MediaController },
+        // Before the content controller, whose `/content/:type` is a different
+        // tree: this one is the shape, that one is the rows.
+        { path: "/admin", controller: TypesController },
         { path: "/admin", controller: ContentController },
       ];
     },

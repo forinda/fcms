@@ -15,7 +15,6 @@
  * asserted.
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
-import type { ContentType } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
@@ -24,6 +23,7 @@ import { EntryWriteUseCase } from "./use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
 import { html, notFound, readForm, redirect } from "./utils/http";
+import { dashboard } from "./utils/dashboard.view";
 import { entryForm, esc, page } from "./utils/view";
 
 @Controller()
@@ -41,61 +41,32 @@ export class ContentController {
   @Inject(PaymentUseCase) private readonly pay!: PaymentUseCase;
   @Inject(WorkflowUseCase) private readonly workflows!: WorkflowUseCase;
 
-  /** Types, their row counts, and what is deliberately absent. */
+  /**
+   * What wants a person, then what has happened, then everything else.
+   *
+   * Five reads rather than one, because "nothing is waiting" has to be true
+   * about the whole site to be worth saying — a dashboard that only knew about
+   * drafts would say it while an automation was failing every ten minutes.
+   */
   @Get("/")
   async dashboard(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     if (!spec) return html(ctx, 200, page({ title: "Admin", body: "<p>No site yet.</p>" }));
 
-    const counts = await this.reader.counts(spec);
-    // Drafts named on the dashboard, because an unpublished entry is otherwise
-    // invisible until someone wonders why the page is short.
-    const drafts = await this.reader.drafts();
-    const stored = spec.content.filter((t) => !t.derived);
-    const derived = spec.content.filter((t) => t.derived);
-
-    const card = (t: ContentType) =>
-      `<a class="card" href="/admin/content/${esc(t.key)}">
-        <h3>${esc(t.labelPlural ?? t.label)}</h3>
-        <p class="muted">${counts[t.key] ?? 0} ${(counts[t.key] ?? 0) === 1 ? "entry" : "entries"}${
-          (drafts[t.key] ?? 0) > 0 ? ` · ${drafts[t.key]} not published` : ""
-        }</p>
-      </a>`;
+    const [counts, drafts, runs, payments, history] = await Promise.all([
+      this.reader.counts(spec),
+      this.reader.drafts(),
+      this.workflows.recent(20),
+      this.payments.recent(20),
+      this.changes.execute(5),
+    ]);
 
     html(
       ctx,
       200,
       page({
         title: `${spec.name} — Admin`,
-        body: `<h1>${esc(spec.name)}</h1>
-<p class="muted">${spec.pages.length} pages · <a href="/admin/history">history</a></p>
-
-<h2>Content</h2>
-<div class="cards">${stored.map(card).join("")}</div>
-${
-  derived.length
-    ? `<h2>Computed</h2>
-<p class="muted">Worked out from other content rather than stored, so there is nothing to edit.</p>
-<div class="cards">${derived
-        .map(
-          (t) =>
-            `<div class="card"><h3>${esc(t.labelPlural ?? t.label)}</h3><p class="muted">computed</p></div>`,
-        )
-        .join("")}</div>`
-    : ""
-}
-
-<h2>Pages</h2>
-<p class="muted">Pages are a tree of blocks — edited on the canvas, where the page you
-are changing is the page you are looking at.</p>
-<table><tbody>${spec.pages
-          .map(
-            (p) =>
-              `<tr><td>${esc(p.title)}</td><td class="muted">${esc(p.path)}</td>
-               <td><a href="/admin/pages/${esc(p.key)}">edit</a> ·
-                   <a href="${esc(p.path)}">view</a></td></tr>`,
-          )
-          .join("")}</tbody></table>`,
+        body: dashboard({ spec, counts, drafts, runs, payments, history }),
       }),
     );
   }

@@ -72,6 +72,21 @@ export class PaymentRepository {
     return row ?? null;
   }
 
+  /**
+   * The site's payments, newest first.
+   *
+   * For the dashboard, which needs to say "one deposit was started and never
+   * finished" without knowing which entry to ask about.
+   */
+  async recent(limit = 20): Promise<PaymentRow[]> {
+    return this.db
+      .select()
+      .from(payments)
+      .where(this.scoped)
+      .orderBy(desc(payments.createdAt))
+      .limit(limit);
+  }
+
   /** Every payment for one entry, newest first — what the admin shows. */
   async forEntry(entryId: string): Promise<PaymentRow[]> {
     if (!UUID.test(entryId)) return [];

@@ -35,9 +35,25 @@ export interface PageOptions {
    * to someone who already has a session.
    */
   readonly chrome?: boolean;
+  /**
+   * Which top-level place this page belongs to, so the header can mark it.
+   *
+   * `aria-current` rather than a colour: "where am I" is a question a screen
+   * reader has to be able to answer too, and a highlighted link answers it for
+   * exactly one kind of user.
+   */
+  readonly section?: string;
 }
 
-export function page({ title, body, trail = [], chrome = true }: PageOptions): string {
+const SECTIONS: readonly { key: string; href: string; label: string }[] = [
+  { key: "types", href: "/admin/types", label: "Types" },
+  { key: "media", href: "/admin/media", label: "Media" },
+  { key: "assist", href: "/admin/assist", label: "Assistant" },
+  { key: "automations", href: "/admin/automations", label: "Automations" },
+  { key: "sessions", href: "/admin/sessions", label: "Sessions" },
+];
+
+export function page({ title, body, trail = [], chrome = true, section }: PageOptions): string {
   const crumbs = trail
     .map((c) =>
       c.href ? `<a href="${esc(c.href)}">${esc(c.label)}</a>` : `<span>${esc(c.label)}</span>`,
@@ -45,15 +61,18 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
     .join(`<span class="sep">/</span>`);
 
   const header = chrome
-    ? `<header>
-  <nav class="crumbs"><a href="/admin">Admin</a>${crumbs ? `<span class="sep">/</span>${crumbs}` : ""}</nav>
-  <span class="header-actions">
-    <a href="/admin/media">Media</a>
-    <a href="/admin/assist">Assistant</a>
-    <a href="/admin/automations">Automations</a>
-    <a href="/admin/sessions">Sessions</a>
+    ? `<a class="skip" href="#main">Skip to the page</a>
+<header>
+  <nav class="crumbs" aria-label="Breadcrumb"><a href="/admin">Admin</a>${
+    crumbs ? `<span class="sep">/</span>${crumbs}` : ""
+  }</nav>
+  <nav class="header-actions" aria-label="Sections">
+    ${SECTIONS.map(
+      (s) =>
+        `<a href="${s.href}"${s.key === section ? ' aria-current="page"' : ""}>${esc(s.label)}</a>`,
+    ).join("")}
     <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
-  </span>
+  </nav>
 </header>`
     : "";
 
@@ -63,7 +82,7 @@ export function page({ title, body, trail = [], chrome = true }: PageOptions): s
 <title>${esc(title)}</title><style>${CSS}</style></head>
 <body>
 ${header}
-<main>${body}</main>
+<main id="main" tabindex="-1">${body}</main>
 </body></html>`;
 }
 
@@ -199,7 +218,18 @@ header{display:flex;justify-content:space-between;align-items:center;gap:1rem;
   padding:.75rem 1rem;border-bottom:1px solid var(--line);background:#fff;flex-wrap:wrap}
 main{max-width:52rem;margin:0 auto;padding:1.5rem 1rem 4rem}
 /* The canvas needs the width; every other screen reads better narrow. */
-main:has(.canvas){max-width:82rem}
+main:has(.canvas),main:has(.builder){max-width:82rem}
+main:focus{outline:none}
+/* Every interactive thing says where the keyboard is. A custom background on a
+   button hides the browser's default ring against it more often than not. */
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:4px}
+/* Present to a screen reader, absent to everyone else — a table caption, or the
+   words behind a button whose label is an arrow. */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
+.skip{position:absolute;left:-9999px;top:0;padding:.6rem 1rem;background:#fff;z-index:2}
+.skip:focus{left:0}
+[aria-current=page]{font-weight:600;text-decoration:underline 2px}
 a{color:var(--brand)}
 h1{font-size:1.4rem;margin:0 0 .25rem}
 h2{font-size:1.05rem;margin:2rem 0 .5rem}
@@ -211,10 +241,40 @@ h2{font-size:1.05rem;margin:2rem 0 .5rem}
 table{width:100%;border-collapse:collapse;margin:.5rem 0 0}
 th,td{text-align:left;padding:.55rem .5rem;border-bottom:1px solid var(--line)}
 th{font-size:.8rem;color:var(--muted);font-weight:600}
+/* On a phone a wide table scrolls inside its own box. Without this the history
+   table — five columns of it — drags the whole page sideways. */
+@media(max-width:40rem){table{display:block;overflow-x:auto}}
+/* The top of the dashboard. A count first in each line, because the number is
+   what decides whether it is opened now or later. */
+.attention{margin:1.5rem 0 0}
+.attention h2{margin-top:0}
+ul.waiting{list-style:none;margin:0;padding:0}
+ul.waiting li{padding:.4rem 0;border-bottom:1px solid var(--line)}
+ul.waiting li:last-child{border-bottom:0}
+ul.waiting a{text-decoration:none}
+ul.waiting a:hover{text-decoration:underline}
+ul.waiting strong{font-size:1.1rem}
+ul.waiting li.destructive-change a{color:var(--bad)}
+/* Two panels of recent activity, one column on a narrow screen. */
+.two-up{display:grid;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr));gap:0 2rem}
+.two-up table{font-size:.9rem}
+/* The half of a row that is metadata keeps to one line: "16 minutes ago" broken
+   over three lines is taller than the change it is dating. */
+.two-up td:not(:first-child){white-space:nowrap;text-align:right}
+h3.quiet{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  margin:1.5rem 0 .25rem}
+.card-actions{margin:.5rem 0 0;font-size:.85rem}
 .cards{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));margin-top:.5rem}
 .card{padding:1rem;border:1px solid var(--line);border-radius:8px;background:#fff}
 .card h3{margin:0 0 .25rem;font-size:1rem}
-.header-actions{display:flex;gap:.9rem;align-items:center}
+/* Wraps. Six links and a sign-out button do not fit a phone in one row, and
+   without this the last of them sits past the right edge — off the screen, and
+   dragging the whole page sideways with it. */
+.header-actions{display:flex;gap:.5rem .9rem;align-items:center;flex-wrap:wrap}
+@media(max-width:34rem){
+  header{padding:.6rem .75rem}
+  .header-actions{font-size:.9rem;gap:.4rem .7rem}
+}
 tr.current td{background:#f5f5f4}
 @media(prefers-color-scheme:dark){tr.current td{background:#292524}}
 ul.changes{margin:.5rem 0 0;padding-left:1.1rem}
@@ -230,6 +290,12 @@ textarea.mono{font-family:ui-monospace,monospace;font-size:.85rem}
 .has-error input,.has-error select,.has-error textarea{border-color:var(--bad)}
 .field-error{color:var(--bad);font-size:.85rem;margin:.35rem 0 0}
 .error{padding:.6rem .8rem;border-radius:6px;background:#fee2e2;color:var(--bad);font-size:.9rem}
+.error p{margin:0 0 .5rem}
+.error p:last-child{margin:0}
+/* A refusal that offers the way through keeps the offer inside it, so the
+   button and the sentence explaining the cost are one thing. */
+.error form{margin:.5rem 0 0}
+.error button{background:#fff}
 .actions{margin-top:1.5rem}
 button{padding:.55rem 1rem;font:inherit;border:0;border-radius:6px;background:var(--brand);color:#fff;cursor:pointer}
 button.link{background:none;color:var(--brand);padding:0;text-decoration:underline}
@@ -275,6 +341,26 @@ ul.blocks ul{border-left:1px solid var(--line)}
 .canvas .add select,.canvas .add input{flex:1;min-width:0}
 textarea.code{width:100%;font:.85rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
   padding:.5rem;border:1px solid var(--line);border-radius:6px;background:inherit;color:inherit}
+/* The type builder (ADR 0033): the fields on the left, the one being edited on
+   the right. Two columns rather than the canvas's three — there is nothing to
+   preview, so the middle column would be empty. */
+.builder{display:grid;grid-template-columns:minmax(15rem,22rem) minmax(0,1fr);gap:1.5rem;
+  align-items:start;margin:1rem 0 2rem}
+@media(max-width:60rem){.builder{grid-template-columns:1fr}}
+.builder .tree h2,.builder .panel h2{margin-top:0}
+/* Numbered, because the order is the thing being edited: "move Price up" is
+   about position, and a bullet does not say what position. */
+ol.blocks{list-style:decimal;margin:.5rem 0 0;padding-left:1.7rem}
+ol.blocks li{margin:.1rem 0}
+.builder .add{margin-top:1.5rem;border-top:1px solid var(--line);padding-top:1rem}
+.builder .add h3{font-size:.9rem;margin:0}
+.builder .node>a{padding:.15rem 0}
+/* A label beside its box, not above it: a checkbox's label is the sentence it
+   completes, and a column of them reads as a list. */
+.field.checkbox{display:grid;grid-template-columns:auto 1fr;gap:.1rem .5rem;align-items:center}
+.field.checkbox label{margin:0;font-weight:400}
+.field.checkbox .help{grid-column:2}
+.new-type{margin:2.5rem 0 0;padding-top:1.5rem;border-top:1px solid var(--line)}
 .new-automation{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}
 .new-automation .row{display:flex;gap:.4rem;flex-wrap:wrap}
 .new-automation input{flex:1;min-width:10rem}

@@ -22,13 +22,29 @@ warning teaches people to skim the real one.
 Sign in at <code>/admin</code> on your own install. Everything below is that dashboard.
 </p>
 
+## What is waiting for you
+
+The front page opens with <em>Needs you</em>: entries written but not published, automations that failed, payments a customer started and never finished, automations somebody turned off. Each line is a count and a link to the screen that deals with it. When there is nothing, it says so in one line and takes up no more room than that.
+
+Under it are the site's latest automation runs and its latest changes — who changed what, from where, and how long ago — so "what happened while I was away" is answered without opening anything.
+
 ## Content
 
-The front page of the dashboard lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
+The front page also lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
 
 The form is generated from what the type declares, so it validates the way the site does: a required field left empty is refused rather than saved blank, a number field will not take words, and a slug already in use is reported as such instead of failing later.
 
 A new entry starts as a <strong>draft</strong> — written, saved, and not visible to the public. Publish it from the list when it is ready, and unpublish it to take it down without deleting it. The dashboard says how many of each type are waiting.
+
+## What a type holds
+
+A content type is the shape of a thing your site stores — a Service has a name, a price and a duration; a Booking has a customer, a date and a status. Under <em>Types</em> you can see every one your site has, and change what it holds.
+
+Open a type and the fields are on the left, in the order they appear on the form. Select one to set its label, its help text, whether it is required, and whether the site can filter and sort by it. Add one by naming it and saying what it holds — a line of text, a number, a date, a file, a link to another entry, or a status that moves between values.
+
+Two things are fixed once created: the type's key and a field's name. Those appear in addresses and in your pages, so renaming one is a change with your data inside it — the label above it is free to change whenever you like.
+
+Removing a field removes what is stored in it. You are told exactly what that costs before anything happens — <em>"Whatever is stored in it for 6 existing services will be deleted"</em> — and nothing is removed until you press the second button. Either way it lands in <a href="/docs/operating/">history</a>, so it can be undone.
 
 ## Pages — the canvas
 
