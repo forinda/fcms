@@ -21,6 +21,16 @@ import { dev, diff, fmt, validate } from "./commands.js";
 import { apply, link, login, logout, plan, pull, status } from "./remote.js";
 import { dim } from "./report.js";
 
+/**
+ * Replaced by the bundler with the published version.
+ *
+ * Declared rather than imported because there is no manifest beside the bundle
+ * at runtime, and `0.0.0-dev` is the honest answer when running from source —
+ * a source checkout has no released version to report.
+ */
+declare const __FCMS_VERSION__: string | undefined;
+const VERSION = typeof __FCMS_VERSION__ === "string" ? __FCMS_VERSION__ : "0.0.0-dev";
+
 function port(value: string): number {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1 || n > 65535) {
@@ -35,7 +45,7 @@ export function buildProgram(): Command {
   program
     .name("fcms")
     .description("forinda-cms — build and run a site from a spec")
-    .version("0.0.0", "-v, --version")
+    .version(VERSION, "-v, --version")
     .showHelpAfterError()
     .configureHelp({ sortSubcommands: false });
 

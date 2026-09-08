@@ -74,6 +74,11 @@ await build({
   target: "node22",
   external,
   banner: { js: banner },
+  // The version, so a binary can report its own. Reading `package.json` at
+  // runtime would work in the workspace and fail in the bundle, where there is
+  // no manifest beside the file — `fcms --version` said `0.0.0` for three
+  // releases because the number was written out by hand instead.
+  define: { __FCMS_VERSION__: JSON.stringify(manifest.version) },
   plugins: [
     {
       name: "strip-entry-shebang",
