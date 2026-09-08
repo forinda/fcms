@@ -38,8 +38,8 @@ logic/confirm.yaml   an automation per file</code></pre>
 <tr><td><code>fcms diff a b</code></td><td>Describe the difference between two spec directories in plain language.</td></tr>
 <tr><td><code>fcms link</code> / <code>login</code></td><td>Point this directory at a site and sign in.</td></tr>
 <tr><td><code>fcms plan</code></td><td>What applying these files would do. <strong>Exits 2 if anything is destructive</strong>, so CI can gate on it without parsing output.</td></tr>
-<tr><td><code>fcms apply</code></td><td>Apply them. Destructive changes need <code>--yes</code>.</td></tr>
-<tr><td><code>fcms pull</code></td><td>Write the live spec back out as canonical files.</td></tr>
+<tr><td><code>fcms apply</code></td><td>Apply them. Destructive changes need <code>--yes</code>; <code>--content</code> also sends the rows back.</td></tr>
+<tr><td><code>fcms pull</code></td><td>Write the live spec back out as canonical files. <code>--content</code> also writes every row to <code>data/&lt;type&gt;.yaml</code>.</td></tr>
 </tbody>
 </table>
 

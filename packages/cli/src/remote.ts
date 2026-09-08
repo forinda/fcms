@@ -11,6 +11,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { splitFiles } from "@forinda-cms/lang";
+
+import { pullContent, pushContent } from "./content.js";
 import {
   ApiError,
   Client,
@@ -109,7 +111,7 @@ export async function status(root: string): Promise<number> {
  * a `fmt --check` is silent. Two printers would make "pull then commit" produce
  * a diff nobody wrote.
  */
-export async function pull(root: string): Promise<number> {
+export async function pull(root: string, options: { content?: boolean } = {}): Promise<number> {
   const client = connect(root);
   if (!client) return 1;
 
@@ -127,6 +129,11 @@ export async function pull(root: string): Promise<number> {
       `${green("pulled")} ${bold(spec.name)} ${dim(`— ${Object.keys(files).length} files`)}`,
     );
     console.log(dim("  files not in the remote spec are left alone; delete them yourself."));
+
+    // The rows, when asked for. Off by default because a spec is small and a
+    // site's content is not, and `pull` is run in a loop by people iterating on
+    // the shape (ADR 0043).
+    if (options.content) return pullContent(root, client, spec);
     return 0;
   } catch (error) {
     return reportApiError(error);
@@ -154,7 +161,10 @@ export async function plan(root: string): Promise<number> {
   }
 }
 
-export async function apply(root: string, options: { yes?: boolean }): Promise<number> {
+export async function apply(
+  root: string,
+  options: { yes?: boolean; content?: boolean },
+): Promise<number> {
   const client = connect(root);
   if (!client) return 1;
 
@@ -175,7 +185,10 @@ export async function apply(root: string, options: { yes?: boolean }): Promise<n
 
     if (planned.changes.length === 0 && !planned.initial) {
       console.log(dim("  nothing to apply."));
-      return 0;
+      // The shape is already right; the rows may not be, and that is exactly
+      // the case where somebody is restoring content onto a site that already
+      // has its spec (ADR 0043).
+      return options.content ? pushContent(root, client, spec) : 0;
     }
 
     if (planned.destructive > 0 && options.yes !== true) {
@@ -192,6 +205,10 @@ export async function apply(root: string, options: { yes?: boolean }): Promise<n
         (result.migration.length > 0 ? dim(` — ${result.migration.length} migration step(s)`) : ""),
     );
     console.log(dim("  undo it from the admin's history screen."));
+
+    // After the spec, never before: a row cannot be written against a type the
+    // site does not have yet.
+    if (options.content) return pushContent(root, client, spec);
     return 0;
   } catch (error) {
     return reportApiError(error);
