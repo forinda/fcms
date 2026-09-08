@@ -79,3 +79,59 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  # The same tag publishes the npm distributable (ADR 0046, ADR 0047), so a
+  # release is one act rather than two that can disagree about what `2026.3`
+  # means. Never on a merge to `main`: `:edge` is a moving image, and npm has
+  # no such thing — a version published there is permanent.
+  npm:
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # `id-token: write` is npm trusted publishing (OIDC): npm verifies this
+    # workflow's identity against a rule registered on the package, so there is
+    # no NPM_TOKEN to leak or rotate.
+    # https://docs.npmjs.com/trusted-publishers/
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24 ships npm >= 11.5.1, which trusted publishing requires.
+          node-version: 24
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - run: pnpm install --frozen-lockfile
+
+      # The admin application and the server, in that order: the packer copies
+      # both, and a missing one fails loudly rather than publishing half a
+      # product.
+      - run: pnpm build
+
+      - name: Version from the tag
+        working-directory: packages/server
+        run: |
+          npm version "${GITHUB_REF_NAME}" --no-git-tag-version --allow-same-version
+          echo "publishing forinda-cms@${GITHUB_REF_NAME}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish
+        working-directory: packages/server
+        # `pnpm publish`, not `npm publish`: the manifest depends on the
+        # workspace catalog, and only pnpm resolves `catalog:` into real ranges
+        # when it packs. npm would publish the word "catalog:" as a version and
+        # every install of it would fail.
+        #
+        # `prepack` assembles the tarball and refuses to include a sourcemap,
+        # which would publish the source this repository is private to keep
+        # (ADR 0047).
+        run: pnpm publish --access public --no-git-checks
+        env:
+          NPM_CONFIG_PROVENANCE: "true"

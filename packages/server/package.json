@@ -1,9 +1,19 @@
 {
   "name": "forinda-cms",
   "version": "0.0.0",
-  "private": true,
   "description": "Run a forinda-cms site. Needs Node and a Postgres URL; no Docker required.",
-  "license": "UNLICENSED",
+  "keywords": [
+    "cms",
+    "headless",
+    "postgres",
+    "self-hosted"
+  ],
+  "license": "SEE LICENSE IN LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forinda/forinda-cms.git",
+    "directory": "packages/server"
+  },
   "bin": {
     "forinda-cms": "./bin/forinda-cms.mjs"
   },
@@ -12,9 +22,14 @@
     "dist",
     "migrations",
     "app",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "type": "module",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "node scripts/pack.mjs",
     "typecheck": "node --check bin/forinda-cms.mjs",

@@ -10,7 +10,7 @@
  * has to work on a machine with no workspace, and `file:` links do not survive
  * `npm pack`.
  */
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,7 +19,17 @@ const root = resolve(here, "../../..");
 const out = resolve(here, "..");
 
 const parts = [
-  { from: join(root, "apps/engine/dist"), to: join(out, "dist"), what: "the server" },
+  {
+    from: join(root, "apps/engine/dist"),
+    to: join(out, "dist"),
+    what: "the server",
+    // The sourcemap beside the bundle embeds `sourcesContent` — every
+    // TypeScript file in this repository, verbatim. Publishing it publishes the
+    // source, which is the one thing this package is deliberately not (ADR
+    // 0047). Stack traces in production lose their original line numbers; that
+    // is the trade, and it is not close.
+    skip: (name) => name.endsWith(".map"),
+  },
   {
     from: join(root, "packages/db/migrations"),
     to: join(out, "migrations"),
@@ -40,6 +50,19 @@ for (const part of parts) {
   }
   rmSync(part.to, { recursive: true, force: true });
   mkdirSync(dirname(part.to), { recursive: true });
-  cpSync(part.from, part.to, { recursive: true });
+  cpSync(part.from, part.to, {
+    recursive: true,
+    ...(part.skip ? { filter: (from) => !part.skip(from) } : {}),
+  });
   console.log(`packed ${part.what} → ${part.to.replace(`${out}/`, "")}`);
+}
+
+// Belt and braces, because the cost of getting this wrong is the source of the
+// product sitting on a CDN forever: nothing shipped may be a sourcemap.
+const leaked = readdirSync(join(out, "dist"), { recursive: true }).filter((name) =>
+  String(name).endsWith(".map"),
+);
+if (leaked.length > 0) {
+  console.error(`refusing to pack: ${leaked.join(", ")} would publish the source.`);
+  process.exit(1);
 }
