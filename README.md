@@ -60,6 +60,23 @@ fcms apply    # publish it
 `plan` and `apply` show you the change before making it, and refuse anything
 destructive unless you say `--yes`.
 
+## For an agent
+
+The same doors, over MCP. Point any MCP client at a linked site directory:
+
+```json
+{
+  "mcpServers": {
+    "fcms": { "command": "npx", "args": ["-y", "@forinda/fcms-mcp"] }
+  }
+}
+```
+
+It reads the credentials `fcms login` already wrote, and every change it makes
+goes through the same validate → diff → classify → gate path as the admin and
+the CLI, with an inverse recorded. An agent cannot reach the database, and it
+cannot make a change a person cannot see or undo.
+
 ## What works today
 
 The spec and its language, the renderer, the admin with its visual canvas, the

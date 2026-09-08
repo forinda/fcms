@@ -1,30 +1,64 @@
 {
-  "name": "@forinda-cms/mcp",
+  "name": "@forinda/fcms-mcp",
   "version": "0.0.0",
-  "private": true,
-  "description": "The machine door: ten tools over the SDK, for an agent driving a site.",
+  "description": "fcms-mcp — the machine door: ten tools over a forinda-cms server, for an agent driving a site.",
+  "keywords": [
+    "agent",
+    "ai",
+    "cms",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forinda/fcms.git",
+    "directory": "packages/mcp"
+  },
   "bin": {
     "fcms-mcp": "./src/bin.ts"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
+  "publishConfig": {
+    "bin": {
+      "fcms-mcp": "./dist/fcms-mcp.mjs"
+    },
+    "main": "./dist/fcms-mcp.mjs",
+    "types": null,
+    "exports": null,
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
+    "build": "node ../../scripts/bundle.mjs",
+    "prepack": "node ../../scripts/bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
-    "@forinda-cms/sdk": "workspace:*",
-    "@forinda-cms/spec": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@forinda-cms/sdk": "workspace:*",
+    "@forinda-cms/spec": "workspace:*",
     "@types/node": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
