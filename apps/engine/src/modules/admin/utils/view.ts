@@ -201,17 +201,73 @@ export function fieldInput(
           placeholder="-1.2921, 36.8219"${required ? " required" : ""}>`;
       }
       case "hours":
-        // Structured, but a grid editor is canvas work. JSON here is honest
-        // about being a stopgap rather than pretending to be an editor.
-        return `<textarea id="${id}" name="${esc(field.name)}" rows="6" class="mono">${esc(
-          value === undefined ? "" : JSON.stringify(value, null, 2),
-        )}</textarea>`;
+        return hoursGrid(field.name, value);
       default:
         return `<input id="${id}" name="${esc(field.name)}" type="${inputTypeFor(field.type)}" value="${esc(value)}"${required ? " required" : ""}>`;
     }
   })();
 
   return `<div class="field${error ? " has-error" : ""}">${label}${control}${err}${help}</div>`;
+}
+
+const DAYS = [
+  { key: "mon", label: "Monday" },
+  { key: "tue", label: "Tuesday" },
+  { key: "wed", label: "Wednesday" },
+  { key: "thu", label: "Thursday" },
+  { key: "fri", label: "Friday" },
+  { key: "sat", label: "Saturday" },
+  { key: "sun", label: "Sunday" },
+] as const;
+
+/**
+ * Two slots a day, always rendered (ADR 0039).
+ *
+ * A business is open once or twice a day — trading through, or a morning and an
+ * afternoon around a break. Rendering both means adding the second one is
+ * typing rather than a round trip, and a page that needs no JavaScript to add a
+ * row is a page that needs no JavaScript.
+ *
+ * Anything beyond two is a spec the CLI or the assistant writes; this reads it
+ * back and shows every slot it finds, so it can never hide hours it cannot add.
+ */
+const SLOTS = 2;
+
+/**
+ * The opening hours, as a week.
+ *
+ * It was a textarea of JSON, described in the code as an honest stopgap. It was
+ * honest and it was unusable: a salon owner cannot be asked to balance braces,
+ * and the one thing this field decides — when the site says you are open — is
+ * the thing they change most.
+ */
+function hoursGrid(name: string, value: unknown): string {
+  const week = (value ?? {}) as Record<string, { from?: string; to?: string }[] | undefined>;
+
+  const row = (day: (typeof DAYS)[number]) => {
+    const slots = week[day.key] ?? [];
+    const count = Math.max(SLOTS, slots.length);
+    const inputs = Array.from({ length: count }, (_, index) => {
+      const slot = slots[index];
+      const at = `${name}__${day.key}__${index}`;
+      return `<span class="slot">
+  <label class="sr-only" for="h-${at}-from">${esc(day.label)} opens</label>
+  <input id="h-${at}-from" name="${esc(at)}__from" type="time" value="${esc(slot?.from ?? "")}">
+  <span aria-hidden="true">–</span>
+  <label class="sr-only" for="h-${at}-to">${esc(day.label)} closes</label>
+  <input id="h-${at}-to" name="${esc(at)}__to" type="time" value="${esc(slot?.to ?? "")}">
+</span>`;
+    }).join("");
+
+    return `<div class="day">
+  <span class="day-name">${esc(day.label)}</span>
+  ${inputs}
+</div>`;
+  };
+
+  return `<div class="hours">${DAYS.map(row).join("")}</div>
+<p class="help">Leave a day empty to be closed. The second pair is for a break —
+  open in the morning, open again in the afternoon.</p>`;
 }
 
 /** The sign-in form, on the same chrome as every other admin page. */
@@ -384,6 +440,17 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
 .pill.live{background:#dcfce7;color:#166534}
 form.inline{display:inline}
+/* The week, as a grid: one row per day, two pairs of times on each. */
+.hours{display:grid;gap:.35rem;margin-top:.25rem}
+.day{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+.day-name{flex:0 0 6rem;font-size:.85rem;color:var(--muted)}
+.slot{display:flex;gap:.3rem;align-items:center}
+.hours input[type=time]{width:auto;min-width:7rem;padding:.35rem .45rem;font-size:.9rem}
+@media(max-width:40rem){
+  .day{align-items:flex-start;flex-direction:column;gap:.25rem;
+    padding-bottom:.5rem;border-bottom:1px solid var(--line)}
+  .day-name{flex:none;font-weight:600;color:inherit}
+}
 img.chosen-asset{max-width:12rem;border-radius:6px;border:1px solid var(--line);margin-bottom:.4rem}
 .upload{margin:1rem 0 1.5rem;padding:1rem;border:1px dashed var(--line);border-radius:8px}
 .upload .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}

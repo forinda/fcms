@@ -38,6 +38,8 @@ Under it are the site's latest automation runs and its latest changes — who ch
 
 The front page also lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
 
+Opening hours are a week: a row per day, with an opening and a closing time, and a second pair for a break. Leave a day empty to be closed. What you set here is what the site uses to work out when someone can book.
+
 Fields that point at something offer it: a booking's service is a list of your services, a stylist's photo is a list of what you have uploaded, with the current one shown. Nothing asks you to type an identifier.
 
 The form is generated from what the type declares, so it validates the way the site does: a required field left empty is refused rather than saved blank, a number field will not take words, and a slug already in use is reported as such instead of failing later.

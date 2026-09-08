@@ -229,6 +229,18 @@ describe("a week of opening hours", () => {
     expect(result.ok && result.data!["workingHours"]).toBeUndefined();
   });
 
+  it("refuses a slot with only one end filled in", () => {
+    // What a half-completed form posts. Accepted, it is a day that never
+    // closes — and the availability computed from it silently produces
+    // nothing rather than an error.
+    const result = validateEntry(type, {
+      name: "Amina",
+      workingHours: { tue: [{ from: "09:00", to: "" }] },
+    });
+    expect(result.ok).toBe(false);
+    expect(Object.keys(result.errors ?? {})).toContain("workingHours");
+  });
+
   it("refuses something that is not hours, naming the field", () => {
     const result = validateEntry(type, { name: "Amina", workingHours: "tuesday mornings" });
     expect(result.ok).toBe(false);
