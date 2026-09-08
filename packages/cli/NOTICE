@@ -17,7 +17,7 @@ which is part of the product rather than part of the interop surface. The three
 Apache-2.0 packages remain available under Apache-2.0 on their own — the file
 format and the client are meant to be copied, and nothing here restricts that.
 
-Corresponding source for this bundle: https://github.com/forinda/forinda-cms
+Corresponding source for this bundle: https://github.com/forinda/fcms
 
 Third-party dependencies (commander, yaml, zod) are declared in package.json and
 installed from npm under their own licences. They are not bundled here.

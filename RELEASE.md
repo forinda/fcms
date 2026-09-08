@@ -72,7 +72,7 @@ Once for `forinda-cms` and once for `@forinda-cms/cli`:
 1. Sign in to npm as the maintainer.
 2. `https://www.npmjs.com/package/<name>/access` → **Trusted publishers** →
    **Add** → GitHub Actions.
-3. Repository `forinda/forinda-cms`, workflow `.github/workflows/release.yaml`,
+3. Repository `forinda/fcms`, workflow `.github/workflows/release.yaml`,
    environment blank.
 
 The very first publish of each cannot use OIDC, because the rule is registered

@@ -11,7 +11,7 @@
   "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/forinda/forinda-cms.git",
+    "url": "git+https://github.com/forinda/fcms.git",
     "directory": "packages/cli"
   },
   "bin": {
