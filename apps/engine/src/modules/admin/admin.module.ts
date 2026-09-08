@@ -7,6 +7,7 @@
  */
 import { defineModule } from "@forinda/kickjs";
 
+import { OwnerAccountController } from "./owner-account.controller";
 import { AdminController } from "./admin.controller";
 import { AssistController } from "./assist.controller";
 import { AutomationController } from "./automation.controller";
@@ -39,6 +40,7 @@ export const AdminModule = defineModule({
         // Auth first: its `/login` must not be shadowed by the content
         // controller's `/:type` parameter route.
         { path: "/admin", controller: AdminController },
+        { path: "/admin", controller: OwnerAccountController },
         // Before the content controller: its `/content/:type` would otherwise
         // swallow nothing here, but the canvas's `/pages/:key` is the more
         // specific route and reads better first.

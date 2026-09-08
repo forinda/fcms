@@ -53,6 +53,33 @@ export class OwnerRepository {
     return row!;
   }
 
+  /**
+   * A new password for one account.
+   *
+   * Scoped by organization like everything else that takes an id, even though
+   * the only caller passes its own — the scope belongs on the write, not in a
+   * check beside it.
+   */
+  async setPassword(orgId: string, id: string, passwordHash: string): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    const rows = await this.db
+      .update(owners)
+      .set({ passwordHash })
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .returning({ id: owners.id });
+    return rows.length > 0;
+  }
+
+  async setName(orgId: string, id: string, name: string | null): Promise<boolean> {
+    if (!UUID.test(id)) return false;
+    const rows = await this.db
+      .update(owners)
+      .set({ name })
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .returning({ id: owners.id });
+    return rows.length > 0;
+  }
+
   /** Everyone who can sign in, oldest first — the order they were added. */
   async list(orgId: string): Promise<OwnerRow[]> {
     return this.db

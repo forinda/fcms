@@ -37,7 +37,7 @@ Sign in at <code>/admin</code> on your own install. Everything below is that das
 </tbody>
 </table>
 
-You set a first password and hand it over; they can change it once they are in. Nobody can change their own role or remove their own account, and the last owner cannot be removed — those are the ways a site ends up with nobody able to run it. Removing somebody signs them out everywhere immediately.
+You set a first password and hand it over; they change it themselves under <em>You</em>, which asks for the current one and signs them out everywhere else — another browser, a phone, a terminal. There is no reset email: if somebody forgets their password, an owner removes them and adds them again. Nobody can change their own role or remove their own account, and the last owner cannot be removed — those are the ways a site ends up with nobody able to run it. Removing somebody signs them out everywhere immediately.
 
 ## The first time you sign in
 
