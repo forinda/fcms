@@ -36,6 +36,7 @@
     "prepack": "node scripts/pack.mjs"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@forinda/kickjs": "catalog:",
     "@forinda/kickjs-schema": "catalog:",
     "@node-rs/argon2": "catalog:",

@@ -21,6 +21,7 @@ import {
   indexName,
   organizations,
   planMigration,
+  rowsOf,
   runMigration,
   siteSpecs,
   sites,
@@ -144,8 +145,10 @@ suite("executing a plan (needs a database)", () => {
   };
 
   const indexExists = async (name: string) => {
-    const rows = await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${name}'`));
-    return (rows as unknown as unknown[]).length > 0;
+    const rows = rowsOf(
+      await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${name}'`)),
+    );
+    return rows.length > 0;
   };
 
   it("creates the index it planned, and is idempotent", async () => {

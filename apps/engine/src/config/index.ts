@@ -15,7 +15,15 @@ const envSchema = fromZod(
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
     LOG_LEVEL: z.string().default("info"),
 
-    DATABASE_URL: z.string(),
+    /**
+     * A Postgres URL, or a directory — and a directory by default (ADR 0050).
+     *
+     * `postgres://…` is a server somebody runs. Anything else is a place to
+     * keep files, and the database runs inside this process. The default means
+     * `npx forinda-cms` starts a working site with nothing configured, which
+     * was the last thing standing between somebody and one.
+     */
+    DATABASE_URL: z.string().default("./data/postgres"),
 
     /**
      * Where a single-site install serves from.

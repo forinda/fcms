@@ -10,9 +10,12 @@
  * lifecycle hook without taking a direct dependency on Drizzle.
  */
 import { migrate } from "drizzle-orm/postgres-js/migrator";
+import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { PGlite } from "@electric-sql/pglite";
 
 import { createDb, type Db } from "./client.js";
 
@@ -56,7 +59,15 @@ function upward(from: string): string[] {
 }
 
 export async function runMigrations(db: Db): Promise<void> {
-  await migrate(db, { migrationsFolder: migrationsFolder() });
+  // Two migrators, one set of migrations: they differ in which driver they
+  // speak to and not in the SQL they run, because the dialect is the same
+  // either way (ADR 0050). Picked from the connection rather than from
+  // configuration, so nothing has to be told twice.
+  const run =
+    "$client" in db && (db as { $client: object }).$client instanceof PGlite
+      ? migratePglite
+      : migrate;
+  await (run as typeof migrate)(db, { migrationsFolder: migrationsFolder() });
 }
 
 /** Entry point for `pnpm db:migrate`. */

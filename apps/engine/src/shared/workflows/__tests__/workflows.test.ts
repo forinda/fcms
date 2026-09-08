@@ -12,6 +12,7 @@ import {
   closeAllPools,
   createDb,
   entries,
+  isEmbedded,
   organizations,
   sites,
   workflowRuns,
@@ -23,6 +24,18 @@ import { reachable } from "../actions";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
+
+/**
+ * Is the database inside this process (ADR 0050)?
+ *
+ * Two tests below fake this process's clock to prove the queue reads the
+ * *database's*. Against an embedded Postgres there is only one clock — faking
+ * it moves both — so the thing they simulate cannot happen, and neither can the
+ * bug they were written for: skew needs two machines to disagree, and there is
+ * one. The guarantee holds by construction rather than by asking, so the tests
+ * are skipped rather than weakened into something that passes either way.
+ */
+const embedded = url ? isEmbedded(url) : false;
 const db = url ? createDb(url) : (undefined as never);
 
 const ORG = "org_workflows";
@@ -122,7 +135,7 @@ suite("workflows", () => {
   });
 
   describe("when a run is due", () => {
-    it("is decided by the database's clock, not this process's", async () => {
+    it.skipIf(embedded)("is decided by the database's clock, not this process's", async () => {
       // The CI failure this fixes: `runAt` is stamped by the database on
       // insert, so comparing it against a `Date` from here means two clocks
       // decide, and a database a few milliseconds ahead makes a row that was
@@ -452,7 +465,7 @@ suite("workflows", () => {
       expect(await use.enqueueDue(nightly("30 9 * * *"), new Date("2026-09-08T09:30:00Z"))).toBe(1);
     });
 
-    it("names the minute the way the database does", async () => {
+    it.skipIf(embedded)("names the minute the way the database does", async () => {
       // Two instances with skewed clocks either side of a boundary would
       // otherwise compute different dedupe keys, both unique, and a schedule
       // that should run once runs twice. Asked without a time, this reads the

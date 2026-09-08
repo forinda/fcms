@@ -18,13 +18,12 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, "..");
 
-const REQUIRED = ["DATABASE_URL"];
-const missing = REQUIRED.filter((name) => !process.env[name]);
-
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(`forinda-cms — run a site
 
-  DATABASE_URL      postgres://user:pass@host:5432/database   (required)
+  DATABASE_URL      a directory, or postgres://user:pass@host:5432/db
+                    default ./data/postgres — Postgres runs in this process,
+                    so there is nothing to install and nothing to connect to
   PORT              default 8080
   ORG_ID, SITE_ID   default "default"
   SITE_NAME         what the first site is called
@@ -36,14 +35,6 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
 
 Migrations run on boot. Booting again changes nothing.`);
   process.exit(0);
-}
-
-if (missing.length > 0) {
-  console.error(`forinda-cms: ${missing.join(", ")} is not set.`);
-  console.error("Point it at a Postgres database and try again:");
-  console.error("  DATABASE_URL=postgres://user:pass@localhost:5432/forinda npx forinda-cms");
-  console.error("Run with --help for everything else it reads.");
-  process.exit(1);
 }
 
 // Where the packed parts are, unless somebody has said otherwise. Set rather

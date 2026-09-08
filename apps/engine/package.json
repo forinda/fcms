@@ -15,6 +15,7 @@
     "seed": "tsx scripts/seed-example.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@forinda-cms/ai": "workspace:*",
     "@forinda-cms/db": "workspace:*",
     "@forinda-cms/lang": "workspace:*",

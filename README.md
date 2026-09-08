@@ -28,25 +28,30 @@ Longer tour and reference: <https://forinda-cms.netlify.app>
 
 ## Install
 
-Docker and about two minutes.
+Node 22 or newer. Nothing else.
 
 ```bash
 mkdir my-site && cd my-site
-curl -O https://forinda-cms.netlify.app/install/compose.yaml
-curl -o .env https://forinda-cms.netlify.app/install/env.example
-# edit .env — POSTGRES_PASSWORD, OWNER_EMAIL, OWNER_PASSWORD
-docker compose up -d
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
+  npx @forinda/fcms-core
 ```
 
-No migration step, no setup wizard: it migrates and provisions itself on boot,
-so `up` lands on a working site. Backups and proxy notes are in
-[`install/README.md`](install/README.md).
+That is the whole install. **Postgres runs inside the process** — the real
+thing, compiled to WebAssembly — and keeps its data in `./data`. No database to
+obtain, no container, no connection string, and a backup is `cp -r`.
 
-No Docker? A Node 22+ machine and a Postgres URL are enough:
+It migrates and provisions itself on boot, so the first run lands on a working
+site at <http://localhost:8080>.
+
+Already have a Postgres, or outgrown one process? Same command, one variable:
 
 ```bash
 DATABASE_URL=postgres://… npx @forinda/fcms-core
 ```
+
+Same schema and same migrations either way, so moving between them is
+`pg_dump` and nothing else. There is a Docker Compose file too, in
+[`install/`](install/README.md).
 
 ## The CLI
 
