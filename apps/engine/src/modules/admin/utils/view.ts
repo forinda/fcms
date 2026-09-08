@@ -64,6 +64,7 @@ const SECTIONS: readonly { key: string; href: string; label: string; needs: Role
   { key: "assist", href: "/admin/assist", label: "Assistant", needs: "manager" },
   { key: "automations", href: "/admin/automations", label: "Automations", needs: "manager" },
   { key: "people", href: "/admin/people", label: "People", needs: "owner" },
+  { key: "account", href: "/admin/account", label: "You", needs: "viewer" },
   { key: "sessions", href: "/admin/sessions", label: "Sessions", needs: "viewer" },
   { key: "settings", href: "/admin/settings", label: "Settings", needs: "manager" },
 ];
@@ -461,6 +462,7 @@ textarea.mono{font-family:ui-monospace,monospace;font-size:.85rem}
 .has-error input,.has-error select,.has-error textarea{border-color:var(--bad)}
 .field-error{color:var(--bad);font-size:.85rem;margin:.35rem 0 0}
 .error{padding:.6rem .8rem;border-radius:6px;background:#fee2e2;color:var(--bad);font-size:.9rem}
+.ok{padding:.6rem .8rem;border-radius:6px;background:#dcfce7;color:#166534;font-size:.9rem}
 .error p{margin:0 0 .5rem}
 .error p:last-child{margin:0}
 /* A refusal that offers the way through keeps the offer inside it, so the
