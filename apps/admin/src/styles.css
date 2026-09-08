@@ -1,213 +1,143 @@
 /*
- * The same site the server-rendered admin is (ADR 0044).
+ * The application's stylesheet (ADR 0044, ADR 0045).
  *
- * Deliberately the same tokens, the same spacing and the same words: for as
- * long as both exist, somebody moving between `/admin` and `/app` should not
- * be able to tell which one they are on except by the address. Two visual
- * languages in one product is how a migration starts feeling like a downgrade.
+ * Tailwind v4 plus shadcn's variable contract — its components are written
+ * against `--primary`, `--muted-foreground` and the rest, so those are what a
+ * theme sets. The values are the server-rendered admin's palette, unchanged:
+ * for as long as both exist, somebody moving between `/admin` and `/app`
+ * should not be able to tell which one they are on except by the address.
+ *
+ * Dark follows the system rather than a toggle, which is what the old admin
+ * does. The `.dark` class is honoured too, because that is how shadcn's own
+ * components expect to be told, and a future toggle then needs no rewrite.
  */
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  color-scheme: light dark;
-  --ink: #1c1917;
-  --line: #e7e5e4;
-  --muted: #78716c;
-  --brand: #1a7f5a;
-  --bad: #991b1b;
-  --card: #fff;
-  --page: #fafaf9;
+  --radius: 0.5rem;
+
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+
+  /* The brand green everything on the site is drawn from. */
+  --primary: #1a7f5a;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
+  --accent: #ecfdf5;
+  --accent-foreground: #14532d;
+
+  --destructive: #991b1b;
+  --destructive-foreground: #ffffff;
+
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #1a7f5a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --ink: #e7e5e4;
-    --line: #44403c;
-    --muted: #a8a29e;
+    --background: #1c1917;
+    --foreground: #e7e5e4;
     --card: #292524;
-    --page: #1c1917;
+    --card-foreground: #e7e5e4;
+    --popover: #292524;
+    --popover-foreground: #e7e5e4;
+
+    --primary: #34d399;
+    --primary-foreground: #052e1a;
+
+    --secondary: #292524;
+    --secondary-foreground: #e7e5e4;
+    --muted: #292524;
+    --muted-foreground: #a8a29e;
+    --accent: #064e3b;
+    --accent-foreground: #d1fae5;
+
+    --destructive: #f87171;
+    --destructive-foreground: #1c1917;
+
+    --border: #44403c;
+    --input: #44403c;
+    --ring: #34d399;
   }
 }
 
-* {
-  box-sizing: border-box;
+.dark {
+  --background: #1c1917;
+  --foreground: #e7e5e4;
+  --card: #292524;
+  --card-foreground: #e7e5e4;
+  --popover: #292524;
+  --popover-foreground: #e7e5e4;
+  --primary: #34d399;
+  --primary-foreground: #052e1a;
+  --secondary: #292524;
+  --secondary-foreground: #e7e5e4;
+  --muted: #292524;
+  --muted-foreground: #a8a29e;
+  --accent: #064e3b;
+  --accent-foreground: #d1fae5;
+  --destructive: #f87171;
+  --destructive-foreground: #1c1917;
+  --border: #44403c;
+  --input: #44403c;
+  --ring: #34d399;
 }
 
-body {
-  margin: 0;
-  font:
-    16px/1.6 system-ui,
-    sans-serif;
-  color: var(--ink);
-  background: var(--page);
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --font-sans: system-ui, sans-serif;
 }
 
-a {
-  color: var(--brand);
-}
-h1 {
-  font-size: 1.4rem;
-  margin: 0 0 0.25rem;
-}
-h2 {
-  font-size: 1.05rem;
-  margin: 2rem 0 0.5rem;
-}
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
 
-header.bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0.75rem 1rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
-}
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
 
-header.bar nav {
-  display: flex;
-  gap: 0.5rem 0.9rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-header.bar a {
-  text-decoration: none;
-}
-header.bar a:hover,
-header.bar a[aria-current="page"] {
-  text-decoration: underline 2px;
-}
-header.bar a[aria-current="page"] {
-  font-weight: 600;
-}
-
-main {
-  max-width: 62rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
-}
-
-.muted,
-.help {
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-.error {
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: var(--bad);
-  font-size: 0.9rem;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.5rem 0 0;
-}
-th,
-td {
-  text-align: left;
-  padding: 0.55rem 0.5rem;
-  border-bottom: 1px solid var(--line);
-}
-th {
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.cards {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-  margin-top: 0.5rem;
-}
-.card {
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
-}
-.card h3 {
-  margin: 0 0 0.25rem;
-  font-size: 1rem;
-}
-
-.pill {
-  display: inline-block;
-  padding: 0.1rem 0.45rem;
-  border-radius: 99px;
-  font-size: 0.75rem;
-  background: var(--page);
-  color: var(--muted);
-  border: 1px solid var(--line);
-}
-.pill.live {
-  background: #dcfce7;
-  color: #166534;
-  border-color: #bbf7d0;
-}
-
-input,
-select,
-button {
-  font: inherit;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--card);
-  color: inherit;
-}
-button {
-  background: var(--brand);
-  color: #fff;
-  border-color: var(--brand);
-  cursor: pointer;
-}
-button.quiet {
-  background: none;
-  color: var(--brand);
-  border-color: var(--line);
-}
-:focus-visible {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
-
-.filters {
-  display: flex;
-  gap: 0.6rem;
-  align-items: end;
-  flex-wrap: wrap;
-  margin: 1rem 0 0.5rem;
-}
-.pager {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 1rem;
-  font-size: 0.9rem;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.skip {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  padding: 0.6rem 1rem;
-  background: var(--card);
-}
-.skip:focus {
-  left: 0;
-  z-index: 2;
+  /* Every focusable thing says where the keyboard is — the same rule the
+     server-rendered admin has, because a custom background hides the browser's
+     own ring more often than not. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
 }
