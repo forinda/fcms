@@ -2,7 +2,7 @@
  * Patches — the spine (doc 03).
  *
  * Every authoring surface reduces to one of these: chat, canvas, the YAML
- * language, the CLI, an external harness (research/11). Nothing below this line
+ * language, the CLI, an external harness. Nothing below this line
  * changes when a surface is added, which is the test a new surface has to pass.
  *
  * Two properties matter more than the shape:

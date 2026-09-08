@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "The site spec: schema, validators, patch types. The AST every surface writes to.",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

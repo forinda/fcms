@@ -8,7 +8,7 @@
     "postgres",
     "self-hosted"
   ],
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "AGPL-3.0-or-later",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/forinda/forinda-cms.git",

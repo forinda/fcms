@@ -2,7 +2,7 @@
  * Apply a new spec.
  *
  * The one operation everything else routes through: chat, the canvas, the
- * language, the CLI and any harness all reduce to this (research/11). So the
+ * language, the CLI and any harness all reduce to this. So the
  * decisions live here rather than in a repository — what counts as destructive,
  * whether it is allowed, what the schema has to do about it, and what gets
  * recorded so it can be undone.

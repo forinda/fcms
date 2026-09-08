@@ -95,3 +95,14 @@ jobs:
         run: pnpm --filter @forinda-cms/cli exec tsx src/bin.ts validate "$GITHUB_WORKSPACE/examples/salon"
         env:
           NO_COLOR: '1'
+
+      # What is published is a bundle, not this source tree, and the two can
+      # break apart: an import the bundler cannot resolve, a dependency that
+      # should have been external, a shebang landing on line two. Building and
+      # running it here means that fails a pull request rather than a release.
+      - name: the published bundle runs
+        run: |
+          pnpm --filter @forinda-cms/cli build
+          node packages/cli/dist/fcms.mjs validate "$GITHUB_WORKSPACE/examples/salon"
+        env:
+          NO_COLOR: '1'

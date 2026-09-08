@@ -1,29 +1,33 @@
 # forinda-cms
 
-A self-hostable CMS where the site is a **spec** — content types, pages, logic,
-access, integrations — rather than a pile of plugins and a database nobody can
-read. One declarative artifact, edited by a person through forms, by a developer
-through files, and by a model through a governed tool table. Same validation,
-same history, same undo, whichever door a change came through.
+**Your whole site is one file you can read.** Content types, pages, logic,
+access, integrations — declared, not scattered across a plugin directory and a
+database nobody wants to open.
 
-**Status: self-hostable, and doing real work.** The spec and the language, the
-renderer, persistence with a patch spine, the HTTP engine, the admin and its
-visual canvas, the CLI, the MCP server, the assistant and the install are built
-and verified. On top of them a business that takes bookings has the whole path:
-availability by appointment or by date range, distance, a multi-step journey,
-deposits, automations that confirm and notify, and visitors who can see their
-own bookings and nobody else's.
+Edit it three ways, and they are the same edit:
 
-Not done, stated here because finding out later is worse: the M-Pesa and
-messaging providers are implemented against documented APIs and have **never
-been run against a live account** — the product says so where they are used, and
-payment at the counter needs no account at all. Plugins have a contract
-(`@forinda-cms/plugin`) but no marketplace: installing one is a dependency and a
-deploy, reviewed, rather than a button. There is no hosted service.
+- **In the admin**, as forms — no YAML in sight.
+- **In files**, with `fcms` — review it in a pull request like any other change.
+- **With an AI assistant**, which proposes a change you approve or reject.
 
----
+Same validation, same history, same undo, whichever door the change came
+through.
 
-## Install (target: a stranger, on a small VPS)
+```yaml
+content:
+  - key: booking
+    label: Booking
+    fields:
+      - { name: name,  type: text,  required: true }
+      - { name: when,  type: datetime }
+      - { name: state, type: state, values: [pending, confirmed, done] }
+```
+
+📖 **Docs and a longer tour: <https://forinda-cms.netlify.app>**
+
+## Install
+
+Docker and about two minutes.
 
 ```bash
 mkdir my-site && cd my-site
@@ -33,88 +37,82 @@ curl -o .env https://forinda-cms.netlify.app/install/env.example
 docker compose up -d
 ```
 
-No migration step and no setup command: the app migrates and provisions itself
-on boot, so `up` reaches a working site. Details, backups and proxy notes in
+No migration step, no setup wizard: it migrates and provisions itself on boot,
+so `up` lands on a working site. Backups and proxy notes are in
 [`install/README.md`](install/README.md).
 
-## Develop
+No Docker? A Node 22+ machine and a Postgres URL are enough:
+
+```bash
+DATABASE_URL=postgres://… npx forinda-cms
+```
+
+## The CLI
+
+```bash
+npm install -g @forinda-cms/cli
+
+fcms dev      # preview a site directory locally, no server needed
+fcms plan     # what publishing would change
+fcms apply    # publish it
+```
+
+`plan` and `apply` show you the change before making it, and refuse anything
+destructive unless you say `--yes`.
+
+## What works today
+
+The spec and its language, the renderer, the admin with its visual canvas, the
+CLI, the MCP server for agents, and the install. On top of those, a business
+that takes bookings has the whole path: availability by appointment or by date
+range, distance, multi-step booking journeys, deposits, automations that confirm
+and notify, and visitors who see their own bookings and nobody else's.
+
+Worth knowing before you rely on it:
+
+- The M-Pesa and messaging providers are written against documented APIs but
+  have **never been run against a live account**. The product says so where they
+  are used; payment at the counter needs no account at all.
+- Plugins have a contract (`@forinda-cms/plugin`) but no marketplace. Installing
+  one is a dependency and a deploy, reviewed — not a button.
+- There is no hosted service. Self-host it, or run it for your clients.
+
+## Developing
 
 ```bash
 pnpm install
-pnpm dev                     # the engine, with HMR
-pnpm --filter @forinda-cms/marketing dev
-pnpm verify                  # typecheck + lint + format + schema + every test
+pnpm dev        # the engine, with HMR
+pnpm verify     # typecheck, lint, format, schema, every test — exactly what CI runs
 ```
 
-`pnpm verify` is what CI runs — there is no CI-only step to discover after the
-fact. The database suites skip themselves when `DATABASE_URL` is unset, so the
-repo stays runnable on a laptop with no Postgres; CI supplies one so the
-guarantees they cover are actually exercised.
+The database suites skip themselves when `DATABASE_URL` is unset, so this stays
+runnable on a laptop with no Postgres. `pnpm --filter @forinda-cms/engine seed`
+loads the reference site in `examples/salon`.
 
-| Command | What it does |
-|---|---|
-| `pnpm dev` | Engine on `PORT` from `apps/engine/.env`, Vite HMR |
-| `pnpm build` / `pnpm start` | Production bundle, then run it |
-| `pnpm test` | Every suite in the workspace |
-| `pnpm verify` | Everything CI checks |
-| `pnpm docker:build` | The install image, locally |
-| `pnpm --filter @forinda-cms/engine seed` | Load `examples/salon` into a database (`EXAMPLE=rooms` for the guesthouse) |
+## Releases
 
-## Layout
-
-```
-apps/
-  engine/          the deployable: public site, admin, management API
-    src/modules/     site · admin · api        (controllers + their use-cases)
-    src/shared/      repositories, auth, reads used by more than one module
-    src/adapters/    the database adapter — DI wiring and boot
-    src/contributors/ per-request context: which site, who is calling
-  marketing/       the static marketing site (Astro), ships to a CDN
-packages/
-  spec/            the schema every surface writes to — types, patches, diff
-  lang/            YAML 1.2 profile: parser, canonical printer, file layout
-  render/          spec + rows → HTML, behind an EntrySource seam
-  db/              the model: tables, row types, migration planner, pool
-  sdk/             the client boundary: the HTTP client, the link, the token
-  cli/             `fcms`: validate, fmt, diff, dev, link, login, plan, apply
-  mcp/             `fcms-mcp`: ten tools over the SDK, for an agent
-  ai/              the planner: one prompt, shared by the assistant and the evals
-  eval/            the harness for ADR 0007's model tests
-docs/decisions/    ADRs — the reasoning, numbered and dated
-research/          the fourteen research docs the ADRs argue from
-examples/salon/    the reference spec; ADR 0007 test 1's artifact
-install/           compose.yaml, .env.example, backup.sh — the whole install
-```
-
-Two rules hold this shape together:
-
-- **A repository or use-case lives with the controller that calls it**, not in a
-  package. A decorated class outside `apps/*/src` is never reached by the
-  module glob, so its DI registration never happens — the layering rule and the
-  framework agree.
-- **`packages/db` is the model.** Tables, row types, the migration planner, the
-  pool. Nothing that decides anything.
-
-## How a change lands
-
-Every mutation — a form, `fcms apply`, and later a model — goes through one
-path: validate → diff → classify → gate destructive → write with an inverse.
-That is why undo is a table lookup rather than a git operation, and why the
-destructive warning ("340 customers will lose this field") is the same sentence
-in all three surfaces.
-
-## Reading order
-
-1. [`docs/decisions/README.md`](docs/decisions/README.md) — the ADR index. Start
-   with [0002](docs/decisions/0002-phase-0-scope.md) (what Phase 0 is),
-   [0001](docs/decisions/0001-spec-ceiling.md) (what the spec may contain), and
-   [0006](docs/decisions/0006-surface-syntax.md) (why the syntax is YAML).
-2. [`research/`](research/) — the fourteen documents the ADRs argue from.
-3. The module docstrings. Every controller and use-case opens with what it
-   owns and which decision it implements; that is where the reasoning lives.
+One calendar-versioned tag publishes the image, the server package and the CLI,
+all carrying the same number. [`RELEASE.md`](RELEASE.md) has the detail.
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the workflow, and
-[`.agents/AGENTS.md`](.agents/AGENTS.md) for framework conventions — decorator
-patterns, DI, env wiring, generators, and the gotchas that cost a day each.
+Issues and pull requests are welcome — [`CONTRIBUTING.md`](CONTRIBUTING.md) has
+the workflow, and [`.agents/AGENTS.md`](.agents/AGENTS.md) the framework
+conventions. Open an issue before a large change; it saves you writing a patch
+the design cannot take.
+
+## Licence
+
+**AGPL-3.0-or-later** for the product — the engine, the admin, the renderer and
+the `fcms` CLI. Self-host it, modify it, run it for clients. The one obligation:
+if you run a *modified* version that other people reach over a network, publish
+your changes.
+
+**Apache-2.0** for the interop surface — `@forinda-cms/spec`,
+`@forinda-cms/lang`, `@forinda-cms/sdk` and `@forinda-cms/plugin`. The file
+format, the client and the plugin API are meant to be copied.
+
+Your specs, content, themes and plugins are yours; nothing here claims them.
+A commercial licence is available for anyone the AGPL does not suit —
+[`LICENSING.md`](LICENSING.md) has the detail, including what the AGPL actually
+asks of you (for most people: nothing).

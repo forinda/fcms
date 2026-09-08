@@ -1,34 +1,68 @@
 {
   "name": "@forinda-cms/cli",
   "version": "0.0.0",
-  "private": true,
-  "description": "fcms — the management CLI. Netlify-shaped, not WP-CLI-shaped.",
+  "description": "fcms — the forinda-cms management CLI. Validate, format, preview and publish a site from a directory of YAML.",
+  "keywords": [
+    "cli",
+    "cms",
+    "static-site",
+    "yaml"
+  ],
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forinda/forinda-cms.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "fcms": "./src/bin.ts"
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "NOTICE",
+    "README.md"
+  ],
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
+  "publishConfig": {
+    "bin": {
+      "fcms": "./dist/fcms.mjs"
+    },
+    "main": "./dist/fcms.mjs",
+    "types": null,
+    "exports": null,
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
+    "build": "node scripts/bundle.mjs",
+    "prepack": "node scripts/bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "fcms": "tsx src/bin.ts"
   },
   "dependencies": {
+    "commander": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
     "@forinda-cms/lang": "workspace:*",
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/sdk": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
-    "commander": "catalog:",
-    "yaml": "catalog:"
-  },
-  "devDependencies": {
     "@types/node": "catalog:",
+    "esbuild": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
