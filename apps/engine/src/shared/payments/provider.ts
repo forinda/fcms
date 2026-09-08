@@ -9,6 +9,8 @@
  * `confirm` is the reason a callback can be trusted with nothing: the platform
  * asks the provider rather than believing what was posted to it.
  */
+import type { IntegrationSettings } from "@/shared/integrations";
+
 export type PaymentStatus = "pending" | "paid" | "failed" | "expired" | "refunded";
 
 export interface ChargeRequest {
@@ -40,6 +42,14 @@ export interface ChargeResult {
 export interface PaymentProvider {
   /** The `wiring` kind this implements. */
   readonly kind: string;
+  /**
+   * What it needs to be configured, declared beside the code that reads it.
+   *
+   * The admin's integration form is generated from this. A provider that reads
+   * `config["shortcode"]` without declaring it is a setting nobody can fill in
+   * without opening this directory (ADR 0034).
+   */
+  readonly settings?: IntegrationSettings;
   /** True when this has never been run against the provider's real API (ADR 0023 §6). */
   readonly unverified?: boolean;
   /** Does the payer need to be asked for a phone number before starting? */

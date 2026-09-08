@@ -10,6 +10,8 @@
  * against a documented API and **has never run against a real account**, which
  * is stated where an owner can see it rather than assumed away.
  */
+import type { IntegrationSettings } from "@/shared/integrations";
+
 export interface Message {
   readonly to: string;
   readonly body: string;
@@ -32,6 +34,13 @@ export interface MessageProvider {
   readonly kind: "sms" | "email";
   /** True where this has never been run against the vendor's real API. */
   readonly unverified?: boolean;
+  /**
+   * What this vendor needs, declared beside the code that reads it.
+   *
+   * The admin's integration form is generated from it (ADR 0034) — an
+   * undeclared `config["username"]` is a setting nobody can find.
+   */
+  readonly settings?: IntegrationSettings;
   send(message: Message): Promise<Sent>;
 }
 
@@ -65,6 +74,29 @@ const preview: MessageProvider = {
 const africastalking: MessageProvider = {
   kind: "sms",
   unverified: true,
+
+  settings: {
+    config: [
+      { name: "username", label: "Username", kind: "text", required: true },
+      {
+        name: "environment",
+        label: "Which account",
+        kind: "choice",
+        default: "production",
+        options: [
+          { value: "production", label: "Live" },
+          { value: "sandbox", label: "Sandbox — test messages" },
+        ],
+      },
+      {
+        name: "sender",
+        label: "Sender name",
+        kind: "text",
+        help: "Optional. The short name messages appear from, once yours is approved.",
+      },
+    ],
+    secrets: [{ name: "apiKey", label: "API key", kind: "text", required: true }],
+  },
   async send(message: Message): Promise<Sent> {
     const username = message.secrets["username"] ?? String(message.config["username"] ?? "");
     const apiKey = message.secrets["apiKey"];
@@ -116,6 +148,19 @@ const africastalking: MessageProvider = {
 const resend: MessageProvider = {
   kind: "email",
   unverified: true,
+
+  settings: {
+    config: [
+      {
+        name: "from",
+        label: "Sent from",
+        kind: "text",
+        required: true,
+        help: "An address on a domain you have verified — “Riverside Salon <hello@riverside.co.ke>”.",
+      },
+    ],
+    secrets: [{ name: "apiKey", label: "API key", kind: "text", required: true }],
+  },
   async send(message: Message): Promise<Sent> {
     const apiKey = message.secrets["apiKey"];
     const from = String(message.config["from"] ?? "");

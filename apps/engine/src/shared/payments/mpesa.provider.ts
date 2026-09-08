@@ -90,6 +90,52 @@ export const mpesaProvider: PaymentProvider = {
   unverified: true,
   needsPayerRef: true,
 
+  settings: {
+    config: [
+      {
+        name: "environment",
+        label: "Which Daraja",
+        kind: "choice",
+        required: true,
+        default: "sandbox",
+        options: [
+          { value: "sandbox", label: "Sandbox — test money" },
+          { value: "production", label: "Production — real money" },
+        ],
+      },
+      {
+        name: "shortcode",
+        label: "Shortcode",
+        kind: "text",
+        required: true,
+        help: "Your paybill or till number.",
+      },
+      {
+        name: "till",
+        label: "It is a till, not a paybill",
+        kind: "boolean",
+        help: "A till is a Buy Goods number; a paybill takes an account reference.",
+      },
+      {
+        name: "reference",
+        label: "Account reference",
+        kind: "text",
+        help: "What the customer sees on the prompt. Twelve characters at most.",
+      },
+    ],
+    secrets: [
+      { name: "consumerKey", label: "Consumer key", kind: "text", required: true },
+      { name: "consumerSecret", label: "Consumer secret", kind: "text", required: true },
+      {
+        name: "passkey",
+        label: "Passkey",
+        kind: "text",
+        required: true,
+        help: "The one Safaricom issues for your shortcode.",
+      },
+    ],
+  },
+
   async charge(request: ChargeRequest): Promise<ChargeResult> {
     const phone = request.payerRef ? msisdn(request.payerRef) : null;
     if (!phone) return { status: "failed", instruction: "That phone number is not an M-Pesa one." };
