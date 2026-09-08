@@ -32,6 +32,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json .npmrc* 
 # lifetime — it ships to a CDN, not into this image — and copying it here would
 # put its dependencies in the build for nothing.
 COPY apps/engine apps/engine
+# The admin application (ADR 0044). It builds to static files the engine
+# serves, so it belongs in the image the engine ships in — unlike the marketing
+# site, which goes to a CDN.
+COPY apps/admin apps/admin
 COPY packages packages
 # `--frozen-lockfile` so an image never resolves something different from what
 # was reviewed. The supply-chain settings in pnpm-workspace.yaml apply on top:
@@ -42,7 +46,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 FROM deps AS build
 ENV NODE_ENV=production
-RUN pnpm --filter @forinda-cms/engine exec kick build
+RUN pnpm --filter @forinda-cms/engine exec kick build \
+ && pnpm --filter @forinda-cms/admin build
 
 FROM build AS deploy
 # `--filter` names the project: a workspace with several packages under it has
@@ -50,7 +55,11 @@ FROM build AS deploy
 # `ERR_PNPM_CANNOT_DEPLOY_MANY`.
 RUN pnpm --filter=@forinda-cms/engine deploy --legacy --prod /out \
  && cp -r apps/engine/dist /out/dist \
- && cp -r packages/db/migrations /out/migrations
+ && cp -r packages/db/migrations /out/migrations \
+ # Beside the engine's own bundle, at the path `AppController` resolves from
+ # its own location rather than from the working directory.
+ && mkdir -p /out/apps/admin \
+ && cp -r apps/admin/dist /out/apps/admin/dist
 
 FROM node:${NODE_VERSION} AS runtime
 ENV NODE_ENV=production

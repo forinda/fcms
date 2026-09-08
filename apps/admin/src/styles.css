@@ -1,0 +1,213 @@
+/*
+ * The same site the server-rendered admin is (ADR 0044).
+ *
+ * Deliberately the same tokens, the same spacing and the same words: for as
+ * long as both exist, somebody moving between `/admin` and `/app` should not
+ * be able to tell which one they are on except by the address. Two visual
+ * languages in one product is how a migration starts feeling like a downgrade.
+ */
+:root {
+  color-scheme: light dark;
+  --ink: #1c1917;
+  --line: #e7e5e4;
+  --muted: #78716c;
+  --brand: #1a7f5a;
+  --bad: #991b1b;
+  --card: #fff;
+  --page: #fafaf9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e4;
+    --line: #44403c;
+    --muted: #a8a29e;
+    --card: #292524;
+    --page: #1c1917;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+  color: var(--ink);
+  background: var(--page);
+}
+
+a {
+  color: var(--brand);
+}
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.25rem;
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 2rem 0 0.5rem;
+}
+
+header.bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+}
+
+header.bar nav {
+  display: flex;
+  gap: 0.5rem 0.9rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+header.bar a {
+  text-decoration: none;
+}
+header.bar a:hover,
+header.bar a[aria-current="page"] {
+  text-decoration: underline 2px;
+}
+header.bar a[aria-current="page"] {
+  font-weight: 600;
+}
+
+main {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.muted,
+.help {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.error {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  background: #fee2e2;
+  color: var(--bad);
+  font-size: 0.9rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0 0;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.cards {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  margin-top: 0.5rem;
+}
+.card {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+.card h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.pill {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  background: var(--page);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+.pill.live {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: inherit;
+}
+button {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
+  cursor: pointer;
+}
+button.quiet {
+  background: none;
+  color: var(--brand);
+  border-color: var(--line);
+}
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.filters {
+  display: flex;
+  gap: 0.6rem;
+  align-items: end;
+  flex-wrap: wrap;
+  margin: 1rem 0 0.5rem;
+}
+.pager {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  padding: 0.6rem 1rem;
+  background: var(--card);
+}
+.skip:focus {
+  left: 0;
+  z-index: 2;
+}
