@@ -11,7 +11,7 @@
  * release that does not match what anybody reviewed.
  *
  *   pnpm release              # the next number for this year
- *   pnpm release 2026.4       # that one
+ *   pnpm release 2026.4.0     # that one
  *   pnpm release --dry-run    # say what would happen, change nothing
  */
 import { execFileSync } from "node:child_process";
@@ -50,29 +50,40 @@ if (local !== remote) {
 /**
  * The next number for this year (ADR 0012: the deployable is CalVer).
  *
- * `YYYY.N`, N counting from 1 within the year, so the first release of 2027 is
- * `2027.1` rather than continuing 2026's count.
+ * `YYYY.N.P` — the year, a release counting from 1 within it, and a patch. The
+ * third number is not decoration: npm rejects anything that is not full semver
+ * (`Invalid version: 2026.1`), and a release that publishes an image and then
+ * fails at the registry is the worst half of a release to have.
+ *
+ * The count restarts each year, so the first release of 2027 is `2027.1.0`
+ * rather than continuing 2026's.
  */
 function nextVersion() {
   const year = new Date().getFullYear();
   const used = git("tag", "--list", `${year}.*`)
     .split("\n")
     .filter(Boolean)
-    .map((tag) => Number(tag.slice(String(year).length + 1)))
+    .map((tag) => Number(tag.split(".")[1]))
     .filter((n) => Number.isInteger(n));
-  return `${year}.${Math.max(0, ...used) + 1}`;
+  return `${year}.${Math.max(0, ...used) + 1}.0`;
 }
 
 const version = explicit ?? nextVersion();
-if (!/^\d{4}\.\d+$/.test(version)) {
-  die(`\`${version}\` is not a CalVer tag.`, "It is YYYY.N with no `v` — 2026.4, not v2026.4 or 1.2.3.");
+if (!/^\d{4}\.\d+\.\d+$/.test(version)) {
+  die(
+    `\`${version}\` is not a CalVer tag.`,
+    "It is YYYY.N.P with no `v` — 2026.4.0, not v2026.4 or 2026.4. npm rejects anything that is not full semver.",
+  );
 }
 if (git("tag", "--list", version) !== "") {
   die(`\`${version}\` already exists.`, "A published version is permanent. Pick the next number.");
 }
 
 console.log(`\x1b[1m${version}\x1b[0m \x1b[2m— ${local.slice(0, 7)} on main\x1b[0m`);
-console.log("\x1b[2m  ghcr.io/forinda/fcms       " + version + ", " + version.split(".")[0] + ", latest\x1b[0m");
+const [year, minor] = version.split(".");
+console.log(
+  `\x1b[2m  ghcr.io/forinda/fcms       ${version}, ${year}.${minor}, ${year}, latest\x1b[0m`,
+);
 console.log("\x1b[2m  @forinda/fcms-core         " + version + "\x1b[0m");
 console.log("\x1b[2m  @forinda/fcms-cli          " + version + "\x1b[0m");
 

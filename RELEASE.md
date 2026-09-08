@@ -3,9 +3,9 @@
 One tag publishes everything.
 
 ```sh
-pnpm release            # the next number for this year
-pnpm release 2026.4     # that one
-pnpm release --dry-run  # say what would happen, change nothing
+pnpm release             # the next number for this year
+pnpm release 2026.4.0    # that one
+pnpm release --dry-run   # say what would happen, change nothing
 ```
 
 `scripts/release.mjs` refuses more than it does, because a published npm
@@ -18,9 +18,9 @@ That runs [`.github/workflows/release.yaml`](.github/workflows/release.yaml):
 
 | Published | Where | Tags |
 |---|---|---|
-| The image | `ghcr.io/forinda/fcms` | `2026.4`, `2026`, `latest`, the commit sha |
-| The server | [`@forinda/fcms-core`](https://www.npmjs.com/package/@forinda/fcms-core) on npm | `2026.4` |
-| The CLI | [`@forinda/fcms-cli`](https://www.npmjs.com/package/@forinda/fcms-cli) on npm | `2026.4` |
+| The image | `ghcr.io/forinda/fcms` | `2026.4.0`, `2026.4`, `2026`, `latest`, the commit sha |
+| The server | [`@forinda/fcms-core`](https://www.npmjs.com/package/@forinda/fcms-core) on npm | `2026.4.0` |
+| The CLI | [`@forinda/fcms-cli`](https://www.npmjs.com/package/@forinda/fcms-cli) on npm | `2026.4.0` |
 
 A merge to `main` republishes the image as `:edge` and **publishes nothing to
 npm** — an npm version is permanent, and `edge` is a moving target.
@@ -28,12 +28,21 @@ npm** — an npm version is permanent, and `edge` is a moving target.
 ## Versions
 
 The server and the CLI carry the same number on purpose: one is the client of
-the other, so `fcms 2026.4` goes with `@forinda/fcms-core 2026.4` and there is no
+the other, so `fcms 2026.4.0` goes with `@forinda/fcms-core 2026.4.0` and there is no
 compatibility table to read.
 
-The number is calendar versioning — `YYYY.N` — and it comes from the tag. CI
-writes it into the manifests at publish time, so releasing needs no version
-commit and `package.json` on `main` is a placeholder.
+The number is calendar versioning — `YYYY.N.P`: the year, a release counting
+from 1 within it, and a patch. The count restarts each January, so the first
+release of 2027 is `2027.1.0`.
+
+The third number is not decoration. npm rejects anything that is not full
+semver, and `npm version 2026.1` fails with `Invalid version: 2026.1` — after
+the image has already been pushed, which is the worst half of a release to
+have.
+
+It comes from the tag. CI writes it into the manifests at publish time, so
+releasing needs no version commit and `package.json` on `main` is a
+placeholder.
 
 The libraries — `@forinda-cms/spec`, `@forinda-cms/lang`, `@forinda-cms/sdk`
 and `@forinda-cms/plugin` — will use semver when they ship, because they are
