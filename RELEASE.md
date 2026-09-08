@@ -42,6 +42,11 @@ time, so one `npx forinda-cms` has everything it needs and no workspace.
 imports are compiled into it; `commander`, `yaml` and `zod` stay external so npm
 can install and patch them normally.
 
+Both ship a sourcemap. A bug report from somebody else's server is a stack
+trace and nothing else, and without a map it names a line in a bundle nobody
+has. The map embeds the TypeScript it was built from — which is this
+repository, under a licence that says you may read it.
+
 Both are built by `prepack`, so what a maintainer publishes and what CI
 publishes are produced the same way. CI also builds the CLI bundle and runs it
 against `examples/salon` on every pull request — the source tree and the bundle

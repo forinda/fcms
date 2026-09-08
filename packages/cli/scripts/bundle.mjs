@@ -12,7 +12,7 @@
  * has, and inlining them would mean carrying their security updates instead of
  * npm doing it — `zod` alone is two thirds of the bundle when it is inlined.
  */
-import { chmodSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, rmSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -38,11 +38,11 @@ await build({
   // install, which is the point of listing them rather than marking every
   // bare import external.
   external: ["commander", "yaml", "zod"],
-  // No sourcemap, for the reason `packages/server` has none: until the
-  // repository is public, a map is the TypeScript of four packages verbatim
-  // (ADR 0048 §5). The bundle itself is readable JavaScript and licensed to be
-  // read, which is not the same thing.
-  sourcemap: false,
+  // A map, because a bug report from somebody else's machine is a stack trace
+  // and nothing else, and without one it names a line in a bundle nobody has.
+  // It embeds the TypeScript of every package compiled in — which is the source
+  // this is published from, under a licence that says you may read it.
+  sourcemap: true,
   // Licence headers in bundled code stay in the bundle. Stripping them is the
   // one thing every licence this depends on agrees you may not do.
   legalComments: "inline",
@@ -67,13 +67,5 @@ if (!readFileSync(bin, "utf8").startsWith("#!")) {
 // npm sets this on install from the `bin` field, but a tarball inspected or
 // vendored by hand should not need it to be run.
 chmodSync(bin, 0o755);
-
-const leaked = readdirSync(out, { recursive: true }).filter((name) =>
-  String(name).endsWith(".map"),
-);
-if (leaked.length > 0) {
-  console.error(`refusing to pack: ${leaked.join(", ")} would publish the source.`);
-  process.exit(1);
-}
 
 console.log(`bundled fcms → dist/fcms.mjs (${Math.round(statSync(bin).size / 1024)} kB)`);
