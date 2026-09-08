@@ -24,10 +24,14 @@ const parts = [
     to: join(out, "dist"),
     what: "the server",
     // The sourcemap beside the bundle embeds `sourcesContent` — every
-    // TypeScript file in this repository, verbatim. Publishing it publishes the
-    // source, which is the one thing this package is deliberately not (ADR
-    // 0047). Stack traces in production lose their original line numbers; that
-    // is the trade, and it is not close.
+    // TypeScript file in this repository, verbatim.
+    //
+    // Kept out until the repository is actually public, not until the licence
+    // says it will be (ADR 0048 §5): the licence is a file in a commit, and
+    // the repository being public is an action in a settings page. Until that
+    // action is taken, a published map is a leak. Once it is taken this
+    // exclusion protects nothing and costs production stack traces their line
+    // numbers, and it comes out.
     skip: (name) => name.endsWith(".map"),
   },
   {

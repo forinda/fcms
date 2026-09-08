@@ -85,3 +85,19 @@ person searches for the symptom, not the fix.
   or read an environment variable.
 - A credential the admin cannot list and revoke is a credential nobody revokes —
   which is why the CLI carries a session rather than an API key.
+
+## Licensing your contribution
+
+This project is dual licensed: AGPL-3.0-or-later to everyone, and commercially
+to anyone who cannot take the AGPL (`LICENSING.md`). That second half only works
+if one party holds the copyright to the whole work, so a pull request needs a
+signed contributor licence agreement before it can be merged — you keep your
+copyright and grant the rights needed to relicense.
+
+It is a real cost and it is stated here rather than sprung on you at review
+time. If it is a dealbreaker, say so in the issue: a bug report with a clear
+reproduction is worth more than a patch nobody can merge.
+
+Contributions to the Apache-2.0 packages — `spec`, `lang`, `sdk`, `plugin` —
+need no agreement. Apache-2.0 already grants what is needed, which is part of
+why the interop surface is licensed that way.

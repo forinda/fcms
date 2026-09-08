@@ -118,3 +118,18 @@ in all three surfaces.
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the workflow, and
 [`.agents/AGENTS.md`](.agents/AGENTS.md) for framework conventions — decorator
 patterns, DI, env wiring, generators, and the gotchas that cost a day each.
+
+## Licence
+
+**AGPL-3.0-or-later** for the product — the engine, the admin, the renderer and
+the `fcms` CLI. Self-host it, modify it, run it for clients. If you run a
+modified version that other people reach over a network, publish your changes.
+
+**Apache-2.0** for the interop surface — `@forinda-cms/spec`,
+`@forinda-cms/lang`, `@forinda-cms/sdk` and `@forinda-cms/plugin`. The file
+format, the client and the plugin API are meant to be copied.
+
+Your specs, content, themes and plugins are yours; nothing here claims them.
+A commercial licence is available for anyone the AGPL does not suit.
+[`LICENSING.md`](LICENSING.md) has the detail, including what the AGPL actually
+asks of you (for most people: nothing).

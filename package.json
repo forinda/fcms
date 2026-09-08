@@ -6,7 +6,7 @@
   "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "pnpm --filter @forinda-cms/engine dev",
-    "build": "pnpm --filter @forinda-cms/admin build && pnpm --filter @forinda-cms/engine build",
+    "build": "pnpm --filter @forinda-cms/admin build && pnpm --filter @forinda-cms/engine build && pnpm --filter @forinda-cms/cli build",
     "start": "pnpm --filter @forinda-cms/engine start",
     "typecheck": "pnpm -r --no-bail run typecheck",
     "test": "pnpm -r --no-bail run test",

@@ -1,0 +1,23 @@
+fcms — the forinda-cms management CLI
+Copyright 2026 Felix Orinda
+
+Licensed under the GNU Affero General Public License, version 3 or later.
+See LICENSE, and LICENSING.md in the repository for why, and for the
+commercial licence available to anyone who cannot take the AGPL.
+
+This package is a bundle. `dist/fcms.mjs` contains, compiled and inlined:
+
+  @forinda-cms/render  the deterministic spec-to-HTML runtime  — AGPL-3.0-or-later
+  @forinda-cms/spec    the spec model, validation and diff     — Apache-2.0
+  @forinda-cms/lang    the YAML surface syntax and printer     — Apache-2.0
+  @forinda-cms/sdk     the HTTP client for a forinda-cms server — Apache-2.0
+
+The bundle as a whole is therefore AGPL-3.0-or-later: it contains the renderer,
+which is part of the product rather than part of the interop surface. The three
+Apache-2.0 packages remain available under Apache-2.0 on their own — the file
+format and the client are meant to be copied, and nothing here restricts that.
+
+Corresponding source for this bundle: https://github.com/forinda/forinda-cms
+
+Third-party dependencies (commander, yaml, zod) are declared in package.json and
+installed from npm under their own licences. They are not bundled here.

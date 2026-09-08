@@ -30,6 +30,7 @@ catalog:
   '@types/supertest': ^7.2.1
   commander: ^15.0.0
   dotenv: ^17.3.1
+  esbuild: ^0.27.0
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   express: ^5.1.0
@@ -75,8 +76,8 @@ allowBuilds:
   '@scarf/scarf': false
   # Native binary download for the SWC compiler. Required by kickjs.
   '@swc/core': true
-  # Native binary download for the esbuild bundler. Required by tsx, which runs
-  # the CLI in development.
+  # Native binary download for the esbuild bundler. Runs the CLI in
+  # development (through tsx) and bundles it for publication.
   esbuild: true
   # Astro's image pipeline. Off: the marketing site ships its own optimised
   # assets, so nothing imports `astro:assets`, and a native binary download for
