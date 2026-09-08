@@ -12,6 +12,7 @@ import { AssistController } from "./assist.controller";
 import { AutomationController } from "./automation.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
+import { IntegrationsController } from "./integrations.controller";
 import { MediaController } from "./media.controller";
 import { TypesController } from "./types.controller";
 
@@ -42,6 +43,7 @@ export const AdminModule = defineModule({
         // Before the content controller, which owns `/automations` itself: the
         // list lives there, one automation lives here.
         { path: "/admin", controller: AutomationController },
+        { path: "/admin", controller: IntegrationsController },
         { path: "/admin", controller: MediaController },
         // Before the content controller, whose `/content/:type` is a different
         // tree: this one is the shape, that one is the rows.

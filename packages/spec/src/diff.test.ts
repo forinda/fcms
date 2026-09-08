@@ -323,3 +323,45 @@ describe("extracting a section into a component", () => {
     expect(changes.map((c) => c.summary)).toEqual(["Adds the Band component."]);
   });
 });
+
+/**
+ * An integration's settings, not only its presence.
+ *
+ * Changing a shortcode or pointing a credential at a different variable used to
+ * produce nothing at all, so history said "No visible change" — which on the
+ * one screen where being sure it saved matters most reads as "it did not".
+ */
+describe("changing an integration", () => {
+  const wired = SiteSpec.parse({
+    ...base,
+    wiring: [
+      { key: "till", kind: "payment.mpesa", label: "M-Pesa", config: { shortcode: "174379" } },
+    ],
+  });
+
+  const changed = (over: Record<string, unknown>) =>
+    diffSpecs(wired, SiteSpec.parse({ ...wired, wiring: [{ ...wired.wiring[0]!, ...over }] })).map(
+      (c) => c.summary,
+    );
+
+  it("says the settings changed, and never what they are", () => {
+    expect(changed({ config: { shortcode: "999999" } })).toEqual(["Changes how M-Pesa is set up."]);
+  });
+
+  it("names the variables, not the credentials", () => {
+    expect(changed({ secrets: { passkey: "secret:MPESA_PASSKEY" } })).toEqual([
+      "Changes which environment variables M-Pesa reads.",
+    ]);
+  });
+
+  it("reports being turned off as what it costs, without the destructive gate", () => {
+    const off = diffSpecs(
+      wired,
+      SiteSpec.parse({ ...wired, wiring: [{ ...wired.wiring[0]!, enabled: false }] }),
+    );
+    // Additive on purpose: turning an integration off is the safe direction,
+    // and a confirmation prompt on it would be a gate in front of the brake.
+    expect(off.map((c) => c.classification)).toEqual(["additive"]);
+    expect(off[0]!.summary).toContain("stops until it is on again");
+  });
+});

@@ -14,6 +14,17 @@ import type { ChargeRequest, ChargeResult, PaymentProvider } from "./provider";
 export const manualProvider: PaymentProvider = {
   kind: "payment.manual",
 
+  settings: {
+    config: [
+      {
+        name: "instruction",
+        label: "What to tell the customer",
+        kind: "text",
+        help: "Shown after they book — “Pay at the salon”, “We will send an invoice”.",
+      },
+    ],
+  },
+
   async charge(request: ChargeRequest): Promise<ChargeResult> {
     const instruction = String(
       request.config["instruction"] ??

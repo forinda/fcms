@@ -47,6 +47,7 @@ export interface PageOptions {
 
 const SECTIONS: readonly { key: string; href: string; label: string }[] = [
   { key: "types", href: "/admin/types", label: "Types" },
+  { key: "integrations", href: "/admin/integrations", label: "Integrations" },
   { key: "media", href: "/admin/media", label: "Media" },
   { key: "assist", href: "/admin/assist", label: "Assistant" },
   { key: "automations", href: "/admin/automations", label: "Automations" },

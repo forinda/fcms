@@ -524,6 +524,32 @@ function diffWiring(before: SiteSpec, after: SiteSpec): SpecChange[] {
           "Anything relying on it stops working.",
         ),
       );
+      continue;
+    }
+
+    // Settings, not only presence. Without this an owner who changes a
+    // shortcode or points a credential at a different variable is told "No
+    // visible change" — which reads as "it did not save", on the one screen
+    // where being sure it saved matters most.
+    const next = a.get(key)!;
+    const name = next.label ?? next.kind;
+    if ((i.enabled === false) !== (next.enabled === false)) {
+      out.push(
+        additive(
+          `/wiring/${key}`,
+          next.enabled === false
+            ? `Turns ${name} off — anything that names it stops until it is on again.`
+            : `Turns ${name} back on.`,
+        ),
+      );
+    }
+    // Never the values: a config holds a shortcode and a sender name, and a
+    // history line is read by more people than the screen that set it.
+    if (!same(i.config ?? {}, next.config ?? {})) {
+      out.push(additive(`/wiring/${key}`, `Changes how ${name} is set up.`));
+    }
+    if (!same(i.secrets ?? {}, next.secrets ?? {})) {
+      out.push(additive(`/wiring/${key}`, `Changes which environment variables ${name} reads.`));
     }
   }
   return out;

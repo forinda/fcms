@@ -68,6 +68,12 @@ The middle pane is not a preview. It is the page, rendered the way a visitor get
 
 </div>
 
+## What your site talks to
+
+Under <em>Integrations</em>: the outside services your site uses — a payment account, a text-message account, somewhere to post to when something happens. Declared once here and named by automations and payments, so the list of places your data can go is a list you can read on one screen.
+
+Each kind asks only for what it actually needs, and says which of them it still has nothing for. Credentials are the exception to "type it in here": a credential field takes the <strong>name</strong> of an environment variable on your server, never the key itself. The key stays on the machine, and your site's files stay safe to print, commit and hand to anyone. The screen will tell you whether the machine currently has a value under that name — which is usually the answer to why a payment will not start.
+
 ## Pictures
 
 <strong>Media</strong> holds everything you have uploaded — pictures and PDFs, up to 10&nbsp;MB each. Upload one, describe it (that description is what a screen reader and a search engine read), and use its <code>asset:…</code> reference in an image or gallery block.
