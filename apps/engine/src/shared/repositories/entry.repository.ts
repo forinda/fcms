@@ -7,10 +7,10 @@
  * cost of not using EAV.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, or, sql } from "drizzle-orm";
 import { DRAFT_KEY, VISITOR_KEY, type Entry } from "@forinda-cms/render";
 
-import { entries, type EntryRow } from "@forinda-cms/db";
+import { dialectOf, entries, type Dialect, type EntryRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 
 import { DB } from "@/shared/db";
@@ -42,7 +42,7 @@ export interface EntryPage {
  * everything. ponytail: `ilike` cannot use the GIN index, which is fine into
  * the tens of thousands of rows and is where a trigram index goes when it isn't.
  */
-function conditions(query: EntryPageQuery) {
+function conditions(query: EntryPageQuery, dialect: Dialect) {
   const out = [];
   if (query.status) out.push(eq(entries.status, query.status));
 
@@ -56,8 +56,13 @@ function conditions(query: EntryPageQuery) {
     );
     out.push(
       or(
-        ilike(sql`coalesce(${entries.slug}, '')`, pattern),
-        ...fields.map((name) => ilike(sql`coalesce(${entries.data} ->> ${name}, '')`, pattern)),
+        dialect.likeInsensitive(sql`coalesce(${entries.slug}, '')`, pattern),
+        ...fields.map((name) =>
+          dialect.likeInsensitive(
+            sql`coalesce(${dialect.jsonText(entries.data, name)}, '')`,
+            pattern,
+          ),
+        ),
       ),
     );
   }
@@ -71,14 +76,18 @@ function conditions(query: EntryPageQuery) {
  * disagree — and newest-first is the one an owner wants: the booking that just
  * arrived is the row they came to see.
  */
-function ordering(query: EntryPageQuery) {
+function ordering(query: EntryPageQuery, dialect: Dialect) {
   switch (query.sort) {
     case "oldest":
       return [asc(entries.createdAt), asc(entries.id)];
     case "updated":
       return [desc(entries.updatedAt), desc(entries.id)];
     case "title":
-      return [asc(sql`lower(coalesce(${entries.data} ->> ${query.titleField ?? "title"}, ''))`)];
+      return [
+        asc(
+          sql`lower(coalesce(${dialect.jsonText(entries.data, query.titleField ?? "title")}, ''))`,
+        ),
+      ];
     default:
       return [desc(entries.createdAt), desc(entries.id)];
   }
@@ -118,14 +127,15 @@ export class EntryRepository {
    * actually wants — a page of rows, a total, and a way to find one.
    */
   async pageOfType(typeKey: string, query: EntryPageQuery): Promise<EntryPage> {
-    const where = and(this.scoped, eq(entries.typeKey, typeKey), ...conditions(query));
+    const dialect = dialectOf(this.db);
+    const where = and(this.scoped, eq(entries.typeKey, typeKey), ...conditions(query, dialect));
 
     const [rows, [counted]] = await Promise.all([
       this.db
         .select()
         .from(entries)
         .where(where)
-        .orderBy(...ordering(query))
+        .orderBy(...ordering(query, dialect))
         .limit(query.limit)
         .offset(query.offset),
       this.db

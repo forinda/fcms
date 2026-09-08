@@ -9,6 +9,31 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 import * as schema from "./schema/index.js";
+import { dialectFor, type Dialect } from "./dialect.js";
+
+/**
+ * Which dialect a connection speaks, remembered rather than asked for.
+ *
+ * A repository has a `Db` and needs to know how to reach inside a JSON column;
+ * it should not also have to be told which database it is talking to, because
+ * that is a second thing to wire and a second thing to get wrong. The
+ * connection already knows — it was made from a URL — so the answer is looked
+ * up from the connection.
+ *
+ * A `WeakMap` and not a module variable: two sites on one instance may speak to
+ * two different databases, and a global would give the second one the first
+ * one's dialect.
+ */
+const dialects = new WeakMap<object, Dialect>();
+
+/** How to reach inside JSON, match without case, and ask the clock, for this connection. */
+export function dialectOf(db: object): Dialect {
+  const dialect = dialects.get(db);
+  if (!dialect) {
+    throw new Error("this connection was not made by `createDb` — no dialect is known for it.");
+  }
+  return dialect;
+}
 
 /**
  * The pool, and how many holders it has.
@@ -41,7 +66,9 @@ function poolFor(url: string): postgres.Sql {
 }
 
 export function createDb(url: string) {
-  return drizzle(poolFor(url), { schema, casing: "snake_case" });
+  const db = drizzle(poolFor(url), { schema, casing: "snake_case" });
+  dialects.set(db, dialectFor(url));
+  return db;
 }
 
 /**

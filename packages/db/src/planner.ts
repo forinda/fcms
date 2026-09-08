@@ -31,6 +31,7 @@ import { sql } from "drizzle-orm";
 import type { Executor } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
+import type { DialectName } from "./dialect.js";
 import type { Classification } from "@forinda-cms/spec";
 
 export interface MigrationStep {
@@ -65,13 +66,26 @@ export function indexName(siteId: string, typeKey: string, fieldName: string): s
 /**
  * How a field's JSON value is read for indexing.
  *
- * `->>` always yields text, so anything ordered needs a cast or `10` sorts
- * before `9`. A field whose values will not reliably cast is left as text
- * rather than risking an index build that fails on one bad row.
+ * Text unless ordering needs otherwise: an untyped read yields text, so a
+ * number left as text sorts `10` before `9`. A field whose values will not
+ * reliably convert is left as text rather than risking an index build that
+ * fails on one bad row.
+ *
+ * DDL, not a query — this is a string spliced into `create index`, so it does
+ * not go through `dialect.ts`, which builds parameterised `SQL`. The two are
+ * kept beside each other in the same switch so a dialect that changes one
+ * cannot silently keep the other.
  */
-function indexExpression(field: Field): string {
+function indexExpression(field: Field, dialect: DialectName = "postgres"): string {
   const name = assertSafe(field.name, "field name");
-  const json = `(data ->> '${name}')`;
+  const json = dialect === "sqlite" ? `json_extract(data, '$.${name}')` : `(data ->> '${name}')`;
+
+  if (dialect === "sqlite") {
+    // SQLite has no types to cast to: a column's affinity does the work, and
+    // `+ 0` is how an expression asks for numeric ordering.
+    return field.type === "number" ? `(${json} + 0)` : json;
+  }
+
   switch (field.type) {
     case "number":
       return `(${json})::numeric`;

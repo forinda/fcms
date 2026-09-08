@@ -24,5 +24,32 @@
     "unicorn/no-array-sort": "off",
     "unicorn/consistent-function-scoping": "off",
     "typescript/no-explicit-any": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "apps/**/*.ts",
+        "packages/!(db)/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "drizzle-orm/pg-core",
+                  "drizzle-orm/sqlite-core",
+                  "drizzle-orm/postgres-js",
+                  "postgres",
+                  "better-sqlite3"
+                ],
+                "message": "Only `packages/db` may name a database dialect (ADR 0049). Use the Drizzle query builder and the helpers from `dialectOf(db)`."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

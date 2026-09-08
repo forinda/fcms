@@ -10,6 +10,7 @@
  */
 export * from "./schema/index.js";
 export * from "./client.js";
+export * from "./dialect.js";
 export * from "./scope.js";
 export * from "./planner.js";
 export * from "./migrate.js";

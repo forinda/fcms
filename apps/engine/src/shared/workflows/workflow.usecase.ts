@@ -10,7 +10,13 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { and, eq, lte, sql } from "drizzle-orm";
 import { matches, resolve } from "@forinda-cms/render";
 import type { SiteSpec, Workflow } from "@forinda-cms/spec";
-import { entries, workflowRuns, type EntryRow, type WorkflowRunRow } from "@forinda-cms/db";
+import {
+  dialectOf,
+  entries,
+  workflowRuns,
+  type EntryRow,
+  type WorkflowRunRow,
+} from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 
 import { DB } from "@/shared/db";
@@ -177,6 +183,7 @@ export class WorkflowUseCase {
    * different rows rather than the same one twice, and neither waits.
    */
   async runDue(spec: SiteSpec, limit = 10): Promise<WorkflowRunRow[]> {
+    const dialect = dialectOf(this.db);
     const claimed = await this.db.transaction(async (tx) => {
       const due = await tx
         .select({ id: workflowRuns.id })
@@ -191,11 +198,13 @@ export class WorkflowUseCase {
             // database a few milliseconds ahead makes a row that was just
             // enqueued invisible. It passed locally, where both clocks are the
             // same one, and failed in CI, where they are not.
-            lte(workflowRuns.runAt, sql`now()`),
+            lte(workflowRuns.runAt, dialect.now()),
           ),
         )
         .orderBy(workflowRuns.runAt)
         .limit(limit)
+        // The lock is what makes the table a queue where there is more than one
+        // writer, and nothing where there cannot be — see `claimLock`.
         .for("update", { skipLocked: true });
 
       if (due.length === 0) return [];
@@ -326,7 +335,7 @@ export class WorkflowUseCase {
         // Also the database's clock, for the same reason the claim uses it:
         // one clock decides when a run is due, and it is the one that stamped
         // the row.
-        runAt: sql`now() + make_interval(secs => ${wait})`,
+        runAt: dialectOf(this.db).after(wait),
         updatedAt: new Date(),
       })
       .where(eq(workflowRuns.id, run.id))
@@ -362,7 +371,9 @@ export class WorkflowUseCase {
    * meaningful: every instance naming the same minute the same way.
    */
   private async databaseNow(): Promise<Date> {
-    const [row] = await this.db.execute<{ now: Date }>(sql`select now() as now`);
+    const [row] = await this.db.execute<{ now: Date }>(
+      sql`select ${dialectOf(this.db).now()} as now`,
+    );
     return row?.now ? new Date(row.now) : new Date();
   }
 
@@ -389,7 +400,7 @@ export class WorkflowUseCase {
       .set({
         // The path is `text[]`, and a bound string is not one — without the cast
         // this ran, reported success and changed nothing.
-        data: sql`jsonb_set(${entries.data}, ${`{${field}}`}::text[], ${JSON.stringify(to)}::jsonb, true)`,
+        data: dialectOf(this.db).jsonSet(entries.data, field, to),
         updatedAt: new Date(),
       })
       .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, entryId)));
