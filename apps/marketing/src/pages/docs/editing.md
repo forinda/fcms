@@ -72,6 +72,14 @@ Deleting one is asked about twice, and the warning is specific: <em>"Anyone with
 
 Beside each colour it says what would be affected: how many places use it, or that the site's own styles do. You can only remove one that nothing is using, which is why that button is sometimes greyed out.
 
+## Journeys
+
+Some pages ask somebody to go through several steps — choose a service, choose who does it, pick a time, then confirm. That is a <em>journey</em>, and each page's <em>Journeys</em> link is where you build one: the steps on the left, and what each step asks on the right.
+
+Starting one takes two answers: what it ends up creating (a booking, an enquiry) and what the customer chooses first. Each step's answer is kept until they finish, so the last step writes a single entry with all of it.
+
+A step's choice has to land on a field of the thing being created — a stylist step fills the booking's stylist. If there is no such field you are told so rather than ending up with a journey that finishes and saves blanks.
+
 ## Pages — the canvas
 
 Pages are edited on a canvas, not in a form. Open one and you get three panes: the structure on the left, <strong>your actual page</strong> in the middle, and the settings for whatever you have selected on the right.

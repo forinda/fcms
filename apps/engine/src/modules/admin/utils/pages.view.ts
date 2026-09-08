@@ -28,6 +28,9 @@ export function pageList({ spec, error }: PageListOptions): string {
   <td class="muted">${p.blocks.length} ${p.blocks.length === 1 ? "section" : "sections"}</td>
   <td><a href="/admin/pages/${esc(p.key)}">Edit</a> <span class="sep">·</span>
       <a href="/admin/pages/${esc(p.key)}/settings">Settings</a> <span class="sep">·</span>
+      <a href="/admin/pages/${esc(p.key)}/flows">Journeys${
+        p.flows?.length ? ` (${p.flows.length})` : ""
+      }</a> <span class="sep">·</span>
       <a href="${esc(p.path)}">View</a></td>
 </tr>`;
 
