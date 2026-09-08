@@ -37,8 +37,8 @@ those cases, in exchange for money rather than reciprocity.
 Ask: <forinda82@gmail.com>.
 
 This is possible only because one party holds the copyright to the whole work,
-which is why contributions need a CLA before they can be merged (see
-`CONTRIBUTING.md`). It is the price of dual licensing, and it is worth saying
+which is why contributions to the AGPL half need a CLA before they can be
+merged (see [`CONTRIBUTING.md`](CONTRIBUTING.md)). It is the price of dual licensing, and it is worth saying
 out loud rather than surprising a contributor with it.
 
 ## Not legal advice

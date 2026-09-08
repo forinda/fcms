@@ -13,7 +13,7 @@
  * `where` (§1).
  *
  * The pressure to accept the second form will be constant. Accepting it ends
- * round-tripping and therefore the projection model (research/11 §1).
+ * round-tripping and therefore the projection model.
  */
 import { z } from "zod";
 

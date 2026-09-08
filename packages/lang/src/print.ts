@@ -168,7 +168,7 @@ export function printSpec(value: unknown): string {
  * property is the whole point of having a canonical printer.
  *
  * Comments do not survive. ADR 0006 accepts that — meaning round-trips,
- * formatting and comments do not — and research/11 recommends storing an
+ * formatting and comments do not — so the mitigation is to store an
  * author's "why is this here" note as a spec field instead of a comment.
  *
  * Returns diagnostics rather than throwing when the source does not parse, so a

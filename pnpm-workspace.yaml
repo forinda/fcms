@@ -1,6 +1,6 @@
 # `apps/*` are the deployables, `packages/*` the libraries they share. The engine
 # moved out of the repo root when the marketing site arrived to sit beside it,
-# which is the condition research/09-packaging.md set for the move.
+# which was the condition set for the move.
 packages:
   - 'apps/*'
   - 'packages/*'

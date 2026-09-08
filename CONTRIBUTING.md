@@ -8,18 +8,18 @@ How work lands in this repo. Framework conventions are not repeated here —
 
 ## The workflow
 
-1. **Read the decision first.** Anything structural has an ADR in
-   [`docs/decisions/`](docs/decisions/). If your change contradicts one, the
-   change is not wrong — the ADR needs superseding, in the same PR, with the
-   reason. Records are amended and superseded, never quietly edited once code
-   depends on them.
+1. **Say why, before what.** Anything structural was decided for a reason, and
+   the reason is in the docstring at the top of the file you are changing. If
+   your change contradicts one, the change is not wrong — say so in the PR and
+   update the docstring in the same commit. Open an issue first for anything
+   large; it saves you writing a patch the design cannot take.
 2. **Branch, then PR.** `main` is protected by CI. A PR body says what changed
    and *why the alternative was worse*; the diff already says what.
 3. **Green before review.** `pnpm verify` — typecheck, lint, format, schema
    check, every suite. It is exactly what CI runs.
 4. **Small and whole.** One change per PR, including its tests and the docstring
-   that explains it. A PR that adds a use-case and leaves the ADR stale is two
-   PRs, one of which never gets written.
+   that explains it. A PR that adds a use-case and leaves its docstring stale is
+   two PRs, one of which never gets written.
 
 ## Where code goes
 

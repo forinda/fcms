@@ -22,3 +22,15 @@ apps/marketing/public/install/
 # built output, never edited by hand (ADR 0046).
 packages/server/app/
 packages/server/migrations/
+
+# Working notes, kept out of the public repository on purpose (they stay on
+# disk, they are just not published). `docs/decisions/` is the reasoning behind
+# the design and `research/` is what that reasoning argues from — a reader wants
+# the product and the code, not the thinking that got here. `FINDINGS.md` beside
+# an example is the same thing: a review of what the reference site exposed.
+#
+# The code still cites them ("ADR 0009 §3"), because a comment that says *why*
+# is worth more than a link that resolves.
+docs/
+research/
+examples/*/FINDINGS.md
