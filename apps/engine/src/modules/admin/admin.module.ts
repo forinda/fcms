@@ -14,6 +14,7 @@ import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
 import { IntegrationsController } from "./integrations.controller";
 import { MediaController } from "./media.controller";
+import { SettingsController } from "./settings.controller";
 import { TypesController } from "./types.controller";
 
 // Eagerly import every file in the module so decorators run and register in
@@ -39,6 +40,9 @@ export const AdminModule = defineModule({
         // swallow nothing here, but the canvas's `/pages/:key` is the more
         // specific route and reads better first.
         { path: "/admin", controller: AssistController },
+        // Before the canvas: its `/pages/:key` would otherwise swallow
+        // `/pages` and `/pages/:key/settings`, which are this controller's.
+        { path: "/admin", controller: SettingsController },
         { path: "/admin", controller: CanvasController },
         // Before the content controller, which owns `/automations` itself: the
         // list lives there, one automation lives here.
