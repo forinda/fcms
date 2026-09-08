@@ -17,6 +17,7 @@ const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
 
 const ORG = "org_people";
+const OTHER_ORG = "org_people_other";
 
 suite("people", () => {
   let staff: PeopleUseCase;
@@ -30,7 +31,9 @@ suite("people", () => {
     // `owners_email` is unique across the whole install, not per organization,
     // so this suite keeps to its own domain and clears anything of its own a
     // previous run left behind.
-    for (const row of await owners.list(ORG)) await owners.remove(row.id);
+    for (const row of await owners.list(ORG)) await owners.remove(ORG, row.id);
+    for (const row of await owners.list(OTHER_ORG)) await owners.remove(OTHER_ORG, row.id);
+    await db.delete(organizations).where(eq(organizations.id, OTHER_ORG));
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "People org" });
 
@@ -146,6 +149,37 @@ suite("people", () => {
       ok: false,
       error: "This is the last owner, so its role cannot change.",
     });
+  });
+
+  it("cannot reach an account in another organization", async () => {
+    // Today an install has one organization, so this is unreachable — and
+    // ADR 0008 exists because that stops being true. An id out of a URL must
+    // not be able to demote or delete somebody in a different one, and the
+    // answer has to be the one an unknown id gets, or the difference between
+    // "not yours" and "does not exist" is itself an answer.
+    await db.insert(organizations).values({ id: OTHER_ORG, name: "Somebody else" });
+    const stranger = await owners.create({
+      orgId: OTHER_ORG,
+      email: "stranger@people.test",
+      passwordHash: "not-a-real-hash",
+      role: "owner",
+    });
+
+    expect(await staff.setRole(asOwner(), stranger.id, "viewer")).toEqual({
+      ok: false,
+      error: "That account no longer exists.",
+    });
+    expect(await staff.remove(asOwner(), stranger.id)).toEqual({
+      ok: false,
+      error: "That account is already gone.",
+    });
+
+    // And the row is untouched, not merely reported as missing.
+    const after = await owners.findById(OTHER_ORG, stranger.id);
+    expect(after?.role).toBe("owner");
+
+    await owners.remove(OTHER_ORG, stranger.id);
+    await db.delete(organizations).where(eq(organizations.id, OTHER_ORG));
   });
 
   it("treats an unknown role as the least there is", async () => {

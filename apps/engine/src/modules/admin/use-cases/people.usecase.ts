@@ -10,6 +10,11 @@
  * and hands it over, which is what happens in a salon anyway. What it does have
  * is the two refusals that matter: nobody can promote themselves, and the last
  * owner cannot be removed or demoted.
+ *
+ * Every lookup here is scoped to the actor's own organization. A single-site
+ * install has one, so today it changes nothing — and ADR 0008 exists because
+ * that stops being true (an agency, an owner with two shops), at which point an
+ * id out of a URL would otherwise reach an account in somebody else's.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 
@@ -82,7 +87,7 @@ export class PeopleUseCase {
     const refused = this.mayManage(input);
     if (refused) return refused;
 
-    const person = await this.owners.findById(id);
+    const person = await this.owners.findById(input.actor.orgId, id);
     if (!person) return { ok: false, error: "That account no longer exists." };
 
     // Nobody changes their own role. An owner who demotes themselves by
@@ -94,7 +99,7 @@ export class PeopleUseCase {
       return { ok: false, error: "This is the last owner, so its role cannot change." };
     }
 
-    await this.owners.setRole(id, roleOf(role));
+    await this.owners.setRole(input.actor.orgId, id, roleOf(role));
     return { ok: true };
   }
 
@@ -102,7 +107,7 @@ export class PeopleUseCase {
     const refused = this.mayManage(input);
     if (refused) return refused;
 
-    const person = await this.owners.findById(id);
+    const person = await this.owners.findById(input.actor.orgId, id);
     if (!person) return { ok: false, error: "That account is already gone." };
     if (person.id === input.actor.id) {
       return { ok: false, error: "You cannot remove your own account." };
@@ -111,7 +116,7 @@ export class PeopleUseCase {
       return { ok: false, error: "This is the last owner. Make somebody else an owner first." };
     }
 
-    await this.owners.remove(id);
+    await this.owners.remove(input.actor.orgId, id);
     return { ok: true };
   }
 

@@ -62,18 +62,31 @@ export class OwnerRepository {
       .orderBy(asc(owners.createdAt));
   }
 
-  async findById(id: string): Promise<OwnerRow | null> {
+  /**
+   * One account, within one organization.
+   *
+   * `orgId` is not optional and not a filter applied afterwards: every id here
+   * arrives from a URL, and an account is only ever managed by somebody in the
+   * same organization. Looking one up unscoped and checking the org later is
+   * the shape that becomes a cross-tenant hole the first time a caller forgets
+   * the second half.
+   */
+  async findById(orgId: string, id: string): Promise<OwnerRow | null> {
     if (!UUID.test(id)) return null;
-    const [row] = await this.db.select().from(owners).where(eq(owners.id, id)).limit(1);
+    const [row] = await this.db
+      .select()
+      .from(owners)
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .limit(1);
     return row ?? null;
   }
 
-  async setRole(id: string, role: string): Promise<boolean> {
+  async setRole(orgId: string, id: string, role: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
     const rows = await this.db
       .update(owners)
       .set({ role })
-      .where(eq(owners.id, id))
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
       .returning({ id: owners.id });
     return rows.length > 0;
   }
@@ -84,9 +97,12 @@ export class OwnerRepository {
    * Their sessions go with them by the foreign key's cascade — an account that
    * is gone but whose browser still works is not gone.
    */
-  async remove(id: string): Promise<boolean> {
+  async remove(orgId: string, id: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
-    const rows = await this.db.delete(owners).where(eq(owners.id, id)).returning({ id: owners.id });
+    const rows = await this.db
+      .delete(owners)
+      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
+      .returning({ id: owners.id });
     return rows.length > 0;
   }
 
