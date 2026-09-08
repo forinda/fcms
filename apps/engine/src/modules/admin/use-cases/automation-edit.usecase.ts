@@ -10,10 +10,13 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { SiteSpec, type Workflow } from "@forinda-cms/spec";
 
 import { ACTION_REGISTRY, type ActionParam } from "@/shared/workflows/actions";
+import type { Role } from "@/shared/roles";
 import { ApplySpecUseCase } from "./apply-spec.usecase";
 
 export interface EditInput {
   readonly actor: string;
+  /** What this person may propose — checked once, at the apply (ADR 0041). */
+  readonly role: Role;
 }
 
 export type EditResult = { ok: true; seq: number } | { ok: false; error: string };
@@ -177,6 +180,7 @@ export class AutomationEditUseCase {
     try {
       const { seq } = await this.applySpec.execute(validated.data, {
         actor: input.actor,
+        role: input.role,
         source: "automations",
         // Deleting an automation is a change an owner made by pressing delete;
         // the gate still refuses anything else destructive in the same apply.

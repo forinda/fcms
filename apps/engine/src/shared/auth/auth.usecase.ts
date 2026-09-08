@@ -146,7 +146,7 @@ export class AuthenticateUseCase {
     // Recorded here because this is the one place every authenticated request
     // passes through. Throttled inside the repository — the value is "was this
     // session used recently", not a precise timestamp.
-    await this.owners.touchSession(found.session.id, found.session.lastUsedAt);
+    await this.owners.touchSession(found.session.id, found.owner.id, found.session.lastUsedAt);
     return found.owner;
   }
 }

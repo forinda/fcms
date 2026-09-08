@@ -73,6 +73,7 @@ await db
 const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE });
 const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
+  role: "owner",
   source: "cli",
   allowDestructive: true,
 });

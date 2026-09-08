@@ -6,6 +6,8 @@
  * and its POST (ADR 0008 §4).
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { roleOf, type Role } from "@/shared/roles";
 import {
   InvalidCredentialsError,
   LoginUseCase,
@@ -98,6 +100,7 @@ export class AdminController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Sessions",
         trail: [{ label: "Sessions" }],
         body: sessionsView(await this.sessions.list(owner.id, token)),
@@ -131,3 +134,6 @@ export class AdminController {
     return readCookie(firstHeader(headers["cookie"]) ?? undefined, SESSION_COOKIE);
   }
 }
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

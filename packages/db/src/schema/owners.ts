@@ -22,6 +22,20 @@ export const owners = pgTable(
     /** argon2id. Never a password, never a reversible encoding of one. */
     passwordHash: text().notNull(),
     name: text(),
+    /**
+     * What this person may do (ADR 0008 §2, ADR 0041).
+     *
+     * `owner` is the account the install created and the only one that can add
+     * or remove people. The rest are ADR 0008's site roles, stored as text
+     * rather than a Postgres enum so adding one is a deploy rather than a
+     * migration with a lock on it.
+     *
+     * Defaulted to `owner` so the account that existed before this column did
+     * keeps everything it had — a migration that quietly demotes the only
+     * person who can sign in is a migration that locks somebody out of their
+     * own site.
+     */
+    role: text().notNull().default("owner"),
     createdAt: createdAt(),
     lastSeenAt: timestamp({ withTimezone: true }),
   },

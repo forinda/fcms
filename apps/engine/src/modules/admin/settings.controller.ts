@@ -8,6 +8,7 @@
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
 import { SiteSpecUseCase } from "@/shared/use-cases";
+import { roleOf, type Role } from "@/shared/roles";
 import { PageManageUseCase, type EditResult as PageResult } from "./use-cases/page-manage.usecase";
 import { SiteEditUseCase, tokenUsage, type TokenGroup } from "./use-cases/site-edit.usecase";
 import { html, noSiteYet, notFound, redirect } from "./utils/http";
@@ -41,6 +42,7 @@ export class SettingsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Settings",
         trail: [{ label: "Settings" }],
         section: "settings",
@@ -77,7 +79,7 @@ export class SettingsController {
         },
         tokens,
       },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     redirect(ctx, result.ok ? "/admin/settings" : withError("/admin/settings", result));
@@ -91,7 +93,7 @@ export class SettingsController {
 
     const body = form(ctx);
     const [op, group, name] = str(body["op"]).split(":");
-    const input = { actor: actor(ctx) };
+    const input = { actor: actor(ctx), role: role(ctx) };
 
     const result =
       op === "add"
@@ -118,6 +120,7 @@ export class SettingsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Pages",
         trail: [{ label: "Pages" }],
         section: "pages",
@@ -135,6 +138,7 @@ export class SettingsController {
     const key = str(body["key"]).trim();
     const result = await this.pages.create(spec, key, str(body["title"]), str(body["path"]), {
       actor: actor(ctx),
+      role: role(ctx),
     });
 
     // Straight to the canvas: a page that starts empty is not finished until
@@ -156,6 +160,7 @@ export class SettingsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${found.title} — page`,
         trail: [{ label: "Pages", href: "/admin/pages" }, { label: found.title }],
         section: "pages",
@@ -189,7 +194,7 @@ export class SettingsController {
         noindex: str(body["noindex"]) === "on",
         bare: str(body["bare"]) === "on",
       },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     this.backToPage(ctx, key, result);
@@ -205,6 +210,7 @@ export class SettingsController {
     // rendered with the button that goes ahead (ADR 0033 §5).
     const result = await this.pages.remove(spec, key, {
       actor: actor(ctx),
+      role: role(ctx),
       allowDestructive: str(form(ctx)["confirm"]) === "yes",
     });
 
@@ -223,6 +229,8 @@ export class SettingsController {
 
 const keyOf = (ctx: Ctx): string => String((ctx.params as Record<string, string>)["key"] ?? "");
 const actor = (ctx: Ctx): string => ctx.require("actor").email;
+/** The role on the session, never a role a request can claim for itself. */
+const role = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);
 const form = (ctx: Ctx): Record<string, unknown> => (ctx.body ?? {}) as Record<string, unknown>;
 const error = (ctx: Ctx): string | undefined => {
   const asked = (ctx.query as Record<string, unknown>)["error"];
@@ -235,3 +243,6 @@ const withError = (at: string, result: { ok: boolean; error?: string }): string 
 /** The last value wins, which is how a checkbox's hidden `off` pair is read. */
 const str = (value: unknown): string =>
   typeof value === "string" ? value : Array.isArray(value) ? str(value[value.length - 1]) : "";
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

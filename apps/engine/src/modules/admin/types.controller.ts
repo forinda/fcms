@@ -7,6 +7,8 @@
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
+import { roleOf, type Role } from "@/shared/roles";
+
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { TypeEditUseCase, type EditResult } from "./use-cases/type-edit.usecase";
 import { html, noSiteYet, notFound, redirect } from "./utils/http";
@@ -28,6 +30,7 @@ export class TypesController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Content types",
         trail: [{ label: "Content types" }],
         section: "types",
@@ -50,6 +53,7 @@ export class TypesController {
       str(body["labelPlural"]),
       {
         actor: actor(ctx),
+        role: role(ctx),
       },
     );
 
@@ -75,6 +79,7 @@ export class TypesController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${type.label} — content type`,
         trail: [{ label: "Content types", href: "/admin/types" }, { label: type.label }],
         section: "types",
@@ -111,7 +116,7 @@ export class TypesController {
         submissions:
           submissions === "visitors" || submissions === "anyone" ? submissions : undefined,
       },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     this.back(ctx, key, result);
@@ -126,7 +131,7 @@ export class TypesController {
 
     const body = form(ctx);
     const [op, argument] = str(body["op"]).split(":");
-    const input = { actor: actor(ctx) };
+    const input = { actor: actor(ctx), role: role(ctx) };
 
     const result = await (async (): Promise<EditResult> => {
       switch (op) {
@@ -196,7 +201,7 @@ export class TypesController {
         initial: str(body["initial"]),
         transitions: str(body["transitions"]),
       },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     this.back(ctx, key, result, name);
@@ -210,6 +215,7 @@ export class TypesController {
 
     const result = await this.edits.remove(spec, key, {
       actor: actor(ctx),
+      role: role(ctx),
       allowDestructive: str(form(ctx)["confirm"]) === "type",
     });
 
@@ -240,6 +246,8 @@ export class TypesController {
 
 const keyOf = (ctx: Ctx): string => String((ctx.params as Record<string, string>)["key"] ?? "");
 const actor = (ctx: Ctx): string => ctx.require("actor").email;
+/** The role on the session, never a role a request can claim for itself. */
+const role = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);
 const form = (ctx: Ctx): Record<string, unknown> => (ctx.body ?? {}) as Record<string, unknown>;
 const error = (ctx: Ctx): string | undefined => {
   const asked = (ctx.query as Record<string, unknown>)["error"];
@@ -265,3 +273,6 @@ const optionalNumber = (value: unknown): number | undefined => {
  * value the answer: `off` alone when it is clear, `off,on` when it is ticked.
  */
 const flag = (value: unknown): boolean => str(value) === "on";
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

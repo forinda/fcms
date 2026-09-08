@@ -33,7 +33,7 @@ const db = url ? createDb(url) : (undefined as never);
 const ORG = "org_starters";
 const SITE = "site_starters";
 const scope = { orgId: ORG, siteId: SITE };
-const ACTOR = { actor: "owner@example.test" };
+const ACTOR = { actor: "owner@example.test", role: "owner" as const };
 
 suite("applying a starter", () => {
   beforeEach(async () => {

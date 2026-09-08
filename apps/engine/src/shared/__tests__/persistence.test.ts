@@ -124,7 +124,7 @@ suite("the persistence layer", () => {
 
   describe("the patch spine (doc 03)", () => {
     it("stores a spec and reads it back parsed, not cast", async () => {
-      await repo().apply.execute(spec, { actor: "test", source: "cli" });
+      await repo().apply.execute(spec, { actor: "test", role: "owner" as const, source: "cli" });
       const loaded = await repo().specs.find();
       // Parsed on the way out, so a document written by an older version cannot
       // reach the renderer unvalidated.
@@ -132,7 +132,7 @@ suite("the persistence layer", () => {
     });
 
     it("records an inverse for every change, never null", async () => {
-      await repo().apply.execute(spec, { actor: "test", source: "cli" });
+      await repo().apply.execute(spec, { actor: "test", role: "owner" as const, source: "cli" });
       const [patch] = await db.select().from(specPatches).where(eq(specPatches.siteId, SITE));
       expect(patch!.inverse).toBeTruthy();
       // Doc 13's argument that a non-developer can review rests on a wrong "yes"
@@ -141,16 +141,22 @@ suite("the persistence layer", () => {
     });
 
     it("numbers patches per site, monotonically", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
-      await repo().apply.execute({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
+      await repo().apply.execute(
+        { ...spec, name: "Renamed" },
+        { actor: "b", role: "owner" as const, source: "chat" },
+      );
       const history = await repo().history.execute();
       expect(history.map((h) => h.seq)).toEqual([2, 1]);
       expect(history[0]!.source).toBe("chat");
     });
 
     it("undoes the last change and leaves the history intact", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
-      await repo().apply.execute({ ...spec, name: "Renamed" }, { actor: "b", source: "chat" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
+      await repo().apply.execute(
+        { ...spec, name: "Renamed" },
+        { actor: "b", role: "owner" as const, source: "chat" },
+      );
       expect((await repo().specs.find())!.name).toBe("Renamed");
 
       const undone = await repo().undo.execute();
@@ -164,7 +170,7 @@ suite("the persistence layer", () => {
     });
 
     it("undoes back to nothing when the first patch is reverted", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       await repo().undo.execute();
       expect(await repo().specs.find()).toBeNull();
     });
@@ -172,16 +178,16 @@ suite("the persistence layer", () => {
 
   describe("the destructive gate", () => {
     it("refuses a destructive change by default", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       // Refusing unless asked is what makes the gate real rather than advisory.
       await expect(
-        repo().apply.execute(withoutBlurb, { actor: "a", source: "chat" }),
+        repo().apply.execute(withoutBlurb, { actor: "a", role: "owner" as const, source: "chat" }),
       ).rejects.toBeInstanceOf(DestructiveChangeError);
       expect((await repo().specs.find())!.content[0]!.fields.length).toBe(3);
     });
 
     it("names what would be lost, and how much", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       await db.insert(entries).values([
         {
           siteId: SITE,
@@ -202,14 +208,15 @@ suite("the persistence layer", () => {
       ]);
 
       await expect(
-        repo().apply.execute(withoutBlurb, { actor: "a", source: "chat" }),
+        repo().apply.execute(withoutBlurb, { actor: "a", role: "owner" as const, source: "chat" }),
       ).rejects.toThrow(/2 existing services/);
     });
 
     it("applies when the caller says so", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const { changes } = await repo().apply.execute(withoutBlurb, {
         actor: "a",
+        role: "owner" as const,
         source: "cli",
         allowDestructive: true,
       });
@@ -218,9 +225,10 @@ suite("the persistence layer", () => {
     });
 
     it("marks the stored patch destructive so history reads honestly", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       await repo().apply.execute(withoutBlurb, {
         actor: "a",
+        role: "owner" as const,
         source: "cli",
         allowDestructive: true,
       });
@@ -230,7 +238,7 @@ suite("the persistence layer", () => {
 
   describe("scoping (ADR 0002 seam 1)", () => {
     it("never reads another site's spec", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const other = of(OTHER_SITE);
       expect(await other.specs.find()).toBeNull();
     });
@@ -259,7 +267,7 @@ suite("the persistence layer", () => {
     });
 
     it("never reads another org's data even at the same site id", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const wrongOrg = of(SITE, "org_other");
       expect(await wrongOrg.specs.find()).toBeNull();
     });
@@ -267,7 +275,7 @@ suite("the persistence layer", () => {
 
   describe("the EntrySource seam pays off (ADR 0007)", () => {
     it("renders a page from database rows with an unchanged renderer", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       await db.insert(entries).values([
         {
           siteId: SITE,
@@ -299,7 +307,7 @@ suite("the persistence layer", () => {
     });
 
     it("refuses a slug another entry already uses, as a field error", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const writer = repo().writer;
 
       expect((await writer.create(spec, entry("cut"))).ok).toBe(true);
@@ -313,7 +321,7 @@ suite("the persistence layer", () => {
     });
 
     it("refuses the same on update, not only on create", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const writer = repo().writer;
 
       await writer.create(spec, entry("cut"));
@@ -335,7 +343,7 @@ suite("the persistence layer", () => {
     });
 
     it("keeps a draft off the public site", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const created = await repo().writer.create(spec, entry("cut"));
       expect(created.ok).toBe(true);
 
@@ -346,7 +354,7 @@ suite("the persistence layer", () => {
     });
 
     it("shows it once published, and hides it again when unpublished", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const created = await repo().writer.create(spec, entry("cut"));
       const id = created.ok ? created.entry.id : "";
 
@@ -358,7 +366,7 @@ suite("the persistence layer", () => {
     });
 
     it("still lists drafts for the admin, and counts them", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       await repo().writer.create(spec, entry("cut"));
 
       // The admin has to see what the public cannot, or nobody could publish it.
@@ -367,7 +375,7 @@ suite("the persistence layer", () => {
     });
 
     it("refuses to publish an entry from another site", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const created = await repo().writer.create(spec, entry("cut"));
       const id = created.ok ? created.entry.id : "";
 
@@ -378,7 +386,7 @@ suite("the persistence layer", () => {
 
   describe("entry counts", () => {
     it("reports zero for a declared type with no rows", async () => {
-      await repo().apply.execute(spec, { actor: "a", source: "cli" });
+      await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       // "Nothing is lost" has to be sayable with confidence, not inferred from
       // an absent key.
       expect(await repo().read.counts(spec)).toEqual({ service: 0 });

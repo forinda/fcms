@@ -6,6 +6,8 @@
  * history says which starter it was and who pressed the button.
  */
 import { Controller, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { roleOf } from "@/shared/roles";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { SiteSpecUseCase } from "@/shared/use-cases";
@@ -54,6 +56,7 @@ export class FirstRunController {
     try {
       await this.applySpec.execute(parsed.data, {
         actor: ctx.require("actor").email,
+        role: roleOf(ctx.require("actor").role),
         source: `starter:${starter.key}`,
         // The gate calls this destructive, and on any other site it would be:
         // it replaces the home page's blocks. Here the only thing being

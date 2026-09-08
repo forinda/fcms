@@ -10,6 +10,7 @@ import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
 import { INTEGRATION_KIND_INFO, settingsFor } from "@/shared/integrations";
 import { SiteSpecUseCase } from "@/shared/use-cases";
+import { roleOf, type Role } from "@/shared/roles";
 import {
   IntegrationEditUseCase,
   missingFrom,
@@ -33,6 +34,7 @@ export class IntegrationsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: "Integrations",
         trail: [{ label: "Integrations" }],
         section: "integrations",
@@ -50,6 +52,7 @@ export class IntegrationsController {
     const key = str(body["key"]).trim();
     const result = await this.edits.create(spec, key, str(body["kind"]), str(body["label"]), {
       actor: actor(ctx),
+      role: role(ctx),
     });
 
     redirect(
@@ -85,6 +88,7 @@ export class IntegrationsController {
       ctx,
       200,
       page({
+        role: viewerRole(ctx),
         title: `${integration.label ?? integration.key} — integration`,
         trail: [
           { label: "Integrations", href: "/admin/integrations" },
@@ -121,7 +125,7 @@ export class IntegrationsController {
         config: prefixed(body, "config__"),
         secrets: prefixed(body, "secret__"),
       },
-      { actor: actor(ctx) },
+      { actor: actor(ctx), role: role(ctx) },
     );
 
     this.back(ctx, key, result);
@@ -133,7 +137,7 @@ export class IntegrationsController {
     const key = keyOf(ctx);
     if (!spec) return noSiteYet(ctx);
 
-    const result = await this.edits.remove(spec, key, { actor: actor(ctx) });
+    const result = await this.edits.remove(spec, key, { actor: actor(ctx), role: role(ctx) });
     if (result.ok) return redirect(ctx, "/admin/integrations");
     this.back(ctx, key, result);
   }
@@ -161,6 +165,8 @@ function prefixed(body: Record<string, unknown>, prefix: string): Record<string,
 
 const keyOf = (ctx: Ctx): string => String((ctx.params as Record<string, string>)["key"] ?? "");
 const actor = (ctx: Ctx): string => ctx.require("actor").email;
+/** The role on the session, never a role a request can claim for itself. */
+const role = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);
 const form = (ctx: Ctx): Record<string, unknown> => (ctx.body ?? {}) as Record<string, unknown>;
 const error = (ctx: Ctx): string | undefined => {
   const asked = (ctx.query as Record<string, unknown>)["error"];
@@ -170,3 +176,6 @@ const error = (ctx: Ctx): string | undefined => {
 /** The last value wins, which is how a checkbox's hidden `off` pair is read. */
 const str = (value: unknown): string =>
   typeof value === "string" ? value : Array.isArray(value) ? str(value[value.length - 1]) : "";
+
+/** The role on the session, for the chrome to hide what it cannot open. */
+const viewerRole = (ctx: Ctx): Role => roleOf(ctx.require("actor").role);

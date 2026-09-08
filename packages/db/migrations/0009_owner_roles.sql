@@ -1,0 +1,1 @@
+ALTER TABLE "owners" ADD COLUMN "role" text DEFAULT 'owner' NOT NULL;

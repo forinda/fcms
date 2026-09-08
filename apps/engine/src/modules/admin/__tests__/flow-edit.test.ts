@@ -64,7 +64,7 @@ function editor() {
   return { edits: new FlowEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 const flowIn = (s: SiteSpec, key = "booking") =>
   s.pages.find((p) => p.key === "book")!.flows!.find((f) => f.key === key)!;
 

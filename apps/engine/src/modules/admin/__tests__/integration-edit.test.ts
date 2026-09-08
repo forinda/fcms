@@ -54,7 +54,7 @@ function editor() {
   return { edits: new IntegrationEditUseCase(apply), applied };
 }
 
-const INPUT = { actor: "owner@example.test" };
+const INPUT = { actor: "owner@example.test", role: "owner" as const };
 const found = (s: SiteSpec, key: string) => s.wiring.find((i) => i.key === key)!;
 
 const settings = (over: Record<string, string> = {}, secrets: Record<string, string> = {}) => ({

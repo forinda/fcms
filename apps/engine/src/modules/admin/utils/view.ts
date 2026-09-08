@@ -13,6 +13,8 @@
 import type { ContentType, Field } from "@forinda-cms/spec";
 import { inputTypeFor } from "@forinda-cms/render";
 
+import { atLeast, type Role } from "@/shared/roles";
+
 export function esc(value: unknown): string {
   const map: Record<string, string> = {
     "&": "&amp;",
@@ -43,20 +45,37 @@ export interface PageOptions {
    * exactly one kind of user.
    */
   readonly section?: string;
+  /**
+   * Who is looking, so the header offers only what they can open.
+   *
+   * A link that 404s for the person it was shown to is worse than no link:
+   * they cannot tell "you may not" from "this is broken". Defaults to the most
+   * permissive, because every screen that renders chrome passes it and a new
+   * one showing a full menu is a smaller failure than one showing none.
+   */
+  readonly role?: Role;
 }
 
-const SECTIONS: readonly { key: string; href: string; label: string }[] = [
-  { key: "pages", href: "/admin/pages", label: "Pages" },
-  { key: "types", href: "/admin/types", label: "Types" },
-  { key: "integrations", href: "/admin/integrations", label: "Integrations" },
-  { key: "media", href: "/admin/media", label: "Media" },
-  { key: "assist", href: "/admin/assist", label: "Assistant" },
-  { key: "automations", href: "/admin/automations", label: "Automations" },
-  { key: "sessions", href: "/admin/sessions", label: "Sessions" },
-  { key: "settings", href: "/admin/settings", label: "Settings" },
+const SECTIONS: readonly { key: string; href: string; label: string; needs: Role }[] = [
+  { key: "pages", href: "/admin/pages", label: "Pages", needs: "manager" },
+  { key: "types", href: "/admin/types", label: "Types", needs: "manager" },
+  { key: "integrations", href: "/admin/integrations", label: "Integrations", needs: "developer" },
+  { key: "media", href: "/admin/media", label: "Media", needs: "editor" },
+  { key: "assist", href: "/admin/assist", label: "Assistant", needs: "manager" },
+  { key: "automations", href: "/admin/automations", label: "Automations", needs: "manager" },
+  { key: "people", href: "/admin/people", label: "People", needs: "owner" },
+  { key: "sessions", href: "/admin/sessions", label: "Sessions", needs: "viewer" },
+  { key: "settings", href: "/admin/settings", label: "Settings", needs: "manager" },
 ];
 
-export function page({ title, body, trail = [], chrome = true, section }: PageOptions): string {
+export function page({
+  title,
+  body,
+  trail = [],
+  chrome = true,
+  section,
+  role = "owner",
+}: PageOptions): string {
   const crumbs = trail
     .map((c) =>
       c.href ? `<a href="${esc(c.href)}">${esc(c.label)}</a>` : `<span>${esc(c.label)}</span>`,
@@ -70,14 +89,31 @@ export function page({ title, body, trail = [], chrome = true, section }: PageOp
     crumbs ? `<span class="sep">/</span>${crumbs}` : ""
   }</nav>
   <nav class="header-actions" aria-label="Sections">
-    ${SECTIONS.map(
-      (s) =>
-        `<a href="${s.href}"${s.key === section ? ' aria-current="page"' : ""}>${esc(s.label)}</a>`,
-    ).join("")}
+    ${SECTIONS.filter((s) => atLeast(role, s.needs))
+      .map(
+        (s) =>
+          `<a href="${s.href}"${s.key === section ? ' aria-current="page"' : ""}>${esc(s.label)}</a>`,
+      )
+      .join("")}
     <form method="post" action="/admin/logout"><button class="link" type="submit">Sign out</button></form>
   </nav>
 </header>`
     : "";
+
+  /**
+   * Reached a screen this role cannot use.
+   *
+   * The header hides what a role cannot open, but a bookmark, a link in a chat
+   * or a typed address still lands here — and a page of controls that all fail
+   * on submit is worse than being told first. ADR 0008 §2 lets a viewer read
+   * the spec, so this is a notice rather than a refusal.
+   */
+  const needed = SECTIONS.find((s) => s.key === section)?.needs;
+  const notice =
+    chrome && needed && !atLeast(role, needed)
+      ? `<p class="warn" role="status">Your account can look at this and not change it.
+         Saving anything here will be refused.</p>`
+      : "";
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -85,7 +121,7 @@ export function page({ title, body, trail = [], chrome = true, section }: PageOp
 <title>${esc(title)}</title><style>${CSS}</style></head>
 <body>
 ${header}
-<main id="main" tabindex="-1">${body}</main>
+<main id="main" tabindex="-1">${notice}${body}</main>
 </body></html>`;
 }
 
@@ -527,6 +563,8 @@ legend{padding:0 .35rem;font-size:.8rem;text-transform:uppercase;letter-spacing:
   color:var(--muted)}
 /* The list's filter bar: search, status, order, all on one line where there is
    room and stacked where there is not. */
+.inline-role{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.inline-role select{min-width:12rem}
 .filters{display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin:1rem 0 .5rem}
 .filters .field{margin:0}
 .filters label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}

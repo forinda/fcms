@@ -10,6 +10,8 @@
  * "view"; it links here now.
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { roleOf } from "@/shared/roles";
 import { renderPage } from "@forinda-cms/render";
 
 import { BLOCKS } from "@/plugins";
@@ -147,33 +149,37 @@ export class CanvasController {
     const [op, at] = String(body["op"] ?? "").split(":");
     const path = parsePath(at ?? body["block"]);
     const actor = ctx.require("actor").email;
+    const role = roleOf(ctx.require("actor").role);
 
     const result = await (async () => {
       switch (op) {
         case "up":
-          return path ? this.edits.move(spec, target, path, -1, { actor }) : refuse();
+          return path ? this.edits.move(spec, target, path, -1, { actor, role }) : refuse();
         case "down":
-          return path ? this.edits.move(spec, target, path, 1, { actor }) : refuse();
+          return path ? this.edits.move(spec, target, path, 1, { actor, role }) : refuse();
         case "nest":
-          return path ? this.edits.nest(spec, target, path, { actor }) : refuse();
+          return path ? this.edits.nest(spec, target, path, { actor, role }) : refuse();
         case "unnest":
-          return path ? this.edits.unnest(spec, target, path, { actor }) : refuse();
+          return path ? this.edits.unnest(spec, target, path, { actor, role }) : refuse();
         case "dup":
-          return path ? this.edits.duplicate(spec, target, path, { actor }) : refuse();
+          return path ? this.edits.duplicate(spec, target, path, { actor, role }) : refuse();
         case "del":
           // Confirmed by construction: the button says delete, and the gate
           // still refuses if the classifier decides content is lost.
-          return path ? this.edits.remove(spec, target, path, { actor }) : refuse();
+          return path ? this.edits.remove(spec, target, path, { actor, role }) : refuse();
         case "publish":
         case "unpublish":
           return "page" in target
-            ? this.edits.setPublished(spec, target.page, op === "publish", { actor })
+            ? this.edits.setPublished(spec, target.page, op === "publish", { actor, role })
             : { ok: false as const, error: "A component is published with the pages that use it." };
         case "component":
           // Lift the selected section out into a reusable component, and leave
           // an instance of it behind (ADR 0022 §2).
           return path
-            ? this.edits.saveAsComponent(spec, target, path, String(body["name"] ?? ""), { actor })
+            ? this.edits.saveAsComponent(spec, target, path, String(body["name"] ?? ""), {
+                actor,
+                role,
+              })
             : refuse();
         case "add": {
           // The palette sends `component:cta` for a reusable one, a plain block
@@ -185,7 +191,7 @@ export class CanvasController {
             target,
             path,
             type ?? "text",
-            { actor },
+            { actor, role },
             // A component block means nothing without the component it places.
             type === "component" && use ? { use } : undefined,
           );
@@ -194,7 +200,7 @@ export class CanvasController {
           // From a drag: the block and where it landed among its siblings.
           const to = Number(body["to"]);
           return path && Number.isInteger(to)
-            ? this.edits.reorder(spec, target, path, to, { actor })
+            ? this.edits.reorder(spec, target, path, to, { actor, role })
             : refuse();
         }
         default:
@@ -239,6 +245,7 @@ export class CanvasController {
 
     const result = await this.edits.setText(spec, target, path, String(body["text"] ?? ""), {
       actor: ctx.require("actor").email,
+      role: roleOf(ctx.require("actor").role),
     });
 
     json(ctx, result.ok ? 200 : 409, result.ok ? { ok: true } : { error: result.error });
@@ -285,7 +292,7 @@ export class CanvasController {
       target,
       path,
       { attrs, style },
-      { actor: ctx.require("actor").email },
+      { actor: ctx.require("actor").email, role: roleOf(ctx.require("actor").role) },
     );
 
     // A live edit asks for JSON: the panel applies changes as they are made, and

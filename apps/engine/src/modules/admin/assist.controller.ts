@@ -13,6 +13,8 @@
  * restart, and this way the thing being applied is the thing that was shown.
  */
 import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
+
+import { roleOf } from "@/shared/roles";
 import { SiteSpec } from "@forinda-cms/spec";
 import { parseSpec } from "@forinda-cms/lang";
 
@@ -71,6 +73,10 @@ export class AssistController {
     try {
       await this.applySpec.execute(SiteSpec.parse(parsed.spec), {
         actor: ctx.require("actor").email,
+        // The assistant acts as the person asking, never above them (ADR 0008
+        // §2): a manager asking the chat for custom CSS is refused exactly the
+        // way the screen refuses it.
+        role: roleOf(ctx.require("actor").role),
         // History says which door a change came through, and this one is worth
         // being able to query on its own.
         source: "chat",

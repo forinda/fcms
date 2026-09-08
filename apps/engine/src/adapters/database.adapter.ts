@@ -153,6 +153,10 @@ async function provision(db: Db): Promise<void> {
       SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
       {
         actor: "install",
+        // Boot is the install itself, before anybody has signed in — there is
+        // no session to take a role from, and it is the act that creates the
+        // first owner.
+        role: "owner",
         source: "boot",
       },
     );
