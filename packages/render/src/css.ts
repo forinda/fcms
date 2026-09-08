@@ -219,6 +219,37 @@ a{color:var(--color-brand,#06c)}
 .fx-choice:hover{outline:2px solid var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
 `.trim();
 
+/**
+ * Theme tokens the base stylesheet reads for itself.
+ *
+ * `BASE_CSS` says `var(--color-brand, #06c)`: a site that has no `brand` gets a
+ * default blue rather than an error, which is right for rendering and wrong for
+ * an editor. Anything asking "is this token used?" has to count these, or a
+ * settings screen will offer to delete `brand` as unused and quietly turn every
+ * link on the site blue.
+ *
+ * Scanned from the stylesheet rather than listed beside it, so it cannot drift
+ * from the CSS it describes.
+ */
+export function baseStylesheetTokens(): {
+  group: "colors" | "typeScale" | "radius";
+  name: string;
+}[] {
+  const groups = { color: "colors", type: "typeScale", radius: "radius" } as const;
+  const found = new Map<string, { group: "colors" | "typeScale" | "radius"; name: string }>();
+
+  // Every string this module can emit, not only the base sheet: a tier-2
+  // `border` renders `var(--color-border)`, so `border` is a token the styling
+  // system reads even though no page names it.
+  const emitted = [BASE_CSS, ...Object.values(BORDERS), ...Object.values(SHADOWS)].join("\n");
+
+  for (const [, prefix, name] of emitted.matchAll(/var\(--(color|type|radius)-([a-z0-9-]+)/g)) {
+    const group = groups[prefix as keyof typeof groups];
+    found.set(`${group}.${name}`, { group, name: name! });
+  }
+  return [...found.values()];
+}
+
 export function siteCss(spec: SiteSpec): string {
   return [themeCss(spec.theme), BASE_CSS, spec.css ?? ""].filter(Boolean).join("\n");
 }

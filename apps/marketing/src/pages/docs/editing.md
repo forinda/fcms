@@ -46,6 +46,20 @@ Two things are fixed once created: the type's key and a field's name. Those appe
 
 Removing a field removes what is stored in it. You are told exactly what that costs before anything happens — <em>"Whatever is stored in it for 6 existing services will be deleted"</em> — and nothing is removed until you press the second button. Either way it lands in <a href="/docs/operating/">history</a>, so it can be undone.
 
+## Adding and removing pages
+
+<em>Pages</em> lists every page, its address, and how many sections it has. Add one by giving it a title and an address — it starts empty and opens straight on the canvas, which is where sections go.
+
+Each page has settings of its own: its address, whether it is still a draft (written, saved, not served to the public), whether it wears the site's header and footer, and how it appears in search results and when someone shares the link. A page can also be turned into a <em>detail page</em> — one address per entry of a type, like a page per service.
+
+Deleting one is asked about twice, and the warning is specific: <em>"Anyone with that link, and any search result pointing at it, will stop working unless a redirect is set up."</em>
+
+## The look of the site
+
+<em>Settings</em> holds the site's name, its fonts, and its palette. Every colour on the site points at one of the colours listed there, so changing one changes it everywhere — that is the whole reason there is no colour picker on individual sections.
+
+Beside each colour it says what would be affected: how many places use it, or that the site's own styles do. You can only remove one that nothing is using, which is why that button is sometimes greyed out.
+
 ## Pages — the canvas
 
 Pages are edited on a canvas, not in a form. Open one and you get three panes: the structure on the left, <strong>your actual page</strong> in the middle, and the settings for whatever you have selected on the right.

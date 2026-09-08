@@ -46,12 +46,14 @@ export interface PageOptions {
 }
 
 const SECTIONS: readonly { key: string; href: string; label: string }[] = [
+  { key: "pages", href: "/admin/pages", label: "Pages" },
   { key: "types", href: "/admin/types", label: "Types" },
   { key: "integrations", href: "/admin/integrations", label: "Integrations" },
   { key: "media", href: "/admin/media", label: "Media" },
   { key: "assist", href: "/admin/assist", label: "Assistant" },
   { key: "automations", href: "/admin/automations", label: "Automations" },
   { key: "sessions", href: "/admin/sessions", label: "Sessions" },
+  { key: "settings", href: "/admin/settings", label: "Settings" },
 ];
 
 export function page({ title, body, trail = [], chrome = true, section }: PageOptions): string {
@@ -361,6 +363,24 @@ ol.blocks li{margin:.1rem 0}
 .field.checkbox{display:grid;grid-template-columns:auto 1fr;gap:.1rem .5rem;align-items:center}
 .field.checkbox label{margin:0;font-weight:400}
 .field.checkbox .help{grid-column:2}
+/* The theme, as rows: name, the value itself, what would break, remove. */
+ul.tokens{list-style:none;margin:.5rem 0 0;padding:0;display:grid;gap:.35rem}
+ul.tokens li{display:grid;grid-template-columns:8rem auto 1fr auto;gap:.6rem;align-items:center}
+ul.tokens li:has(input[type=color]){grid-template-columns:8rem auto 5rem 1fr auto}
+ul.tokens code{font-size:.8rem}
+ul.tokens label{margin:0}
+ul.tokens input{width:auto;min-width:8rem}
+ul.tokens input[type=color]{width:3rem;height:2rem;padding:.15rem;min-width:0}
+ul.tokens .muted{font-size:.8rem}
+ul.tokens button{background:none;border:0;color:var(--bad);padding:.1rem .35rem;border-radius:4px}
+ul.tokens button[disabled]{color:var(--muted);cursor:not-allowed}
+@media(max-width:40rem){
+  ul.tokens li,ul.tokens li:has(input[type=color]){grid-template-columns:1fr auto;
+    gap:.2rem .5rem;padding-bottom:.5rem;border-bottom:1px solid var(--line)}
+}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem 1rem;margin:1.5rem 0}
+legend{padding:0 .35rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted)}
 .new-type{margin:2.5rem 0 0;padding-top:1.5rem;border-top:1px solid var(--line)}
 .new-automation{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}
 .new-automation .row{display:flex;gap:.4rem;flex-wrap:wrap}
