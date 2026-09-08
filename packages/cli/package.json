@@ -40,8 +40,8 @@
     "provenance": true
   },
   "scripts": {
-    "build": "node scripts/bundle.mjs",
-    "prepack": "node scripts/bundle.mjs",
+    "build": "node ../../scripts/bundle.mjs",
+    "prepack": "node ../../scripts/bundle.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "fcms": "tsx src/bin.ts"
@@ -57,7 +57,6 @@
     "@forinda-cms/sdk": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "@types/node": "catalog:",
-    "esbuild": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

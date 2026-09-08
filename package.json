@@ -23,6 +23,7 @@
     "dev:app": "pnpm --filter @forinda-cms/admin dev"
   },
   "devDependencies": {
+    "esbuild": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:"

@@ -98,13 +98,14 @@ jobs:
     timeout-minutes: 20
 
     strategy:
-      # Two packages, one number: `@forinda/fcms-core` is the server and
-      # `@forinda/fcms-cli` is the client that talks to it, and a user pairing
+      # Three packages, one number: `@forinda/fcms-core` is the server,
+      # `@forinda/fcms-cli` is the client that talks to it, and
+      # `@forinda/fcms-mcp` is the same client for an agent. A user pairing
       # them should not have to read a compatibility table.
       #
-      # `fail-fast: false` because the two publishes are independent. One
-      # failing must not cancel the other half-way through, which would leave a
-      # release that exists on npm under one name and not the other.
+      # `fail-fast: false` because the publishes are independent. One failing
+      # must not cancel the others half-way through, which would leave a
+      # release that exists on npm under one name and not the rest.
       fail-fast: false
       matrix:
         include:
@@ -112,6 +113,8 @@ jobs:
             directory: packages/server
           - package: "@forinda/fcms-cli"
             directory: packages/cli
+          - package: "@forinda/fcms-mcp"
+            directory: packages/mcp
 
     # `id-token: write` is npm trusted publishing (OIDC): npm verifies this
     # workflow's identity against a rule registered on the package, so there is

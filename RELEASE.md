@@ -21,6 +21,7 @@ That runs [`.github/workflows/release.yaml`](.github/workflows/release.yaml):
 | The image | `ghcr.io/forinda/fcms` | `2026.4.0`, `2026.4`, `2026`, `latest`, the commit sha |
 | The server | [`@forinda/fcms-core`](https://www.npmjs.com/package/@forinda/fcms-core) on npm | `2026.4.0` |
 | The CLI | [`@forinda/fcms-cli`](https://www.npmjs.com/package/@forinda/fcms-cli) on npm | `2026.4.0` |
+| The MCP server | [`@forinda/fcms-mcp`](https://www.npmjs.com/package/@forinda/fcms-mcp) on npm | `2026.4.0` |
 
 A merge to `main` republishes the image as `:edge` and **publishes nothing to
 npm** — an npm version is permanent, and `edge` is a moving target.
@@ -54,9 +55,12 @@ things other people build against.
 database migrations and the built admin application are copied into it at pack
 time, so one `npx @forinda/fcms-core` has everything it needs and no workspace.
 
-**`@forinda/fcms-cli`** is a single bundled file. The workspace packages it
-imports are compiled into it; `commander`, `yaml` and `zod` stay external so npm
-can install and patch them normally.
+**`@forinda/fcms-cli`** and **`@forinda/fcms-mcp`** are each a single bundled
+file, built by the same `scripts/bundle.mjs`: the workspace packages they import
+are compiled in, and the real npm dependencies stay external so npm can install
+and patch them normally. The bundler takes its entry point from `bin`, its
+externals from `dependencies` and its version from the manifest, so a package
+that publishes a binary says so once.
 
 Both ship a sourcemap. A bug report from somebody else's server is a stack
 trace and nothing else, and without a map it names a line in a bundle nobody
@@ -88,7 +92,8 @@ identity to npm, so there is no secret to leak or rotate. Each tarball carries
 provenance — the signed statement linking it to the commit and the run that
 built it, and the "Verified" badge on the package page.
 
-Once for `@forinda/fcms-core` and once for `@forinda/fcms-cli`:
+Once for each of `@forinda/fcms-core`, `@forinda/fcms-cli` and
+`@forinda/fcms-mcp`:
 
 1. Sign in to npm as the maintainer.
 2. `https://www.npmjs.com/package/<name>/access` → **Trusted publishers** →
@@ -103,7 +108,7 @@ every release after that belongs to the workflow.
 
 ## Licences on what ships
 
-`@forinda/fcms-core` and `@forinda/fcms-cli` are **AGPL-3.0-or-later**. The interop
+All three published packages are **AGPL-3.0-or-later**. The interop
 packages, when they ship, are **Apache-2.0**. Each tarball carries its own
 `LICENSE`, and the CLI carries a `NOTICE` naming which packages inside its
 bundle are Apache-2.0 — that file is the only place a user can learn it, so it
