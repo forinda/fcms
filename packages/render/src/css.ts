@@ -217,6 +217,27 @@ a{color:var(--color-brand,#06c)}
 .fx-flow-change{background:none;border:0;color:var(--color-brand,#06c);cursor:pointer;padding:0;font:inherit;text-decoration:underline}
 .fx-choice{display:block;width:100%;text-align:inherit;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}
 .fx-choice:hover{outline:2px solid var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
+/* A button block is an action, and looked like body text with an underline —
+   the "Book now" on a starter's front page is the whole point of that page. */
+.fx-button{display:inline-block;padding:.6rem 1.1rem;border:0;cursor:pointer;font:inherit;
+  text-decoration:none;color:#fff;background:var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
+.fx-button:hover{filter:brightness(1.08)}
+/* Navigation. The block renders a list, which is right for a screen reader and
+   wrong on screen without this — a bulleted column where a row of links
+   belongs, on every page of every site that has a header. */
+.fx-nav ul{display:flex;flex-wrap:wrap;gap:1rem;margin:0;padding:0;list-style:none}
+.fx-nav a{text-decoration:none}
+.fx-nav a:hover{text-decoration:underline}
+/* Forms. A form on a site is somebody's booking or enquiry, so it gets a
+   layout here rather than waiting for each site to write one: label above its
+   control, controls the same width, and a submit that looks pressable. */
+.fx-form{display:flex;flex-direction:column;gap:1rem;max-width:32rem}
+.fx-field{display:flex;flex-direction:column;gap:.3rem}
+.fx-field label{font-size:.9rem;font-weight:500}
+.fx-field input,.fx-field textarea,.fx-field select{font:inherit;width:100%;padding:.55rem .65rem;color:inherit;background:var(--color-surface,#fff);border:1px solid var(--color-border,#e5e5e5);border-radius:var(--radius-md,8px)}
+.fx-field textarea{min-height:8rem}
+.fx-form button{font:inherit;align-self:flex-start;padding:.6rem 1.1rem;border:0;cursor:pointer;color:#fff;background:var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
+.fx-form :focus-visible{outline:2px solid var(--color-brand,#06c);outline-offset:2px}
 `.trim();
 
 /**

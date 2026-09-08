@@ -28,6 +28,7 @@ import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 // Side-effect import: `src/shared` sits outside every module, so no module glob
 // reaches it and its `@Repository` / `@Service` decorators would never run.
 import "@/shared";
+import { starterFor } from "@/shared/starters";
 import { SpecRepository } from "@/shared/repositories";
 import { ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 
@@ -149,47 +150,11 @@ async function provision(db: Db): Promise<void> {
   const scope = { orgId, siteId };
   if (!(await new SpecRepository(db, scope).find())) {
     await new ApplySpecUseCase(db, scope).execute(
-      SiteSpec.parse(starterSpec(getEnv("SITE_NAME"))),
+      SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
       {
         actor: "install",
         source: "boot",
       },
     );
   }
-}
-
-function starterSpec(name: string | undefined) {
-  const title = name ?? "A new site";
-  return {
-    specVersion: 2 as const,
-    name: title,
-    theme: {
-      colors: { brand: "#1a7f5a", text: "#1c1917", background: "#ffffff", surface: "#f7f5f2" },
-      fonts: { body: "Inter" },
-      typeScale: { sm: "0.875rem", md: "1rem", lg: "1.5rem", xl: "2.5rem" },
-    },
-    content: [],
-    pages: [
-      {
-        key: "home",
-        path: "/",
-        title,
-        blocks: [
-          {
-            type: "section",
-            style: { padding: { y: "xl", x: "lg" }, width: "narrow" },
-            children: [
-              { type: "heading", attrs: { text: title, level: 1 }, style: { fontSize: "xl" } },
-              {
-                type: "text",
-                attrs: {
-                  text: "This site is running. Edit it with `fcms` — or point an AI at it once the chat surface exists.",
-                },
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  };
 }

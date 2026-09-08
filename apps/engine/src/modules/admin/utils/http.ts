@@ -84,6 +84,18 @@ export function redirect(ctx: Ctx, to: string): void {
   ctx.res.end();
 }
 
+/**
+ * A screen that needs a site, on an install that has none yet.
+ *
+ * Not a 404: nothing is missing, the site simply has not been started. Sending
+ * them to `/admin` puts them on the one screen that has something to offer
+ * (ADR 0036), instead of a dead end reached by clicking a link the admin's own
+ * navigation showed them.
+ */
+export function noSiteYet(ctx: Ctx): void {
+  redirect(ctx, "/admin");
+}
+
 export function notFound(ctx: Ctx): void {
   html(ctx, 404, page({ title: "Not found", body: "<h1>Not found</h1>" }));
 }

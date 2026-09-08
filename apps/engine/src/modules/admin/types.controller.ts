@@ -9,7 +9,7 @@ import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { TypeEditUseCase, type EditResult } from "./use-cases/type-edit.usecase";
-import { html, notFound, redirect } from "./utils/http";
+import { html, noSiteYet, notFound, redirect } from "./utils/http";
 import { typeBuilder, typeList } from "./utils/types.view";
 import { page } from "./utils/view";
 
@@ -22,7 +22,7 @@ export class TypesController {
   @Get("/types")
   async list(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     html(
       ctx,
@@ -39,7 +39,7 @@ export class TypesController {
   @Post("/types")
   async create(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const key = str(body["key"]).trim();
@@ -95,7 +95,7 @@ export class TypesController {
   async update(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const submissions = str(body["submissions"]);
@@ -122,7 +122,7 @@ export class TypesController {
   async fields(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const [op, argument] = str(body["op"]).split(":");
@@ -172,7 +172,7 @@ export class TypesController {
   async field(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const name = str(body["field"]);
@@ -206,7 +206,7 @@ export class TypesController {
   async remove(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const result = await this.edits.remove(spec, key, {
       actor: actor(ctx),

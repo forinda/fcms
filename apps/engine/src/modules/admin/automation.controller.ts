@@ -13,7 +13,7 @@ import { ACTION_REGISTRY } from "@/shared/workflows/actions";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { AutomationEditUseCase } from "./use-cases/automation-edit.usecase";
 import { automation } from "./utils/automation.view";
-import { html, notFound, redirect } from "./utils/http";
+import { html, noSiteYet, notFound, redirect } from "./utils/http";
 import { esc, page } from "./utils/view";
 
 @Controller()
@@ -58,7 +58,7 @@ export class AutomationController {
   @Post("/automations")
   async create(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const key = String(body["key"] ?? "").trim();
@@ -92,7 +92,7 @@ export class AutomationController {
   async steps(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const [op, at] = String(body["op"] ?? "").split(":");
@@ -122,7 +122,7 @@ export class AutomationController {
   async setStep(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const index = Number(body["step"]);
@@ -153,7 +153,7 @@ export class AutomationController {
   async setEnabled(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const result = await this.edits.setEnabled(spec, key, String(body["enabled"]) === "true", {
@@ -167,7 +167,7 @@ export class AutomationController {
   async remove(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const result = await this.edits.remove(spec, key, { actor: ctx.require("actor").email });
     redirect(

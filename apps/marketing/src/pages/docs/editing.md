@@ -22,6 +22,12 @@ warning teaches people to skim the real one.
 Sign in at <code>/admin</code> on your own install. Everything below is that dashboard.
 </p>
 
+## The first time you sign in
+
+A brand-new site asks one question: what kind of site is this? Pick <em>bookings</em>, <em>enquiries</em>, or <em>nothing yet</em>, and you get a real site — pages, a form that works, and somewhere to put what you store. Everything in it can be changed straight afterwards, and the choice is recorded in history like any other change, so it can be undone.
+
+The question only appears while the site is still empty. Once it has anything in it, the front page becomes the dashboard below.
+
 ## What is waiting for you
 
 The front page opens with <em>Needs you</em>: entries written but not published, automations that failed, payments a customer started and never finished, automations somebody turned off. Each line is a count and a link to the screen that deals with it. When there is nothing, it says so in one line and takes up no more room than that.
