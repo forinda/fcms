@@ -1,0 +1,19 @@
+# Where the marketing site is built from.
+#
+# These settings existed only in Netlify's dashboard, which meant the deploy
+# could not be reviewed, reproduced or fixed from a pull request. Reading them
+# from the repository means a change to the build arrives with the change that
+# needs it.
+#
+# The base stays the repository root because this is a pnpm workspace: the
+# marketing app's `astro` comes from the root lockfile, so installing inside
+# `apps/marketing` alone would resolve nothing. pnpm itself is detected from
+# `pnpm-lock.yaml` and versioned by `packageManager` in the root package.json.
+[build]
+  command = "pnpm --filter @forinda-cms/marketing build"
+  publish = "apps/marketing/dist"
+
+[build.environment]
+  # The floor the rest of the project builds on (ADR 0046), so one Node is
+  # learned rather than two.
+  NODE_VERSION = "22"

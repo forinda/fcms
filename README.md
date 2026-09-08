@@ -27,8 +27,8 @@ deploy, reviewed, rather than a button. There is no hosted service.
 
 ```bash
 mkdir my-site && cd my-site
-curl -O https://forinda-cms.dev/install/compose.yaml
-curl -o .env https://forinda-cms.dev/install/env.example
+curl -O https://forinda-cms.netlify.app/install/compose.yaml
+curl -o .env https://forinda-cms.netlify.app/install/env.example
 # edit .env — POSTGRES_PASSWORD, OWNER_EMAIL, OWNER_PASSWORD
 docker compose up -d
 ```

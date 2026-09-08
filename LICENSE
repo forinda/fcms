@@ -1,0 +1,60 @@
+# forinda-cms — Licence
+
+Copyright (c) 2026 Felix Orinda. All rights reserved.
+
+**This is not an open-source licence.** It grants the right to *run* this
+software, not to have its source.
+
+## What you may do
+
+Subject to the terms below, you are granted a non-exclusive, non-transferable,
+worldwide licence to:
+
+1. **Install and run** any number of instances of the software, for your own
+   business or on behalf of clients you build sites for.
+2. **Serve the sites you build with it** to the public, commercially or not.
+3. **Keep and move your own data.** The content, spec files and database are
+   yours; nothing here restricts what you do with them.
+4. **Make backups** and copies of the distributed package for that purpose.
+
+## What you may not do
+
+1. **Redistribute the software itself**, modified or not, as a product,
+   package, image or download — including bundling it inside another product.
+2. **Offer it as a hosted service** to third parties, whether or not you charge
+   for it. Building and operating sites *for clients* on instances you run is
+   explicitly allowed by clause 1 above; reselling access to the software as a
+   platform is not.
+3. **Reverse engineer, decompile or disassemble** it, or attempt to reconstruct
+   its source, except to the extent that applicable law expressly permits this
+   despite this limitation.
+4. **Remove or obscure** this licence, the copyright notices, or any version
+   identifiers.
+
+## Plugins, specs and the sites you build
+
+Anything **you** write remains yours: your site specs, your content, your
+themes, your plugins, and the code you write against any published plugin or
+client API. This licence covers the software as distributed and nothing you
+author for it.
+
+## No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Termination
+
+This licence ends automatically if you breach it. Running instances may
+continue for 30 days after termination so a site can be migrated rather than
+switched off.
+
+---
+
+*This text has not been reviewed by a lawyer. Have one read it before the first
+public release — the clauses that matter commercially are "hosted service" and
+"redistribute", and their exact wording is what a dispute would turn on.*

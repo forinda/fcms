@@ -32,11 +32,11 @@ count is low, and every prerequisite is stated before it is needed.
 
 <div class="snippet">
 <header><span>terminal</span><button class="copy" type="button" data-copy="mkdir my-site &amp;&amp; cd my-site
-curl -O https://forinda-cms.dev/install/compose.yaml
-curl -o .env https://forinda-cms.dev/install/env.example">Copy</button></header>
+curl -O https://forinda-cms.netlify.app/install/compose.yaml
+curl -o .env https://forinda-cms.netlify.app/install/env.example">Copy</button></header>
 <pre><code>mkdir my-site && cd my-site
-curl -O https://forinda-cms.dev/install/compose.yaml
-curl -o .env https://forinda-cms.dev/install/env.example</code></pre>
+curl -O https://forinda-cms.netlify.app/install/compose.yaml
+curl -o .env https://forinda-cms.netlify.app/install/env.example</code></pre>
 </div>
 
 Open <code>.env</code> and set three things:

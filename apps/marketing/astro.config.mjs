@@ -14,7 +14,7 @@ import { defineConfig } from "astro/config";
  * page has no business holding a database connection.
  */
 export default defineConfig({
-  site: "https://forinda-cms.dev",
+  site: "https://forinda-cms.netlify.app",
   output: "static",
   build: { format: "directory" },
 });
