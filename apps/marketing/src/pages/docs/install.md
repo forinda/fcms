@@ -62,9 +62,20 @@ Open <code>http://localhost:8080</code>. There is a working site, and your dashb
 
 </div>
 
-<h2 id="without-docker">Without Docker</h2>
+<h2 id="without-docker">Without Docker, and without a database</h2>
 
-Docker is the default because it brings the database and a version to pin along with it. It is not a requirement. If you have Node 22 or newer and a Postgres database somewhere — a VPS, a managed one, the one your host already gave you — this is the whole install:
+You need Node 22 or newer. Nothing else — no database, no container, no connection string:
+
+<div class="snippet">
+<header><span>terminal</span><button class="copy" type="button" data-copy="OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
+npx @forinda/fcms-core">Copy</button></header>
+<pre><code>OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
+npx @forinda/fcms-core</code></pre>
+</div>
+
+<strong>Postgres runs inside the process</strong> — the real thing, compiled to WebAssembly — and keeps its data in <code>./data</code>. It migrates on boot, creates the owner once, and serves on <code>PORT</code> (8080 by default). A backup is <code>cp -r data</code>.
+
+The embedded database serves one query at a time. For a business taking bookings that is invisible. Under real traffic it is a ceiling, and the way past it is a Postgres server — the same schema and the same migrations, so moving is <code>pg_dump</code> and one variable:
 
 <div class="snippet">
 <header><span>terminal</span><button class="copy" type="button" data-copy="DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
@@ -75,7 +86,7 @@ OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
 npx @forinda/fcms-core</code></pre>
 </div>
 
-It migrates the database, creates the owner once, and serves on <code>PORT</code> (8080 by default). <code>npx @forinda/fcms-core --help</code> lists everything it reads — the same variables the compose file sets.
+A <code>postgres://</code> URL is a server; anything else is a directory to keep files in. <code>npx @forinda/fcms-core --help</code> lists everything it reads.
 
 <div class="note">
 

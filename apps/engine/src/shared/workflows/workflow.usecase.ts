@@ -10,7 +10,7 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { and, eq, lte, sql } from "drizzle-orm";
 import { matches, resolve } from "@forinda-cms/render";
 import type { SiteSpec, Workflow } from "@forinda-cms/spec";
-import { entries, workflowRuns, type EntryRow, type WorkflowRunRow } from "@forinda-cms/db";
+import { entries, rowsOf, workflowRuns, type EntryRow, type WorkflowRunRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 
 import { DB } from "@/shared/db";
@@ -362,7 +362,7 @@ export class WorkflowUseCase {
    * meaningful: every instance naming the same minute the same way.
    */
   private async databaseNow(): Promise<Date> {
-    const [row] = await this.db.execute<{ now: Date }>(sql`select now() as now`);
+    const [row] = rowsOf<{ now: Date }>(await this.db.execute(sql`select now() as now`));
     return row?.now ? new Date(row.now) : new Date();
   }
 

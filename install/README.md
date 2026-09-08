@@ -1,4 +1,9 @@
-# Installing forinda-cms
+# Installing forinda-cms with Docker
+
+> **You may not need any of this.** `npx @forinda/fcms-core` runs the site and
+> its database in one process, with nothing to install — see the README. What
+> is here is for running Postgres as a service beside it, which is what you
+> want once one connection is not enough.
 
 Two files and one command.
 

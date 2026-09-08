@@ -9,6 +9,9 @@ catalogs:
     '@anthropic-ai/sdk':
       specifier: ^0.71.0
       version: 0.71.2
+    '@electric-sql/pglite':
+      specifier: ^0.5.8
+      version: 0.5.8
     '@forinda/kickjs':
       specifier: ^8.3.1
       version: 8.3.1
@@ -246,6 +249,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
       '@forinda-cms/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -281,7 +287,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(kysely@0.29.5)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.5)(postgres@3.4.9)
       express:
         specifier: 'catalog:'
         version: 5.2.1
@@ -408,6 +414,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
       '@forinda-cms/render':
         specifier: workspace:*
         version: link:../render
@@ -419,7 +428,7 @@ importers:
         version: 2.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(kysely@0.29.5)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.5)(postgres@3.4.9)
       postgres:
         specifier: 'catalog:'
         version: 3.4.9
@@ -580,6 +589,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.5.8
       '@forinda/kickjs':
         specifier: 'catalog:'
         version: 8.3.1(dotenv@17.4.2)(express@5.2.1)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
@@ -594,7 +606,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(kysely@0.29.5)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.5)(postgres@3.4.9)
       express:
         specifier: 'catalog:'
         version: 5.2.1
@@ -874,6 +886,9 @@ packages:
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
+
+  '@electric-sql/pglite@0.5.8':
+    resolution: {integrity: sha512-n9tsbUOhwx2epK1V0ZG9Ar4SHWUju04dhmzZXiSBXwBoleOvIfals33NAaWgagQVAL4Rbvx/Ptsu3P+pA09f6Q==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -6281,6 +6296,8 @@ snapshots:
 
   '@drizzle-team/brocli@0.10.2': {}
 
+  '@electric-sql/pglite@0.5.8': {}
+
   '@emnapi/runtime@1.11.3':
     dependencies:
       tslib: 2.8.1
@@ -8853,8 +8870,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.13
 
-  drizzle-orm@0.45.2(kysely@0.29.5)(postgres@3.4.9):
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.5)(postgres@3.4.9):
     optionalDependencies:
+      '@electric-sql/pglite': 0.5.8
       kysely: 0.29.5
       postgres: 3.4.9
 

@@ -17,6 +17,7 @@
     "db:migrate": "tsx src/migrate-cli.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "catalog:",
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "@node-rs/argon2": "catalog:",

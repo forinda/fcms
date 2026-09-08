@@ -6,6 +6,10 @@
  * bug.
  */
 import { drizzle } from "drizzle-orm/postgres-js";
+import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
+import { PGlite } from "@electric-sql/pglite";
+import { mkdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import postgres from "postgres";
 
 import * as schema from "./schema/index.js";
@@ -40,7 +44,48 @@ function poolFor(url: string): postgres.Sql {
   return pool.sql;
 }
 
+/**
+ * Embedded instances, cached the way pools are and for the same reason.
+ *
+ * PGlite is single-connection by construction, so a second instance on the same
+ * directory is not a second connection — it is a second process trying to open
+ * the same data files. One per directory, always.
+ */
+const embedded = new Map<string, PGlite>();
+
+/** A server, or a directory. Anything that is not a URL is a place to put files. */
+export function isEmbedded(url: string): boolean {
+  return !/^postgres(ql)?:\/\//.test(url);
+}
+
+/**
+ * A connection to the site's database (ADR 0050).
+ *
+ * `postgres://…` is a server somebody runs. Anything else is a directory, and
+ * the database runs inside this process — real Postgres 18, compiled to WASM,
+ * with nothing to install and nothing listening on a port. That is the default,
+ * because obtaining a Postgres was the last thing standing between somebody and
+ * a working site.
+ *
+ * The same dialect either way, which is the whole reason this is one function
+ * and not an abstraction: the SQL, the schema and the migrations do not know
+ * which they are talking to.
+ */
 export function createDb(url: string) {
+  if (isEmbedded(url)) {
+    let client = embedded.get(url);
+    if (!client) {
+      // PGlite creates its own directory but not the ones above it, and the
+      // default is `./data/postgres` — so a first boot in an empty directory
+      // failed with `ENOENT: mkdir`, which is the one boot that has to work.
+      mkdirSync(dirname(resolve(url)), { recursive: true });
+      client = new PGlite(url);
+      embedded.set(url, client);
+    }
+    return drizzlePglite(client, { schema, casing: "snake_case" }) as unknown as ReturnType<
+      typeof drizzle<typeof schema>
+    >;
+  }
   return drizzle(poolFor(url), { schema, casing: "snake_case" });
 }
 
@@ -82,4 +127,25 @@ export async function closeAllPools(): Promise<void> {
   const open = [...pools.values()];
   pools.clear();
   await Promise.all(open.map((pool) => pool.sql.end({ timeout: 5 })));
+}
+
+/**
+ * The rows of a raw `db.execute`, whichever driver ran it.
+ *
+ * `postgres-js` resolves to the rows themselves; `pglite` resolves to
+ * `{ rows }`. Nothing else in the two drivers differs for this codebase, and it
+ * is not a dialect difference at all — the SQL is identical — so it belongs
+ * here rather than in `dialect.ts` and certainly not in a caller.
+ *
+ * Found by running the engine suite against both: three tests failed, all of
+ * them this, and one of them silently — `databaseNow()` read no row, fell back
+ * to `new Date()`, and the queue went back to trusting the process's clock,
+ * which is the exact bug that comment exists to prevent.
+ */
+export function rowsOf<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  if (result && typeof result === "object" && Array.isArray((result as { rows?: unknown }).rows)) {
+    return (result as { rows: T[] }).rows;
+  }
+  return [];
 }

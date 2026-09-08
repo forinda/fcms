@@ -55,6 +55,12 @@ things other people build against.
 database migrations and the built admin application are copied into it at pack
 time, so one `npx @forinda/fcms-core` has everything it needs and no workspace.
 
+`@electric-sql/pglite` must stay a **dependency** and stay out of the bundle. It
+is the embedded Postgres, and its WebAssembly data file is resolved relative to
+its own package — inlined, it resolves beside `dist/index.js` and the first boot
+dies on `ENOENT: pglite.data`. That is only visible from an installed tarball,
+so `npm pack` and run it before trusting a change to the engine's externals.
+
 **`@forinda/fcms-cli`** and **`@forinda/fcms-mcp`** are each a single bundled
 file, built by the same `scripts/bundle.mjs`: the workspace packages they import
 are compiled in, and the real npm dependencies stay external so npm can install

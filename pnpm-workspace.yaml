@@ -13,6 +13,7 @@ packages:
 # so an upgrade is one edit here.
 catalog:
   '@anthropic-ai/sdk': ^0.71.0
+  '@electric-sql/pglite': ^0.5.8
   astro: ^6.0.0
   '@forinda/kickjs': ^8.3.1
   '@forinda/kickjs-cli': ^8.1.5
