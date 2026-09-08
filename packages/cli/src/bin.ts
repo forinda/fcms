@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * `fcms` — the entry point.
  *

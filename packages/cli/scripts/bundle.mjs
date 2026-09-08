@@ -24,6 +24,23 @@ const bin = join(out, "fcms.mjs");
 
 rmSync(out, { recursive: true, force: true });
 
+// The shebang lives here rather than in `src/bin.ts`, because esbuild keeps
+// the entry file's own and two of them put the second on line two, where it is
+// a syntax error rather than a shebang. One place that writes it, one check
+// below that it survived.
+const { name, version } = JSON.parse(readFileSync(join(pkg, "package.json"), "utf8"));
+const banner = `#!/usr/bin/env node
+/**
+ * ${name} v${version}
+ *
+ * Copyright (c) Felix Orinda
+ *
+ * This source code is licensed under the AGPL-3.0-or-later license found in
+ * the LICENSE file in the root directory of this source tree.
+ *
+ * @license AGPL-3.0-or-later
+ */`;
+
 await build({
   entryPoints: [join(pkg, "src/bin.ts")],
   outfile: bin,
@@ -43,6 +60,7 @@ await build({
   // It embeds the TypeScript of every package compiled in — which is the source
   // this is published from, under a licence that says you may read it.
   sourcemap: true,
+  banner: { js: banner },
   // Licence headers in bundled code stay in the bundle. Stripping them is the
   // one thing every licence this depends on agrees you may not do.
   legalComments: "inline",
@@ -54,9 +72,9 @@ if (!existsSync(bin)) {
   process.exit(1);
 }
 
-// esbuild keeps the entry point's own shebang, so this is a check rather than
-// a step: adding a second one put it on line two, where it is not a shebang
-// but a syntax error, and the bundle only failed once installed.
+// A check, not a step: the banner writes the shebang, and a bundle whose first
+// line is anything else is a file the shell cannot run — which only shows up
+// once installed.
 if (!readFileSync(bin, "utf8").startsWith("#!")) {
   console.error(
     "bundle has no shebang: `npm install -g` would produce a file the shell cannot run.",

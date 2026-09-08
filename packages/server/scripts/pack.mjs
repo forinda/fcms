@@ -10,7 +10,7 @@
  * has to work on a machine with no workspace, and `file:` links do not survive
  * a pack.
  */
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -53,3 +53,37 @@ for (const part of parts) {
   cpSync(part.from, part.to, { recursive: true });
   console.log(`packed ${part.what} → ${part.to.replace(`${out}/`, "")}`);
 }
+
+/**
+ * Sign the bundle.
+ *
+ * `kick build` has no banner option, so the header goes on afterwards — which
+ * would silently move every line the sourcemap points at. A map's `mappings`
+ * field is one group per line separated by `;`, so one leading `;` per line
+ * added puts it back. Getting this wrong is worse than having no banner: a
+ * stack trace that is confidently off by six lines.
+ */
+const pkg = JSON.parse(readFileSync(join(out, "package.json"), "utf8"));
+const banner = `/**
+ * ${pkg.name} v${pkg.version}
+ *
+ * Copyright (c) Felix Orinda
+ *
+ * This source code is licensed under the AGPL-3.0-or-later license found in
+ * the LICENSE file in the root directory of this source tree.
+ *
+ * @license AGPL-3.0-or-later
+ */
+`;
+
+const bundle = join(out, "dist/index.js");
+writeFileSync(bundle, banner + readFileSync(bundle, "utf8"));
+
+const mapPath = `${bundle}.map`;
+if (existsSync(mapPath)) {
+  const map = JSON.parse(readFileSync(mapPath, "utf8"));
+  map.mappings = ";".repeat(banner.split("\n").length - 1) + map.mappings;
+  writeFileSync(mapPath, JSON.stringify(map));
+}
+
+console.log(`signed dist/index.js — ${pkg.name} v${pkg.version}`);
