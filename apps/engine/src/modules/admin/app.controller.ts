@@ -34,12 +34,14 @@ import { firstHeader } from "./utils/http";
 function distDir(): string | null {
   const candidates = [
     process.env["ADMIN_DIST"],
-    // The source tree: apps/engine/src/modules/admin → apps/admin/dist.
-    resolve(import.meta.dirname, "../../../../admin/dist"),
-    // The image: /app/dist → /app/apps/admin/dist.
-    resolve(import.meta.dirname, "../apps/admin/dist"),
-    resolve(process.cwd(), "apps/admin/dist"),
-    resolve(process.cwd(), "../admin/dist"),
+    // The source tree: apps/engine/src/modules/admin → apps/admin/dist/client.
+    // `client` because React Router's build emits the browser half there
+    // (ADR 0044); the server half is deleted by `ssr: false`.
+    resolve(import.meta.dirname, "../../../../admin/dist/client"),
+    // The image: /app/dist → /app/apps/admin/dist/client.
+    resolve(import.meta.dirname, "../apps/admin/dist/client"),
+    resolve(process.cwd(), "apps/admin/dist/client"),
+    resolve(process.cwd(), "../admin/dist/client"),
   ];
 
   for (const candidate of candidates) {
