@@ -15,7 +15,7 @@ import {
   missingFrom,
   type EditResult,
 } from "./use-cases/integration-edit.usecase";
-import { html, notFound, redirect } from "./utils/http";
+import { html, noSiteYet, notFound, redirect } from "./utils/http";
 import { integrationEdit, integrationList } from "./utils/integrations.view";
 import { page } from "./utils/view";
 
@@ -27,7 +27,7 @@ export class IntegrationsController {
   @Get("/integrations")
   async list(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     html(
       ctx,
@@ -44,7 +44,7 @@ export class IntegrationsController {
   @Post("/integrations")
   async create(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const key = str(body["key"]).trim();
@@ -109,7 +109,7 @@ export class IntegrationsController {
   async update(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const result = await this.edits.update(
@@ -131,7 +131,7 @@ export class IntegrationsController {
   async remove(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const result = await this.edits.remove(spec, key, { actor: actor(ctx) });
     if (result.ok) return redirect(ctx, "/admin/integrations");

@@ -14,7 +14,7 @@
  * no `auth.public` flag in this file, which is what makes that true rather than
  * asserted.
  */
-import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
+import { Controller, Get, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
@@ -22,8 +22,10 @@ import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { EntryWriteUseCase } from "./use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
-import { html, notFound, readForm, redirect } from "./utils/http";
+import { html, noSiteYet, notFound, readForm, redirect } from "./utils/http";
+import { STARTERS } from "@/shared/starters";
 import { dashboard } from "./utils/dashboard.view";
+import { firstRun, untouched } from "./utils/first-run.view";
 import { entryForm, esc, page } from "./utils/view";
 
 @Controller()
@@ -51,7 +53,25 @@ export class ContentController {
   @Get("/")
   async dashboard(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return html(ctx, 200, page({ title: "Admin", body: "<p>No site yet.</p>" }));
+    // A site nobody has started yet is not an error and not an empty page: it
+    // is the one moment where the only useful screen is "what kind of site is
+    // this" (ADR 0036). Boot applies the blank starter so the install reaches
+    // a working site, so "no spec at all" is the rarer of the two states.
+    if (!spec || untouched(spec)) {
+      const asked = (ctx.query as Record<string, unknown>)["error"];
+      return html(
+        ctx,
+        200,
+        page({
+          title: "Welcome",
+          body: firstRun({
+            siteName: spec?.name ?? getEnv("SITE_NAME") ?? "This site",
+            starters: STARTERS,
+            error: typeof asked === "string" ? asked : undefined,
+          }),
+        }),
+      );
+    }
 
     const [counts, drafts, runs, payments, history] = await Promise.all([
       this.reader.counts(spec),
@@ -382,7 +402,7 @@ ${
   async testAutomation(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = String((ctx.params as Record<string, string>)["key"] ?? "");
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
     const workflow = spec.logic.find((w) => w.key === key);

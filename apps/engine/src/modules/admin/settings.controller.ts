@@ -10,7 +10,7 @@ import { Controller, Get, Inject, Post, type Ctx } from "@forinda/kickjs";
 import { SiteSpecUseCase } from "@/shared/use-cases";
 import { PageManageUseCase, type EditResult as PageResult } from "./use-cases/page-manage.usecase";
 import { SiteEditUseCase, tokenUsage, type TokenGroup } from "./use-cases/site-edit.usecase";
-import { html, notFound, redirect } from "./utils/http";
+import { html, noSiteYet, notFound, redirect } from "./utils/http";
 import { pageList, pageSettings } from "./utils/pages.view";
 import { settings } from "./utils/settings.view";
 import { page } from "./utils/view";
@@ -26,7 +26,7 @@ export class SettingsController {
   @Get("/settings")
   async show(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     // Counted here rather than in the view: "used in 3 places" is what makes
     // the remove button safe to press or refuse to appear at all.
@@ -52,7 +52,7 @@ export class SettingsController {
   @Post("/settings")
   async save(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const tokens = { colors: {}, typeScale: {}, radius: {} } as Record<
@@ -87,7 +87,7 @@ export class SettingsController {
   @Post("/settings/tokens")
   async tokens(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const [op, group, name] = str(body["op"]).split(":");
@@ -112,7 +112,7 @@ export class SettingsController {
   @Get("/pages")
   async pageIndex(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     html(
       ctx,
@@ -129,7 +129,7 @@ export class SettingsController {
   @Post("/pages")
   async createPage(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const key = str(body["key"]).trim();
@@ -173,7 +173,7 @@ export class SettingsController {
   async pageSave(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const body = form(ctx);
     const result = await this.pages.update(
@@ -199,7 +199,7 @@ export class SettingsController {
   async pageDelete(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
     const key = keyOf(ctx);
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     // The gate refuses the first press and says what it costs; the message is
     // rendered with the button that goes ahead (ADR 0033 §5).

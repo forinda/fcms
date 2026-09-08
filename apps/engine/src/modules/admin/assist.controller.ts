@@ -20,7 +20,7 @@ import { SiteSpecUseCase } from "@/shared/use-cases";
 import { ApplySpecUseCase, DestructiveChangeError } from "./use-cases/apply-spec.usecase";
 import { AssistUseCase, type Suggestion } from "./use-cases/assist.usecase";
 import { assist } from "./utils/assist.view";
-import { html, notFound, redirect } from "./utils/http";
+import { html, noSiteYet, redirect } from "./utils/http";
 import { page as shell } from "./utils/view";
 
 @Controller()
@@ -37,7 +37,7 @@ export class AssistController {
   @Post("/assist")
   async ask(ctx: Ctx): Promise<void> {
     const spec = await this.specs.execute();
-    if (!spec) return notFound(ctx);
+    if (!spec) return noSiteYet(ctx);
 
     const instruction = String((ctx.body as Record<string, unknown>)["instruction"] ?? "").trim();
     if (instruction === "") {

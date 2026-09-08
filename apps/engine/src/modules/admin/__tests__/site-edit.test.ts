@@ -31,7 +31,7 @@ const spec = SiteSpec.parse({
       blocks: [
         {
           type: "section",
-          style: { background: "token:color.surface", fontSize: "xl" },
+          style: { background: "token:color.accent", fontSize: "xl" },
           children: [{ type: "heading", attrs: { text: "Hello" }, style: { fontSize: "xl" } }],
         },
       ],
@@ -66,8 +66,10 @@ const settings = (over: Record<string, unknown> = {}) => ({
 
 describe("counting what uses a token", () => {
   it("counts colour references, which are always tokens", () => {
-    expect(tokenUsage(spec, "colors", "surface")).toEqual({ count: 1, base: false });
-    expect(tokenUsage(spec, "colors", "accent")).toEqual({ count: 0, base: false });
+    expect(tokenUsage(spec, "colors", "accent")).toEqual({ count: 1, base: false });
+    // Nothing names it — but the stylesheet draws form controls on it, which
+    // is the other half of the question and answered separately.
+    expect(tokenUsage(spec, "colors", "surface")).toEqual({ count: 0, base: true });
   });
 
   it("counts a size through the style prop that names it", () => {
@@ -89,6 +91,9 @@ describe("counting what uses a token", () => {
     expect(tokenUsage(spec, "colors", "brand").base).toBe(true);
     expect(tokenUsage(spec, "radius", "md").base).toBe(true);
     expect(tokenUsage(spec, "colors", "accent").base).toBe(false);
+    // Added when the base stylesheet learned to draw form controls: the answer
+    // moves when the CSS does, which is the point of scanning it.
+    expect(tokenUsage(spec, "colors", "surface").base).toBe(true);
   });
 });
 
@@ -103,16 +108,20 @@ describe("removing a token", () => {
 
   it("refuses one a page still names, and says how many", async () => {
     const { edits } = editor();
-    const result = await edits.removeToken(spec, "colors", "surface", INPUT);
+    const result = await edits.removeToken(spec, "colors", "accent", INPUT);
     expect(result.ok === false && result.error).toBe(
-      "1 place still uses “surface”. Change it first.",
+      "1 place still uses “accent”. Change it first.",
     );
   });
 
   it("removes one nothing points at", async () => {
     const { edits, applied } = editor();
-    expect(await edits.removeToken(spec, "colors", "accent", INPUT)).toEqual({ ok: true, seq: 1 });
-    expect(Object.keys(applied[0]!.theme.colors)).toEqual(["brand", "surface"]);
+    const spare = SiteSpec.parse({
+      ...spec,
+      theme: { ...spec.theme, colors: { ...spec.theme.colors, spare: "#123456" } },
+    });
+    expect(await edits.removeToken(spare, "colors", "spare", INPUT)).toEqual({ ok: true, seq: 1 });
+    expect(Object.keys(applied[0]!.theme.colors)).toEqual(["brand", "accent", "surface"]);
   });
 });
 

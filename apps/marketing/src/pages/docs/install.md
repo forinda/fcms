@@ -52,7 +52,7 @@ Open <code>.env</code> and set three things:
 <pre><code>docker compose up -d</code></pre>
 </div>
 
-Open <code>http://localhost:8080</code>. There is a working site, and your dashboard is at <code>/admin</code>.
+Open <code>http://localhost:8080</code>. There is a working site, and your dashboard is at <code>/admin</code>. Sign in and it asks what kind of site this is — bookings, enquiries, or nothing yet — and gives you a real one to start from.
 
 <div class="note">
 

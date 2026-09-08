@@ -12,6 +12,7 @@ import { AssistController } from "./assist.controller";
 import { AutomationController } from "./automation.controller";
 import { CanvasController } from "./canvas.controller";
 import { ContentController } from "./content.controller";
+import { FirstRunController } from "./first-run.controller";
 import { IntegrationsController } from "./integrations.controller";
 import { MediaController } from "./media.controller";
 import { SettingsController } from "./settings.controller";
@@ -40,6 +41,7 @@ export const AdminModule = defineModule({
         // swallow nothing here, but the canvas's `/pages/:key` is the more
         // specific route and reads better first.
         { path: "/admin", controller: AssistController },
+        { path: "/admin", controller: FirstRunController },
         // Before the canvas: its `/pages/:key` would otherwise swallow
         // `/pages` and `/pages/:key/settings`, which are this controller's.
         { path: "/admin", controller: SettingsController },

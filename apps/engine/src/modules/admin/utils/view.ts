@@ -381,6 +381,12 @@ ul.tokens button[disabled]{color:var(--muted);cursor:not-allowed}
 fieldset{border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem 1rem;margin:1.5rem 0}
 legend{padding:0 .35rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;
   color:var(--muted)}
+/* The first screen: one card per starting point, each its own form. */
+.cards.starters{grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));margin-top:1.5rem}
+.card.starter{display:flex;flex-direction:column;gap:.5rem}
+.card.starter ul{margin:0;padding-left:1.1rem;font-size:.85rem;color:var(--muted)}
+.card.starter button{margin-top:auto;align-self:flex-start}
+.lede{font-size:1.05rem;max-width:42rem}
 .new-type{margin:2.5rem 0 0;padding-top:1.5rem;border-top:1px solid var(--line)}
 .new-automation{margin:1.5rem 0;padding-top:1rem;border-top:1px solid var(--line)}
 .new-automation .row{display:flex;gap:.4rem;flex-wrap:wrap}
