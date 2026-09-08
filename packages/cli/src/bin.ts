@@ -109,8 +109,11 @@ export function buildProgram(): Command {
   program
     .command("pull")
     .argument("[dir]", "spec directory", ".")
+    .option("--content", "also write every entry to data/<type>.yaml")
     .description("render the remote spec back to canonical files")
-    .action(async (dir: string) => process.exit(await pull(resolve(dir))));
+    .action(async (dir: string, options: { content?: boolean }) =>
+      process.exit(await pull(resolve(dir), options)),
+    );
 
   program
     .command("plan")
@@ -122,8 +125,9 @@ export function buildProgram(): Command {
     .command("apply")
     .argument("[dir]", "spec directory", ".")
     .option("-y, --yes", "confirm destructive changes")
+    .option("--content", "also send every row in data/<type>.yaml")
     .description("apply local files to the linked site, gating destructive changes")
-    .action(async (dir: string, options: { yes?: boolean }) =>
+    .action(async (dir: string, options: { yes?: boolean; content?: boolean }) =>
       process.exit(await apply(resolve(dir), options)),
     );
 

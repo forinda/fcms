@@ -14,4 +14,7 @@ export * from "./errors.js";
 export * from "./parse.js";
 export * from "./print.js";
 export * from "./layout.js";
-export { STRICT_PARSE_OPTIONS } from "./profile.js";
+// `checkUnquotedTemplates` is exported beside the options because the CLI
+// applies both to data files too: a sentence with a comma in it, unquoted, is
+// how a service description once became a key.
+export { checkUnquotedTemplates, STRICT_PARSE_OPTIONS } from "./profile.js";

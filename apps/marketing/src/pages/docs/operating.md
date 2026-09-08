@@ -35,6 +35,8 @@ Restoring stops the app first so nothing writes mid-restore, and asks you to typ
 
 Uploaded media lives on disk rather than in Postgres, and the backup covers both — a backup that restores the site without its pictures is one you find out about at the worst moment.
 
+There is a second, different export: <code>fcms pull --content</code> writes the spec <em>and</em> every row as readable files you can commit to git, edit by hand, and send back with <code>fcms apply --content</code>. It is not a replacement for the dump above — it holds no history and no media — but it is the copy you can actually read, diff and review.
+
 ## Upgrading
 
 <div class="snippet">
