@@ -122,7 +122,11 @@ export class EntryWriteUseCase {
       [row] = await this.db
         .update(entries)
         .set({
-          slug: input.slug ?? null,
+          // Only when the caller said something about it. `slug: undefined`
+          // means "not mentioned", and writing null for it clears the address
+          // an entry is already published at — a partial update that silently
+          // unpublishes a page is the worst kind of API.
+          ...(input.slug === undefined ? {} : { slug: input.slug || null }),
           data: validation.data!,
           ...(input.status ? { status: input.status } : {}),
           updatedAt: new Date(),

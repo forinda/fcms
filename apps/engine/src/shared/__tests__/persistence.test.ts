@@ -392,4 +392,55 @@ suite("the persistence layer", () => {
       expect(await repo().read.counts(spec)).toEqual({ service: 0 });
     });
   });
+  /**
+   * A partial update says nothing about the address (ADR 0044).
+   *
+   * The API takes `{ data }` on its own, and the admin application sends exactly
+   * that. Writing `slug: null` for an unmentioned slug unpublishes the page an
+   * entry is already served at — found by editing a service's price in the new
+   * app and watching its address disappear.
+   */
+  describe("updating an entry without mentioning its slug", () => {
+    it("keeps the address it already had", async () => {
+      const { apply, writer, entries } = of();
+      await apply.execute(spec, { actor: "test", role: "owner", source: "cli" });
+
+      const made = await writer.create(spec, {
+        typeKey: "service",
+        slug: "cut",
+        data: { name: "Cut", slug: "cut" },
+      });
+      expect(made.ok).toBe(true);
+      const id = made.ok ? made.entry!.id : "";
+
+      await writer.update(spec, id, {
+        typeKey: "service",
+        data: { name: "Cut and finish", slug: "cut" },
+      });
+
+      expect((await entries.byId(id))?.slug).toBe("cut");
+    });
+
+    it("still clears it when the caller means to", async () => {
+      const { apply, writer, entries } = of();
+      await apply.execute(spec, { actor: "test", role: "owner", source: "cli" });
+
+      const made = await writer.create(spec, {
+        typeKey: "service",
+        slug: "trim",
+        data: { name: "Trim", slug: "trim" },
+      });
+      const id = made.ok ? made.entry!.id : "";
+
+      // The declared `slug` field stays — it is a field like any other. What
+      // is being cleared is the address column, which is what an empty `slug`
+      // on the input means.
+      await writer.update(spec, id, {
+        typeKey: "service",
+        slug: "",
+        data: { name: "Trim", slug: "trim" },
+      });
+      expect((await entries.byId(id))?.slug).toBeNull();
+    });
+  });
 });
