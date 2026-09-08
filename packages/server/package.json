@@ -1,0 +1,39 @@
+{
+  "name": "forinda-cms",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Run a forinda-cms site. Needs Node and a Postgres URL; no Docker required.",
+  "license": "UNLICENSED",
+  "bin": {
+    "forinda-cms": "./bin/forinda-cms.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "migrations",
+    "app",
+    "README.md"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/pack.mjs",
+    "typecheck": "node --check bin/forinda-cms.mjs",
+    "prepack": "node scripts/pack.mjs"
+  },
+  "dependencies": {
+    "@forinda/kickjs": "catalog:",
+    "@forinda/kickjs-schema": "catalog:",
+    "@node-rs/argon2": "catalog:",
+    "dotenv": "catalog:",
+    "drizzle-orm": "catalog:",
+    "express": "catalog:",
+    "multer": "catalog:",
+    "postgres": "catalog:",
+    "reflect-metadata": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
