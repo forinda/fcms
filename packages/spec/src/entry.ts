@@ -151,6 +151,26 @@ export function coerceEntryInput(
               raw;
         break;
       }
+      case "hours": {
+        // The admin edits opening hours as JSON in a textarea, so what arrives
+        // is a string where the schema wants a structure. Without this, saving
+        // a stylist reports "Invalid input" with no field named — and saving
+        // one whose box was empty wiped the hours the availability of the whole
+        // site is computed from.
+        if (typeof raw !== "string") break;
+        if (raw.trim() === "") {
+          out[field.name] = undefined;
+          break;
+        }
+        try {
+          out[field.name] = JSON.parse(raw);
+        } catch {
+          // Left as the string, so the schema reports it as the wrong shape
+          // rather than this quietly deciding the hours are gone.
+          out[field.name] = raw;
+        }
+        break;
+      }
       case "state":
         // A declared `initial` that nothing writes is decoration: the row lands
         // with no status, listings show a blank column, and an automation that

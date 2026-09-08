@@ -90,13 +90,32 @@ ${header}
 }
 
 /**
+ * What a field can be filled in *from* — the rows and files that exist.
+ *
+ * A `reference` is stored as `ref:type/slug` and an `asset` as `asset:id`.
+ * Rendering those as text boxes made an owner type an identifier by hand, which
+ * is not editing, it is transcription. The form asks for these instead.
+ */
+export interface FieldChoices {
+  /** Entries of each referenced type, as `{ value: "ref:type/slug", label }`. */
+  readonly references?: Readonly<Record<string, readonly { value: string; label: string }[]>>;
+  /** Uploaded files, newest first. */
+  readonly assets?: readonly { value: string; label: string; image: boolean; id: string }[];
+}
+
+/**
  * One input, generated from a field's declaration.
  *
  * The type mapping is imported rather than repeated — the `form` block generates
  * the same inputs from the same declarations, and two copies would drift into a
  * form that accepts what the schema rejects.
  */
-export function fieldInput(field: Field, value: unknown, error?: string): string {
+export function fieldInput(
+  field: Field,
+  value: unknown,
+  error?: string,
+  choices: FieldChoices = {},
+): string {
   const id = `f-${field.name}`;
   const required = "required" in field && field.required === true;
   const label = `<label for="${id}">${esc(field.label)}${required ? ' <span class="req">required</span>' : ""}</label>`;
@@ -125,6 +144,61 @@ export function fieldInput(field: Field, value: unknown, error?: string): string
         return `<select id="${id}" name="${esc(field.name)}">
           ${values.map((v) => `<option value="${esc(v)}"${v === chosen ? " selected" : ""}>${esc(v)}</option>`).join("")}
         </select>`;
+      }
+      case "reference": {
+        // Only the type this field points at, and only rows that exist. A text
+        // box here accepts `ref:sevrice/haircut` and fails at save time, or
+        // worse, saves and resolves to nothing on the page.
+        const to = "to" in field ? field.to : "";
+        const rows = choices.references?.[to] ?? [];
+        const chosen = String(value ?? "");
+        if (rows.length === 0) {
+          return `<p class="help">There are no ${esc(to)} entries to point at yet.</p>
+            <input id="${id}" name="${esc(field.name)}" type="hidden" value="${esc(chosen)}">`;
+        }
+        return `<select id="${id}" name="${esc(field.name)}"${required ? " required" : ""}>
+          <option value=""${chosen ? "" : " selected"}>—</option>
+          ${rows
+            .map(
+              (r) =>
+                `<option value="${esc(r.value)}"${r.value === chosen ? " selected" : ""}>${esc(r.label)}</option>`,
+            )
+            .join("")}
+        </select>`;
+      }
+      case "asset": {
+        const files = choices.assets ?? [];
+        const chosen = String(value ?? "");
+        const current = files.find((f) => f.value === chosen);
+        const preview =
+          current && current.image
+            ? `<img class="chosen-asset" src="/media/${esc(current.id)}" alt="">`
+            : "";
+        if (files.length === 0) {
+          return `<p class="help">Nothing in the <a href="/admin/media">library</a> yet.</p>
+            <input id="${id}" name="${esc(field.name)}" type="hidden" value="${esc(chosen)}">`;
+        }
+        return `${preview}<select id="${id}" name="${esc(field.name)}"${required ? " required" : ""}>
+          <option value=""${chosen ? "" : " selected"}>—</option>
+          ${files
+            .map(
+              (f) =>
+                `<option value="${esc(f.value)}"${f.value === chosen ? " selected" : ""}>${esc(f.label)}</option>`,
+            )
+            .join("")}
+        </select>
+        <p class="help">Upload more in the <a href="/admin/media">library</a>.</p>`;
+      }
+      case "geo": {
+        // One box, because what a person has is one string off a map — the
+        // coercion already reads "-0.7167, 36.4333" (ADR 0026).
+        const point = value as { lat?: number; lng?: number } | undefined;
+        const text =
+          point && typeof point === "object" && point.lat !== undefined
+            ? `${point.lat}, ${point.lng}`
+            : String(value ?? "");
+        return `<input id="${id}" name="${esc(field.name)}" value="${esc(text)}"
+          placeholder="-1.2921, 36.8219"${required ? " required" : ""}>`;
       }
       case "hours":
         // Structured, but a grid editor is canvas work. JSON here is honest
@@ -168,6 +242,7 @@ export function entryForm(
     slug?: string | null;
     errors?: Record<string, string>;
     deleteAction?: string;
+    choices?: FieldChoices;
   },
 ): string {
   const errors = options.errors ?? {};
@@ -196,6 +271,7 @@ export function entryForm(
         f,
         f.name === "slug" ? (data[f.name] ?? options.slug) : data[f.name],
         errors[f.name],
+        options.choices ?? {},
       ),
     )
     .join("\n")}
@@ -308,6 +384,7 @@ button.destructive{background:#fff;color:var(--bad);border:1px solid var(--bad)}
 .pill.destructive{background:#fee2e2;color:var(--bad)}
 .pill.live{background:#dcfce7;color:#166534}
 form.inline{display:inline}
+img.chosen-asset{max-width:12rem;border-radius:6px;border:1px solid var(--line);margin-bottom:.4rem}
 .upload{margin:1rem 0 1.5rem;padding:1rem;border:1px dashed var(--line);border-radius:8px}
 .upload .row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
 .assets{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))}

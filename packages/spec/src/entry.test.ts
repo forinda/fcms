@@ -191,3 +191,47 @@ describe("a coordinate", () => {
     expect(result.ok && result.data!["location"]).toBeUndefined();
   });
 });
+
+/**
+ * Opening hours, from the box they are edited in.
+ *
+ * The admin edits them as JSON in a textarea, so what arrives is a string where
+ * the schema wants a structure. Without coercion, saving a stylist reported
+ * "Invalid input" naming no field — and saving one whose box was empty wiped
+ * the hours the whole site's availability is computed from.
+ */
+describe("a week of opening hours", () => {
+  const type = ContentType.parse({
+    key: "staff",
+    label: "Stylist",
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "workingHours", label: "Working hours", type: "hours" },
+    ],
+  });
+
+  const hours = { tue: [{ from: "09:00", to: "17:00" }] };
+
+  it("reads the JSON the form posts", () => {
+    const result = validateEntry(type, { name: "Amina", workingHours: JSON.stringify(hours) });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data!["workingHours"]).toEqual(hours);
+  });
+
+  it("takes the structure directly, for every other writer", () => {
+    const result = validateEntry(type, { name: "Amina", workingHours: hours });
+    expect(result.ok && result.data!["workingHours"]).toEqual(hours);
+  });
+
+  it("treats an empty box as no hours", () => {
+    const result = validateEntry(type, { name: "Amina", workingHours: "   " });
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.data!["workingHours"]).toBeUndefined();
+  });
+
+  it("refuses something that is not hours, naming the field", () => {
+    const result = validateEntry(type, { name: "Amina", workingHours: "tuesday mornings" });
+    expect(result.ok).toBe(false);
+    expect(Object.keys(result.errors ?? {})).toContain("workingHours");
+  });
+});

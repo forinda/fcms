@@ -15,11 +15,13 @@
  * asserted.
  */
 import { Controller, Get, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
+import type { ContentType, SiteSpec } from "@forinda-cms/spec";
 
 import { EntryReadUseCase, SiteSpecUseCase } from "@/shared/use-cases";
 import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { EntryWriteUseCase } from "./use-cases/entries.usecase";
+import { MediaUseCase } from "./use-cases/media.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
 import { html, noSiteYet, notFound, readForm, redirect } from "./utils/http";
@@ -27,7 +29,7 @@ import { STARTERS } from "@/shared/starters";
 import { dashboard } from "./utils/dashboard.view";
 import { entryList } from "./utils/entries.view";
 import { firstRun, untouched } from "./utils/first-run.view";
-import { entryForm, esc, page } from "./utils/view";
+import { entryForm, esc, page, type FieldChoices } from "./utils/view";
 
 /**
  * A screenful.
@@ -58,6 +60,7 @@ export class ContentController {
   @Inject(PaymentRepository) private readonly payments!: PaymentRepository;
   @Inject(PaymentUseCase) private readonly pay!: PaymentUseCase;
   @Inject(WorkflowUseCase) private readonly workflows!: WorkflowUseCase;
+  @Inject(MediaUseCase) private readonly media!: MediaUseCase;
 
   /**
    * What wants a person, then what has happened, then everything else.
@@ -170,6 +173,59 @@ export class ContentController {
   }
 
   /**
+   * What the form's pickers offer: the rows a reference can point at, and the
+   * files in the library.
+   *
+   * Read per request rather than cached, because the answer changes whenever
+   * somebody adds a service or uploads a picture — and a stale picker is a
+   * picker that cannot choose the thing you just made.
+   *
+   * ponytail: capped at 200 rows per type. A site with more services than that
+   * needs a picker that searches, which is a different control, not a bigger
+   * number.
+   */
+  private async choicesFor(spec: SiteSpec, type: ContentType): Promise<FieldChoices> {
+    const references: Record<string, { value: string; label: string }[]> = {};
+
+    for (const field of type.fields) {
+      if (field.type !== "reference" || !("to" in field)) continue;
+      const target = spec.content.find((t) => t.key === field.to);
+      if (!target || references[field.to]) continue;
+
+      const { rows } = await this.reader.page(field.to, {
+        sort: "title",
+        titleField: target.titleField ?? "name",
+        limit: 200,
+        offset: 0,
+      });
+
+      references[field.to] = rows
+        // A reference is `ref:type/slug`, so a row without a slug cannot be
+        // pointed at — offering it would write a reference that resolves to
+        // nothing.
+        .filter((row) => row.slug)
+        .map((row) => ({
+          value: `ref:${field.to}/${row.slug}`,
+          label: `${String(row.data[target.titleField ?? "name"] ?? row.slug)}${
+            row.status === "draft" ? " (draft)" : ""
+          }`,
+        }));
+    }
+
+    const wantsAssets = type.fields.some((f) => f.type === "asset");
+    const assets = wantsAssets
+      ? (await this.media.list()).map((asset) => ({
+          value: `asset:${asset.id}`,
+          label: `${asset.alt || asset.filename}`,
+          image: asset.contentType.startsWith("image/"),
+          id: asset.id,
+        }))
+      : [];
+
+    return { references, assets };
+  }
+
+  /**
    * Publish or unpublish one entry.
    *
    * The action that decides whether the public site can see it. It is not a
@@ -191,7 +247,9 @@ export class ContentController {
     const spec = await this.specs.execute();
     const key = String((ctx.params as Record<string, string>)["type"] ?? "");
     const type = spec?.content.find((t) => t.key === key);
-    if (!type || type.derived) return notFound(ctx);
+    if (!spec || !type || type.derived) return notFound(ctx);
+
+    const choices = await this.choicesFor(spec, type);
 
     html(
       ctx,
@@ -203,7 +261,7 @@ export class ContentController {
           { label: `New ${type.label.toLowerCase()}` },
         ],
         body: `<h1>New ${esc(type.label.toLowerCase())}</h1>
-${entryForm(type, {}, { action: `/admin/content/${key}/new` })}`,
+${entryForm(type, {}, { action: `/admin/content/${key}/new`, choices })}`,
       }),
     );
   }
@@ -233,7 +291,12 @@ ${entryForm(type, {}, { action: `/admin/content/${key}/new` })}`,
           { label: "New" },
         ],
         body: `<h1>New ${esc(type.label.toLowerCase())}</h1>
-${entryForm(type, data, { action: `/admin/content/${key}/new`, slug, errors: result.errors })}`,
+${entryForm(type, data, {
+  action: `/admin/content/${key}/new`,
+  slug,
+  errors: result.errors,
+  choices: await this.choicesFor(spec, type),
+})}`,
       }),
     );
   }
@@ -243,7 +306,7 @@ ${entryForm(type, data, { action: `/admin/content/${key}/new`, slug, errors: res
     const spec = await this.specs.execute();
     const params = ctx.params as Record<string, string>;
     const type = spec?.content.find((t) => t.key === params["type"]);
-    if (!type || type.derived) return notFound(ctx);
+    if (!spec || !type || type.derived) return notFound(ctx);
 
     const entry = await this.reader.byId(String(params["id"]));
     if (!entry) return notFound(ctx);
@@ -262,6 +325,7 @@ ${entryForm(type, entry.data, {
   action: `/admin/content/${type.key}/${entry.id}`,
   slug: entry.slug,
   deleteAction: `/admin/content/${type.key}/${entry.id}/delete`,
+  choices: await this.choicesFor(spec, type),
 })}
 ${paymentsPanel(await this.payments.forEntry(entry.id), `/admin/content/${type.key}/${entry.id}`)}`,
       }),
@@ -296,6 +360,7 @@ ${entryForm(type, data, {
   slug,
   errors: result.errors,
   deleteAction: `/admin/content/${type.key}/${id}/delete`,
+  choices: await this.choicesFor(spec, type),
 })}`,
       }),
     );

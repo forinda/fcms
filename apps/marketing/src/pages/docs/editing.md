@@ -38,6 +38,8 @@ Under it are the site's latest automation runs and its latest changes — who ch
 
 The front page also lists your content types — Services, Bookings, Stylists, whatever your site declares — with how many entries each has. Open one to list its entries, and use <em>Add</em> or <em>edit</em> to change them.
 
+Fields that point at something offer it: a booking's service is a list of your services, a stylist's photo is a list of what you have uploaded, with the current one shown. Nothing asks you to type an identifier.
+
 The form is generated from what the type declares, so it validates the way the site does: a required field left empty is refused rather than saved blank, a number field will not take words, and a slug already in use is reported as such instead of failing later.
 
 Long lists stay usable: twenty-five at a time, newest first, with a search box that looks inside the entries themselves — a customer's name, a phone number — not only at their titles. You can show only drafts or only published, and order by name or by when something last changed. All of that lives in the address, so a filtered list is a link you can bookmark or send to somebody.
