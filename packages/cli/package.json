@@ -1,5 +1,5 @@
 {
-  "name": "@forinda-cms/cli",
+  "name": "@forinda/fcms-cli",
   "version": "0.0.0",
   "description": "fcms — the forinda-cms management CLI. Validate, format, preview and publish a site from a directory of YAML.",
   "keywords": [

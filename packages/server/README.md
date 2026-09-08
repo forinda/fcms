@@ -1,15 +1,15 @@
-# forinda-cms
+# @forinda/fcms-core
 
-Run a site. Needs Node 22+ and a Postgres URL — no Docker (ADR 0046).
+Run a site. Needs Node 22+ and a Postgres URL — no Docker.
 
 ```sh
 DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-npx forinda-cms
+npx @forinda/fcms-core
 ```
 
 It migrates the database on boot, creates the first owner once, and serves on
-`PORT` (8080 by default). `npx forinda-cms --help` lists everything it reads.
+`PORT` (8080 by default). `npx @forinda/fcms-core --help` lists everything it reads.
 
 What this does not bring, because Docker Compose was what brought it: a
 database, TLS, or a backup script. Put a reverse proxy in front for HTTPS

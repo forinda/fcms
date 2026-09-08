@@ -44,13 +44,13 @@ so `up` lands on a working site. Backups and proxy notes are in
 No Docker? A Node 22+ machine and a Postgres URL are enough:
 
 ```bash
-DATABASE_URL=postgres://… npx forinda-cms
+DATABASE_URL=postgres://… npx @forinda/fcms-core
 ```
 
 ## The CLI
 
 ```bash
-npm install -g @forinda-cms/cli
+npm install -g @forinda/fcms-cli
 
 fcms dev      # preview a site directory locally, no server needed
 fcms plan     # what publishing would change

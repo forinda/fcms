@@ -23,7 +23,7 @@ its release assets, which sit behind the same authentication as its code. The
 site is already public, the files are copied into it at build time from this
 directory, and there is one source of truth: this one.
 
-The image itself is public: `ghcr.io/forinda/forinda-cms`.
+The image itself is public: `ghcr.io/forinda/fcms`.
 
 ## Why this file exists
 

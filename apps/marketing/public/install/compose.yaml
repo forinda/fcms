@@ -1,7 +1,7 @@
 # forinda-cms — the whole install.
 #
-#   1. curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/compose.yaml
-#   2. curl -O https://raw.githubusercontent.com/forinda/forinda-cms/main/install/.env.example && mv .env.example .env
+#   1. curl -O https://raw.githubusercontent.com/forinda/fcms/main/install/compose.yaml
+#   2. curl -O https://raw.githubusercontent.com/forinda/fcms/main/install/.env.example && mv .env.example .env
 #   3. edit .env — set POSTGRES_PASSWORD and SITE_NAME
 #   4. docker compose up -d
 #
@@ -48,7 +48,7 @@ services:
       options: { max-size: "10m", max-file: "3" }
 
   app:
-    image: ghcr.io/forinda/forinda-cms:${VERSION:-latest}
+    image: ghcr.io/forinda/fcms:${VERSION:-latest}
     restart: always
     depends_on:
       postgres:

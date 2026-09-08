@@ -11,9 +11,9 @@ That runs [`.github/workflows/release.yaml`](.github/workflows/release.yaml):
 
 | Published | Where | Tags |
 |---|---|---|
-| The image | `ghcr.io/forinda/forinda-cms` | `2026.4`, `2026`, `latest`, the commit sha |
-| The server | [`forinda-cms`](https://www.npmjs.com/package/forinda-cms) on npm | `2026.4` |
-| The CLI | [`@forinda-cms/cli`](https://www.npmjs.com/package/@forinda-cms/cli) on npm | `2026.4` |
+| The image | `ghcr.io/forinda/fcms` | `2026.4`, `2026`, `latest`, the commit sha |
+| The server | [`@forinda/fcms-core`](https://www.npmjs.com/package/@forinda/fcms-core) on npm | `2026.4` |
+| The CLI | [`@forinda/fcms-cli`](https://www.npmjs.com/package/@forinda/fcms-cli) on npm | `2026.4` |
 
 A merge to `main` republishes the image as `:edge` and **publishes nothing to
 npm** — an npm version is permanent, and `edge` is a moving target.
@@ -21,7 +21,7 @@ npm** — an npm version is permanent, and `edge` is a moving target.
 ## Versions
 
 The server and the CLI carry the same number on purpose: one is the client of
-the other, so `fcms 2026.4` goes with `forinda-cms 2026.4` and there is no
+the other, so `fcms 2026.4` goes with `@forinda/fcms-core 2026.4` and there is no
 compatibility table to read.
 
 The number is calendar versioning — `YYYY.N` — and it comes from the tag. CI
@@ -34,13 +34,18 @@ things other people build against.
 
 ## What ships
 
-**`forinda-cms`** is assembled rather than written: the engine bundle, the
+**`@forinda/fcms-core`** is assembled rather than written: the engine bundle, the
 database migrations and the built admin application are copied into it at pack
-time, so one `npx forinda-cms` has everything it needs and no workspace.
+time, so one `npx @forinda/fcms-core` has everything it needs and no workspace.
 
-**`@forinda-cms/cli`** is a single bundled file. The workspace packages it
+**`@forinda/fcms-cli`** is a single bundled file. The workspace packages it
 imports are compiled into it; `commander`, `yaml` and `zod` stay external so npm
 can install and patch them normally.
+
+Both ship a sourcemap. A bug report from somebody else's server is a stack
+trace and nothing else, and without a map it names a line in a bundle nobody
+has. The map embeds the TypeScript it was built from — which is this
+repository, under a licence that says you may read it.
 
 Both are built by `prepack`, so what a maintainer publishes and what CI
 publishes are produced the same way. CI also builds the CLI bundle and runs it
@@ -52,7 +57,7 @@ Check a tarball before trusting a change to it:
 ```sh
 pnpm build
 cd packages/server && pnpm pack --pack-destination /tmp
-tar -tzf /tmp/forinda-cms-*.tgz
+tar -tzf /tmp/forinda-cms-core-*.tgz
 ```
 
 **Use pnpm, not npm, to pack or publish.** Dependencies are written `catalog:`
@@ -67,7 +72,7 @@ identity to npm, so there is no secret to leak or rotate. Each tarball carries
 provenance — the signed statement linking it to the commit and the run that
 built it, and the "Verified" badge on the package page.
 
-Once for `forinda-cms` and once for `@forinda-cms/cli`:
+Once for `@forinda/fcms-core` and once for `@forinda/fcms-cli`:
 
 1. Sign in to npm as the maintainer.
 2. `https://www.npmjs.com/package/<name>/access` → **Trusted publishers** →
@@ -82,7 +87,7 @@ every release after that belongs to the workflow.
 
 ## Licences on what ships
 
-`forinda-cms` and `@forinda-cms/cli` are **AGPL-3.0-or-later**. The interop
+`@forinda/fcms-core` and `@forinda/fcms-cli` are **AGPL-3.0-or-later**. The interop
 packages, when they ship, are **Apache-2.0**. Each tarball carries its own
 `LICENSE`, and the CLI carries a `NOTICE` naming which packages inside its
 bundle are Apache-2.0 — that file is the only place a user can learn it, so it

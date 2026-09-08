@@ -20,7 +20,7 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { diffSpecs, SiteSpec, summarise } from "@forinda-cms/spec";
 import { splitFiles } from "@forinda-cms/lang";
-import { loadProject } from "@forinda-cms/cli";
+import { loadProject } from "@forinda/fcms-cli";
 
 interface Variant {
   readonly id: string;
