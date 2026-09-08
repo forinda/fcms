@@ -100,6 +100,59 @@ export function notFound(ctx: Ctx): void {
   html(ctx, 404, page({ title: "Not found", body: "<h1>Not found</h1>" }));
 }
 
+const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+/**
+ * The week, out of the boxes it was filled in.
+ *
+ * An `hours` field is edited as a grid — a pair of time inputs per slot, named
+ * `workingHours__tue__0__from` — because the alternative was a textarea of JSON,
+ * which is not something to put in front of the person who runs a salon
+ * (ADR 0039).
+ *
+ * The flat names are gathered back into `{ tue: [{ from, to }] }` here rather
+ * than in the spec package, because the naming is this form's business and the
+ * schema should never learn about it. A slot with only one end filled is kept
+ * as it is so the schema refuses it — dropping it would silently save half of
+ * what somebody typed.
+ */
+export function gatherHours(
+  type: ContentType,
+  fields: Record<string, unknown>,
+): Record<string, unknown> {
+  const hours = type.fields.filter((f) => f.type === "hours");
+  if (hours.length === 0) return fields;
+
+  const out: Record<string, unknown> = { ...fields };
+  for (const field of hours) {
+    const prefix = `${field.name}__`;
+    const posted = Object.keys(fields).some((k) => k.startsWith(prefix));
+    // Absent means the form did not render the grid — an API caller, or a
+    // textarea from an older page. Leave whatever was sent alone.
+    if (!posted) continue;
+
+    const week: Record<string, { from: string; to: string }[]> = {};
+    for (const day of DAYS) {
+      const slots: { from: string; to: string }[] = [];
+      for (let index = 0; ; index += 1) {
+        const from = fields[`${prefix}${day}__${index}__from`];
+        const to = fields[`${prefix}${day}__${index}__to`];
+        if (from === undefined && to === undefined) break;
+
+        const start = String(from ?? "").trim();
+        const end = String(to ?? "").trim();
+        if (start !== "" || end !== "") slots.push({ from: start, to: end });
+      }
+      if (slots.length > 0) week[day] = slots;
+      delete out[`${prefix}${day}`];
+    }
+
+    for (const key of Object.keys(out)) if (key.startsWith(prefix)) delete out[key];
+    out[field.name] = Object.keys(week).length > 0 ? week : undefined;
+  }
+  return out;
+}
+
 /** A non-empty string, or nothing — an empty input is an absent slug, not "". */
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
@@ -121,7 +174,7 @@ export function readForm(
   // Coerced here so a re-rendered form shows what the schema saw, not the raw
   // strings — otherwise a rejected number field redisplays differently from how
   // it was judged.
-  const data = coerceEntryInput(type, fields);
+  const data = coerceEntryInput(type, gatherHours(type, fields));
 
   // The address comes from the declared `slug` field where there is one. Both
   // end up in the row: the column is what the URL and the unique index read,

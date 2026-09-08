@@ -12,6 +12,18 @@
  */
 import { z } from "zod";
 
+/** `09:00`, `9:00`, `23:59`. The same shape `HoursField` declares. */
+const TIME_OF_DAY = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Said in the words of the person filling the form in.
+ *
+ * Zod's own message for a failed regex prints the pattern, and
+ * `/^([01]?\d|2[0-3]):[0-5]\d$/` in front of a salon owner is not an error
+ * message, it is an apology.
+ */
+const OPENING_TIME = "each day needs an opening and a closing time, like 09:00";
+
 import type { ContentType, Field } from "./content.js";
 
 /**
@@ -80,10 +92,21 @@ function schemaForField(field: Field): z.ZodType {
         return z.never();
       case "hours":
         // The shape is declared by the field type itself, so it validates
-        // structurally rather than as opaque JSON.
+        // structurally rather than as opaque JSON — and the times are checked,
+        // because a slot with only one end filled in is what a half-completed
+        // form posts. Accepting `{ from: "09:00", to: "" }` meant a stylist
+        // whose Tuesday never closed, and availability computed from it
+        // silently produced nothing.
         return z.record(
           z.string(),
-          z.array(z.object({ from: z.string(), to: z.string() }).strict()),
+          z.array(
+            z
+              .object({
+                from: z.string().regex(TIME_OF_DAY, OPENING_TIME),
+                to: z.string().regex(TIME_OF_DAY, OPENING_TIME),
+              })
+              .strict(),
+          ),
         );
     }
   })();
