@@ -451,15 +451,15 @@ importers:
       '@forinda-cms/ai':
         specifier: workspace:*
         version: link:../ai
-      '@forinda-cms/cli':
-        specifier: workspace:*
-        version: link:../cli
       '@forinda-cms/lang':
         specifier: workspace:*
         version: link:../lang
       '@forinda-cms/spec':
         specifier: workspace:*
         version: link:../spec
+      '@forinda/fcms-cli':
+        specifier: workspace:*
+        version: link:../cli
       yaml:
         specifier: 'catalog:'
         version: 2.9.0

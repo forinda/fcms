@@ -96,8 +96,8 @@ jobs:
     timeout-minutes: 20
 
     strategy:
-      # Two packages, one number: `forinda-cms` is the server and
-      # `@forinda-cms/cli` is the client that talks to it, and a user pairing
+      # Two packages, one number: `@forinda/fcms-core` is the server and
+      # `@forinda/fcms-cli` is the client that talks to it, and a user pairing
       # them should not have to read a compatibility table.
       #
       # `fail-fast: false` because the two publishes are independent. One
@@ -106,9 +106,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - package: forinda-cms
+          - package: "@forinda/fcms-core"
             directory: packages/server
-          - package: "@forinda-cms/cli"
+          - package: "@forinda/fcms-cli"
             directory: packages/cli
 
     # `id-token: write` is npm trusted publishing (OIDC): npm verifies this

@@ -69,13 +69,13 @@ Docker is the default because it brings the database and a version to pin along 
 <div class="snippet">
 <header><span>terminal</span><button class="copy" type="button" data-copy="DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-npx forinda-cms">Copy</button></header>
+npx @forinda/fcms-core">Copy</button></header>
 <pre><code>DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-npx forinda-cms</code></pre>
+npx @forinda/fcms-core</code></pre>
 </div>
 
-It migrates the database, creates the owner once, and serves on <code>PORT</code> (8080 by default). <code>npx forinda-cms --help</code> lists everything it reads — the same variables the compose file sets.
+It migrates the database, creates the owner once, and serves on <code>PORT</code> (8080 by default). <code>npx @forinda/fcms-core --help</code> lists everything it reads — the same variables the compose file sets.
 
 <div class="note">
 

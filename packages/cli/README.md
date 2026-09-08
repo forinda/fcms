@@ -4,7 +4,7 @@ The management CLI for [forinda-cms](https://forinda-cms.netlify.app). A site
 is a directory of YAML; this is what checks it, previews it and publishes it.
 
 ```sh
-npm install -g @forinda-cms/cli
+npm install -g @forinda/fcms-cli
 fcms --help
 ```
 

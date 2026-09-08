@@ -92,7 +92,7 @@ jobs:
       # directory, so `examples/salon` resolved to `packages/cli/examples/salon`
       # and this job failed with "no site.yaml" on every run.
       - name: validate the reference spec
-        run: pnpm --filter @forinda-cms/cli exec tsx src/bin.ts validate "$GITHUB_WORKSPACE/examples/salon"
+        run: pnpm --filter @forinda/fcms-cli exec tsx src/bin.ts validate "$GITHUB_WORKSPACE/examples/salon"
         env:
           NO_COLOR: '1'
 
@@ -102,7 +102,7 @@ jobs:
       # running it here means that fails a pull request rather than a release.
       - name: the published bundle runs
         run: |
-          pnpm --filter @forinda-cms/cli build
+          pnpm --filter @forinda/fcms-cli build
           node packages/cli/dist/fcms.mjs validate "$GITHUB_WORKSPACE/examples/salon"
         env:
           NO_COLOR: '1'
