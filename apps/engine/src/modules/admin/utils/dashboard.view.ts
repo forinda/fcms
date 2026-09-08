@@ -58,7 +58,8 @@ export function dashboard(options: DashboardOptions): string {
       .map((t) => ({
         count: drafts[t.key]!,
         text: `${plural(t, drafts[t.key]!)} not published`,
-        href: `/admin/content/${t.key}`,
+        // Straight to the drafts, not to the list they are buried in.
+        href: `/admin/content/${t.key}?status=draft`,
       })),
     ...(unfinished.length > 0
       ? [

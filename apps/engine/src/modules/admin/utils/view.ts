@@ -381,6 +381,20 @@ ul.tokens button[disabled]{color:var(--muted);cursor:not-allowed}
 fieldset{border:1px solid var(--line);border-radius:8px;padding:.75rem 1rem 1rem;margin:1.5rem 0}
 legend{padding:0 .35rem;font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;
   color:var(--muted)}
+/* The list's filter bar: search, status, order, all on one line where there is
+   room and stacked where there is not. */
+.filters{display:flex;gap:.75rem;align-items:end;flex-wrap:wrap;margin:1rem 0 .5rem}
+.filters .field{margin:0}
+.filters label{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.filters input,.filters select{min-width:9rem}
+.filters input[type=search]{min-width:16rem}
+.filters .clear{font-size:.85rem;padding-bottom:.55rem}
+.count{margin:.75rem 0 0;font-size:.85rem}
+.pager{display:flex;gap:1rem;align-items:center;margin:1rem 0 0;font-size:.9rem}
+@media(max-width:40rem){
+  .filters{flex-direction:column;align-items:stretch}
+  .filters input,.filters select,.filters input[type=search]{min-width:0;width:100%}
+}
 /* The first screen: one card per starting point, each its own form. */
 .cards.starters{grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));margin-top:1.5rem}
 .card.starter{display:flex;flex-direction:column;gap:.5rem}
