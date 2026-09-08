@@ -3,9 +3,16 @@
 One tag publishes everything.
 
 ```sh
-git tag 2026.4          # calendar versioning, no `v`
-git push origin 2026.4
+pnpm release            # the next number for this year
+pnpm release 2026.4     # that one
+pnpm release --dry-run  # say what would happen, change nothing
 ```
+
+`scripts/release.mjs` refuses more than it does, because a published npm
+version is permanent: wrong branch, dirty tree, disagreement with
+`origin/main`, a malformed or already-used tag, or a failing `pnpm verify`.
+Then it shows you what will be published and the commits since the last
+release, and asks. The tag is all it writes.
 
 That runs [`.github/workflows/release.yaml`](.github/workflows/release.yaml):
 
@@ -93,6 +100,26 @@ packages, when they ship, are **Apache-2.0**. Each tarball carries its own
 bundle are Apache-2.0 — that file is the only place a user can learn it, so it
 ships whether or not the bundle changed. [`LICENSING.md`](LICENSING.md) has the
 rest.
+
+## Changelogs
+
+The [releases page](https://github.com/forinda/fcms/releases) is the changelog,
+written by `scripts/notes.mjs` from the commits between one tag and the last.
+Commits are conventional (`feat(cli): …`), so the notes group themselves into
+Features, Fixes and the rest with nothing to maintain by hand — anything with an
+unrecognised prefix lands under "Other" rather than being dropped, because a
+commit that fell out of the notes over a typo is worse than an untidy heading.
+`!` after the type puts it under **Breaking**, first.
+
+Preview them before tagging:
+
+```sh
+pnpm notes
+```
+
+There is deliberately no `CHANGELOG.md`. It would have to be committed *after*
+the tag it describes — either an unreviewed commit on top of a release, or a
+file that is permanently one release stale.
 
 ## The site
 
