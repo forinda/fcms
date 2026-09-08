@@ -9,7 +9,7 @@
  */
 import { z } from "zod";
 
-import { FieldName, Key, Label, Note, TemplateString } from "./primitives.js";
+import { FieldName, Key, Label, Note, OptionValue, TemplateString } from "./primitives.js";
 
 /**
  * A weekly opening-hours field.
@@ -217,7 +217,7 @@ export const Field = z.intersection(
      */
     scalarField("geo"),
     scalarField("select").extend({
-      options: z.array(z.object({ value: Key, label: Label })).min(1),
+      options: z.array(z.object({ value: OptionValue, label: Label })).min(1),
     }),
     /** A relation to another content type. Integrity is declared, not implied. */
     scalarField("reference").extend({ to: Key, many: z.boolean().default(false) }),
@@ -249,6 +249,15 @@ export const JsonLdMapping = z
       "JobPosting",
       "FAQPage",
       "Review",
+      // Travel, because it is a vertical this platform is aimed at and a hotel
+      // marked up as a LocalBusiness is a hotel search engines do not know is a
+      // hotel. `Place` covers a city or a neighbourhood, which otherwise had no
+      // honest type at all and so emitted no structured data.
+      "LodgingBusiness",
+      "Hotel",
+      "Place",
+      "TouristAttraction",
+      "Restaurant",
     ]),
     /** schema.org property → field name on this type. */
     properties: z.record(z.string(), FieldName),

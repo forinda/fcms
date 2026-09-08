@@ -1071,6 +1071,21 @@
                     "param"
                   ],
                   "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "entry": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "pattern": "^[a-z][a-zA-Z0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "entry"
+                  ],
+                  "additionalProperties": false
                 }
               ]
             }
@@ -1153,6 +1168,21 @@
                         },
                         "required": [
                           "param"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "entry": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "pattern": "^[a-z][a-zA-Z0-9]*$"
+                          }
+                        },
+                        "required": [
+                          "entry"
                         ],
                         "additionalProperties": false
                       }

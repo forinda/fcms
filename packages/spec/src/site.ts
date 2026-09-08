@@ -9,6 +9,7 @@
 import { z } from "zod";
 
 import { Access } from "./access.js";
+import type { Condition } from "./condition.js";
 import { ContentType } from "./content.js";
 import { ACTIONS, Workflow } from "./logic.js";
 import { Block, Component, Page, collectionType } from "./pages.js";
@@ -202,6 +203,32 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
           path: `/content/${t.key}/fields/${f.name}`,
           message: `references unknown content type "${f.to}"`,
         });
+      }
+    }
+  }
+
+  // `{ entry: … }` names a field of the row the page is for, so the page has to
+  // be a collection page and the field has to exist on the type it collects.
+  // Unchecked, it resolves to nothing at render time and the list is empty —
+  // which reads as "no rooms yet" rather than as a mistake in the spec.
+  for (const page of spec.pages) {
+    const collects = collectionType(page.collection);
+    const collected = collects ? types.get(collects) : undefined;
+    for (const [i, condition] of entryConditions(page.blocks).entries()) {
+      const named = (condition.value as { entry: string }).entry;
+      const path = `/pages/${page.key}/where/${i}`;
+
+      if (!collects) {
+        issues.push({
+          path,
+          message: `"${named}" is a field of the page's entry, but this page has no collection`,
+        });
+        continue;
+      }
+      // An unknown collection type is already reported on its own.
+      if (!collected) continue;
+      if (!collected.fields.some((f) => f.name === named)) {
+        issues.push({ path, message: `"${collects}" has no field "${named}"` });
       }
     }
   }
@@ -677,4 +704,27 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
   }
 
   return issues;
+}
+
+/**
+ * Every `{ entry: … }` condition in a page's blocks, however deeply nested.
+ *
+ * A `where` can sit on any block with `data`, and blocks nest — a list inside a
+ * section inside a row. Checking only the top level would let the one that
+ * matters through, since the list is never the outermost block.
+ */
+function entryConditions(blocks: readonly Block[]): Condition[] {
+  const found: Condition[] = [];
+  const walk = (list: readonly Block[]): void => {
+    for (const block of list) {
+      for (const condition of block.data?.where ?? []) {
+        const value = condition.value;
+        if (typeof value === "object" && value !== null && "entry" in value) found.push(condition);
+      }
+      if (block.children) walk(block.children);
+      if (block.item) walk(block.item);
+    }
+  };
+  walk(blocks);
+  return found;
 }

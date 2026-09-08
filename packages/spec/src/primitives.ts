@@ -19,6 +19,23 @@ export const Key = z
   .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "lowercase kebab-case, starting with a letter");
 
 /**
+ * The stored value of a `select` option.
+ *
+ * A `Key` everywhere else, but a select's options are not identifiers the rest
+ * of the spec refers to — nothing points at them, they are the value a row
+ * holds and a query parameter carries. Requiring a leading letter made a star
+ * rating impossible to express: `"4"` is not a key, and the alternative
+ * (`four-stars`) is a label pretending to be data and does not sort.
+ *
+ * Still URL- and filename-safe, which is the property that mattered.
+ */
+export const OptionValue = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "lowercase letters, digits and hyphens");
+
+/**
  * A field name — **not** a `Key`.
  *
  * Keys become filenames and URL segments, so kebab-case is right for them. Field

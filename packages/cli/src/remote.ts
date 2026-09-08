@@ -20,6 +20,7 @@ import {
   normalize,
   readLink,
   readToken,
+  UnreachableError,
   writeLink,
   writeToken,
 } from "@forinda-cms/sdk";
@@ -265,6 +266,16 @@ function printPlan(initial: boolean, changes: readonly SpecChange[], steps: numb
  * `--yes` is the answer.
  */
 function reportApiError(error: unknown): number {
+  // A server that is not running was the most common failure at a terminal and
+  // the one with no handling: it escaped as a Node stack trace ending in
+  // `ECONNREFUSED`, which says everything except which server, and reads as a
+  // crash in the tool rather than an answer about the site.
+  if (error instanceof UnreachableError) {
+    console.error(`${red("cannot reach")} ${bold(error.url)}`);
+    console.error(dim("  is it running? `fcms link <url>` points this directory somewhere else."));
+    return 1;
+  }
+
   if (!(error instanceof ApiError)) throw error;
 
   if (error.unauthorized) {

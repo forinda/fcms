@@ -23,7 +23,8 @@ content:
       - { name: state, type: state, values: [pending, confirmed, done] }
 ```
 
-📖 **Docs and a longer tour: <https://forinda-cms.netlify.app>**
+📖 **[Building a site](GUIDE.md)** — from nothing to a published site.
+Longer tour and reference: <https://forinda-cms.netlify.app>
 
 ## Install
 

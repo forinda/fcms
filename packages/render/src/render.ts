@@ -109,6 +109,14 @@ interface Walk {
   readonly selecting?: string;
   /** Who is asking. Threaded to every query on the page. */
   readonly viewer?: string | null;
+  /**
+   * The row this page is *for*, on a collection page.
+   *
+   * Threaded to every query so a `{ entry: … }` condition can name it — the
+   * rooms of this property, the reviews of this property. Absent on an ordinary
+   * page, where such a condition matches nothing rather than everything.
+   */
+  readonly entry?: Entry;
   readonly params: Readonly<Record<string, string | readonly string[] | undefined>>;
   readonly path: string;
   /**
@@ -157,7 +165,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
     const result =
       walk.primary && walk.primary.query === block.data
         ? walk.primary.result
-        : runQueryPage(walk.source, block.data, walk.params, walk.viewer);
+        : runQueryPage(walk.source, block.data, walk.params, walk.viewer, walk.entry);
     const rows = result.rows;
     children = fragment(
       ...rows.map((row, i) => {
@@ -207,6 +215,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
           walk.primary.query,
           walk.params,
           String(attrs["param"] ?? attrs["field"] ?? ""),
+          walk.entry,
         )
       : undefined;
 
@@ -401,7 +410,7 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   if (primaryQuery) {
     walk.primary = {
       query: primaryQuery,
-      result: runQueryPage(source, primaryQuery, walk.params, walk.viewer),
+      result: runQueryPage(source, primaryQuery, walk.params, walk.viewer, entry),
     };
   }
   const scope: Scope = {
