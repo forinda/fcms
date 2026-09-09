@@ -25,7 +25,9 @@ nothing, so this is safe under a process manager.
 
 Two things to know before you rely on it:
 
-- **One connection.** The embedded database serves one query at a time. For a
+- **One connection, and one process.** The embedded database serves one query
+  at a time, and belongs to one server at a time — a second one on the same
+  directory is refused, because two would corrupt it permanently. For a
   business taking bookings that is invisible; under real traffic it is a
   ceiling, and the way past it is below.
 - **Sizes.** About 26 MB installed, and about 40 MB for an empty site's data
@@ -219,6 +221,7 @@ nothing to remember.
 |---|---|
 | `cannot reach http://localhost:4711` | The server is not running, or `fcms.json` points elsewhere. |
 | the site is slow under load | The embedded database serves one query at a time. Move to a Postgres server — one variable, same schema. |
+| `the database in … is already open in process N` | Another server is using that directory. Stop it, or point this one elsewhere with `DATABASE_URL`. |
 | `not linked` | Run `fcms link <url>` in this directory. |
 | `session expired` | Run `fcms login` again. Tokens are short-lived on purpose. |
 | `refusing N destructive change(s)` | Read them, then `--yes` if that is what you meant. |

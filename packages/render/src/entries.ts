@@ -35,6 +35,25 @@ function get(row: Entry, path: string): unknown {
 }
 
 /**
+ * A reference held as `ref:<type>/<slug>`, compared against what it points at.
+ *
+ * A reference field stores the long form. An `{ entry: slug }` resolves to the
+ * bare slug, and an id resolves to an id — so a filter written the only way it
+ * can be written matched nothing, and a property page showed none of its own
+ * reviews. Aggregates already accept both forms; a filter has to agree with
+ * them, or the same relationship is two different relationships depending on
+ * which part of the page is asking.
+ */
+function sameValue(actual: unknown, expected: unknown): boolean {
+  if (actual === expected) return true;
+  if (typeof actual !== "string" || typeof expected !== "string") return false;
+  if (!actual.startsWith("ref:")) return false;
+  // `ref:property/nyali-beach` is the same property as `nyali-beach`, and as
+  // `ref:property/nyali-beach`. It is not the same as `beach`.
+  return actual.slice(actual.indexOf("/") + 1) === expected;
+}
+
+/**
  * Evaluate one condition triple.
  *
  * Deliberately total: an unknown field is `undefined` and simply does not match,
@@ -48,9 +67,9 @@ export function matches(row: Entry, c: Condition): boolean {
 
   switch (c.op) {
     case "eq":
-      return actual === expected;
+      return sameValue(actual, expected);
     case "ne":
-      return actual !== expected;
+      return !sameValue(actual, expected);
     case "lt":
       return typeof actual === "number" && typeof expected === "number" && actual < expected;
     case "lte":

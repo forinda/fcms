@@ -43,7 +43,9 @@ obtain, no container, no connection string, and a backup is `cp -r`.
 It migrates and provisions itself on boot, so the first run lands on a working
 site at <http://localhost:8080>.
 
-Already have a Postgres, or outgrown one process? Same command, one variable:
+The embedded database belongs to one process at a time, and a second one is
+refused rather than allowed to corrupt it. Already have a Postgres, or
+outgrown one process? Same command, one variable:
 
 ```bash
 DATABASE_URL=postgres://… npx @forinda/fcms-core

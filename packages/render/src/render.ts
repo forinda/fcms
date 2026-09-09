@@ -397,6 +397,11 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
     pageKey: page.key,
     ...(options.previewFlows ? { previewFlows: true } : {}),
     ...(options.viewer ? { viewer: options.viewer } : {}),
+    // The row this page is for, so a `{ entry: … }` condition can name it.
+    // Declared on `Walk` and read by three call sites, and for one release
+    // never actually assigned — so every such filter quietly matched nothing
+    // and a detail page showed none of its own rows.
+    ...(entry ? { entry } : {}),
     registry,
     source,
     locale,

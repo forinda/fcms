@@ -46,6 +46,26 @@ export const SiteSpec = z
     specVersion: z.literal(SPEC_VERSION),
     name: Label,
     note: Note,
+    /**
+     * How money and dates are written on this site.
+     *
+     * The renderer has always taken these and the engine never passed them, so
+     * every install rendered Kenyan shillings whatever it was selling — a hotel
+     * in Zanzibar priced in `Ksh`, with no way for the spec to say otherwise.
+     *
+     * Defaults are unchanged, so an existing site renders exactly as before and
+     * a new one says what it means. A currency is three letters (ISO 4217) and
+     * a locale is a BCP 47 tag; both are passed to `Intl`, which is the thing
+     * that actually knows how a number is written in a place.
+     */
+    locale: z
+      .string()
+      .regex(/^[a-z]{2}(-[A-Za-z0-9]{2,8})*$/, "a language tag like en-KE or sw-TZ")
+      .default("en-KE"),
+    currency: z
+      .string()
+      .regex(/^[A-Z]{3}$/, "a three-letter currency code like KES, USD or TZS")
+      .default("KES"),
     layout: SiteLayout.optional(),
     /** Site-level tier-3 CSS. Gated to the `developer` role (ADR 0004/0008). */
     css: CustomCss.optional(),
@@ -227,7 +247,11 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
       }
       // An unknown collection type is already reported on its own.
       if (!collected) continue;
-      if (!collected.fields.some((f) => f.name === named)) {
+      // `id` and `slug` are on every row and declared by none: the platform
+      // puts them there. Requiring a declared field refused `{ entry: slug }`,
+      // which is the form that matches a written `ref:<type>/<slug>` — so the
+      // check refused the only way the feature is normally used.
+      if (named !== "id" && named !== "slug" && !collected.fields.some((f) => f.name === named)) {
         issues.push({ path, message: `"${collects}" has no field "${named}"` });
       }
     }
