@@ -4,21 +4,44 @@ From nothing to a site you can publish to, in the order you actually do it.
 Every command here was run while building the reference marketplace, so if
 something below is wrong it is a bug in this file.
 
-## 1. Run a server
+## 1. Start a project
 
 ```sh
-mkdir my-site && cd my-site
-npm install --save-dev @forinda/fcms-core
+npx @forinda/fcms-cli init my-site && cd my-site
+npm install
+```
 
+Use whatever you already use — `pnpm dlx`, `yarn dlx`, `bunx` all work, and the
+next steps it prints come back in that manager's own commands.
+
+`init` writes a site that already validates, is already canonical (so
+`fmt --check` is silent on it), and comes with a `package.json`, a `.gitignore`
+that keeps the database out of version control, and an `.mcp.json` with no
+machine-specific path in it.
+
+```
+site.yaml           name, theme, header and footer, integrations
+content/*.yaml      one content type per file
+pages/*.yaml        one page per file
+data/*.yaml         rows, for seeding or for version-controlled content
+```
+
+`--starter <key>` picks what to start from, `--name` sets the site's name when
+the directory's is not it, and `--force` scaffolds into a directory that already
+has files.
+
+## 2. Run a server
+
+```sh
 OWNER_EMAIL=you@example.com \
 OWNER_PASSWORD=a-password-of-at-least-12-characters \
 PORT=4711 \
-npx forinda-cms
+npm start
 ```
 
 That is everything. **Postgres runs inside the process** — the real thing,
-compiled to WebAssembly — and keeps its data in `./data`. Nothing to install,
-nothing listening but the site itself, and a backup is `cp -r data`.
+compiled to WebAssembly — and keeps its data in `./.fcms`. Nothing to install,
+nothing listening but the site itself, and a backup is `cp -r .fcms`.
 
 It migrates on boot and creates the first owner once. Booting again changes
 nothing, so this is safe under a process manager.
@@ -47,6 +70,9 @@ default), `SITE_NAME`, `MEDIA_DIR` for uploads.
 There is a Docker Compose file as well, if you would rather run Postgres beside
 it: <https://forinda-cms.netlify.app/install/compose.yaml>.
 
+Use whatever manager you already have — `pnpm start`, `yarn start`, `bun start`
+all run the same script `init` wrote.
+
 A `.env` file is not read for you — the server takes its configuration from the
 environment and nothing else, which is right for a container and awkward at a
 terminal. Nineteen lines of `scripts/server.mjs` fixes that for local work:
@@ -64,7 +90,7 @@ for (const line of readFileSync(".env", "utf8").split("\n")) {
 execFileSync("./node_modules/.bin/forinda-cms", [], { stdio: "inherit", env });
 ```
 
-## 2. Point a directory at it
+## 3. Point a directory at it
 
 ```sh
 npm install --save-dev @forinda/fcms-cli
@@ -81,7 +107,7 @@ it. `login` writes a token to `~/.config/forinda-cms/credentials.json` at mode
 npx fcms status
 ```
 
-## 3. Write the site
+## 4. Write the site
 
 A site is a directory of YAML. The layout is derived from the keys, so a file's
 name is a convenience and its `key` is the truth:
@@ -150,7 +176,7 @@ npx fcms validate
 npx fcms fmt          # rewrite every file in canonical form; `--check` in CI
 ```
 
-## 4. Look at it
+## 5. Look at it
 
 ```sh
 npx fcms dev
@@ -160,7 +186,7 @@ Serves the directory at `localhost:4321` and reloads on save. No server, no
 database, no account — it reads the files. This is the loop you spend your time
 in.
 
-## 5. Publish it
+## 6. Publish it
 
 ```sh
 npx fcms plan         # what applying would change
@@ -185,7 +211,7 @@ npx fcms pull --content   # and the rows
 `pull` then `fmt --check` is silent, so pulling never produces a diff you did
 not write.
 
-## 6. Let an agent drive it
+## 7. Let an agent drive it
 
 ```json
 {

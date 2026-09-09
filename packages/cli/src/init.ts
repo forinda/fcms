@@ -54,13 +54,14 @@ export function init(root: string, options: InitOptions = {}): number {
     return 1;
   }
 
+  const pm = packageManager();
   const spec = SiteSpec.parse(starter.build(name));
   const files: Record<string, string> = {
     ...splitFiles(spec),
     "package.json": packageJson(name),
     ".gitignore": gitignore(),
     ".mcp.json": mcpJson(),
-    "README.md": readme(name),
+    "README.md": readme(name, pm),
   };
 
   for (const [path, text] of Object.entries(files)) {
@@ -73,12 +74,48 @@ export function init(root: string, options: InitOptions = {}): number {
   console.log(dim(`  ${starter.label}`));
   console.log();
   console.log(bold("next"));
-  console.log(`  npm install`);
-  console.log(`  npm run dev            ${dim("# look at it — no server, no database")}`);
-  console.log(`  npm start              ${dim("# run it for real, database included")}`);
+  console.log(`  ${pm.install}`);
+  console.log(`  ${pm.run("dev").padEnd(22)}${dim("# look at it — no server, no database")}`);
+  console.log(`  ${pm.run("start").padEnd(22)}${dim("# run it for real, database included")}`);
   console.log();
-  console.log(dim("  then `npx fcms link <url>`, `npx fcms login`, `npx fcms apply`."));
+  console.log(
+    dim(
+      `  then \`${pm.exec} fcms link <url>\`, \`${pm.exec} fcms login\`, \`${pm.exec} fcms apply\`.`,
+    ),
+  );
   return 0;
+}
+
+interface PackageManager {
+  readonly name: string;
+  readonly install: string;
+  readonly exec: string;
+  run(script: string): string;
+}
+
+/**
+ * Which package manager the reader is actually holding.
+ *
+ * Printing `npm install` to somebody who typed `bun x` is a small thing that
+ * says the tool was not written for them. Every manager sets
+ * `npm_config_user_agent` when it runs a binary, so this is a read rather than
+ * a guess — and npm is the answer when there is nothing to read, because that
+ * is what a bare `node` invocation most likely has.
+ *
+ * Yarn and Bun run scripts without `run`; npm and pnpm are happy either way,
+ * and `run` is what their own documentation prints.
+ */
+export function packageManager(agent = process.env["npm_config_user_agent"] ?? ""): PackageManager {
+  if (agent.startsWith("bun")) {
+    return { name: "bun", install: "bun install", exec: "bunx", run: (s) => `bun run ${s}` };
+  }
+  if (agent.startsWith("yarn")) {
+    return { name: "yarn", install: "yarn", exec: "yarn", run: (s) => `yarn ${s}` };
+  }
+  if (agent.startsWith("pnpm")) {
+    return { name: "pnpm", install: "pnpm install", exec: "pnpm", run: (s) => `pnpm ${s}` };
+  }
+  return { name: "npm", install: "npm install", exec: "npx", run: (s) => `npm run ${s}` };
 }
 
 function basename(path: string): string {
@@ -137,15 +174,15 @@ function mcpJson(): string {
   )}\n`;
 }
 
-function readme(name: string): string {
+function readme(name: string, pm: PackageManager): string {
   return `# ${name}
 
 A [forinda-cms](https://forinda-cms.netlify.app) site. The whole thing is the
 YAML in this directory.
 
 \`\`\`sh
-npm install
-npm run dev          # localhost:4321, reloads on save, needs nothing else
+${pm.install}
+${pm.run("dev")}          # localhost:4321, reloads on save, needs nothing else
 \`\`\`
 
 | | |
@@ -159,7 +196,7 @@ npm run dev          # localhost:4321, reloads on save, needs nothing else
 
 \`\`\`sh
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-password-of-at-least-12-characters \\
-  npm start
+  ${pm.run("start")}
 \`\`\`
 
 Postgres runs inside the process and keeps its data in \`.fcms\`, so there is
@@ -169,9 +206,9 @@ process — same schema, same migrations.
 ## Publishing a change
 
 \`\`\`sh
-npx fcms validate    # is it valid, and what routes does it have
-npx fcms plan        # what applying would change
-npx fcms apply       # do it — destructive changes need --yes
+${pm.exec} fcms validate    # is it valid, and what routes does it have
+${pm.exec} fcms plan        # what applying would change
+${pm.exec} fcms apply       # do it — destructive changes need --yes
 \`\`\`
 `;
 }
