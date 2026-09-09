@@ -1,6 +1,6 @@
 {
   "name": "@forinda/fcms-core",
-  "version": "2026.5.0",
+  "version": "2026.6.0",
   "description": "Run a forinda-cms site. Needs Node and a Postgres URL; no Docker required.",
   "keywords": [
     "cms",
