@@ -333,6 +333,7 @@ a{color:var(--color-brand,#06c)}
 .fx-flow-steps li{color:var(--color-muted,#777)}
 .fx-flow-steps li.done{color:var(--color-brand,#06c)}
 .fx-flow-steps li[aria-current=step]{font-weight:700;color:inherit}
+.fx-flow-continue{margin-top:1rem}
 .fx-flow-chosen{display:flex;gap:.5rem;align-items:baseline;margin:.2rem 0}
 .fx-flow-change{background:none;border:0;color:var(--color-brand,#06c);cursor:pointer;padding:0;font:inherit;text-decoration:underline}
 .fx-choice{display:block;width:100%;text-align:inherit;background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer}

@@ -10,6 +10,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import { llmsTxt } from "./agents.js";
 import { blockCss, scopedCss } from "./css.js";
+import { statusHtml } from "./status.js";
 import { renderPage } from "./render.js";
 import { staticSource, withDerived } from "./entries.js";
 
@@ -456,5 +457,134 @@ describe("a filter names itself", () => {
     expect(html).toContain(">Search help</label>");
     expect(html).toContain('placeholder="How do I cancel?"');
     expect(html).not.toContain(">Title</label>");
+  });
+});
+
+describe("a step that asks rather than offers", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "room",
+        label: "Room",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+    ],
+    pages: [
+      {
+        key: "book",
+        path: "/book",
+        title: "Book",
+        blocks: [],
+        flows: [
+          {
+            key: "booking",
+            steps: [
+              {
+                key: "dates",
+                label: "Your dates",
+                captures: ["check_in", "check_out"],
+                blocks: [{ type: "text", attrs: { text: "When are you coming?" } }],
+              },
+              {
+                key: "room",
+                label: "Your room",
+                selects: { from: "room", as: "room" },
+                blocks: [
+                  {
+                    type: "list",
+                    data: { from: "room", limit: 10 },
+                    item: [{ type: "card", attrs: { heading: "{{ item.name }}" } }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  const source = staticSource({ room: [{ id: "r1", slug: "double", name: "Double" }] });
+
+  it("offers no way on until it has what it asked for", () => {
+    // A Continue that continues to the same screen is worse than no button.
+    const { html } = renderPage(spec.pages[0]!, {
+      spec,
+      source,
+      params: { check_in: "2026-09-11" },
+    });
+    // The stylesheet names the class on every page, so this asks about the form.
+    expect(html).not.toContain('action="/flow/book/booking/dates"');
+  });
+
+  it("posts what it collected once it has all of it", () => {
+    // The whole gap: a first screen that only collects dates could not be
+    // answered at all, so a booking journey had to start at step two.
+    const { html } = renderPage(spec.pages[0]!, {
+      spec,
+      source,
+      params: { check_in: "2026-09-11", check_out: "2026-09-13" },
+    });
+
+    expect(html).toContain('action="/flow/book/booking/dates"');
+    expect(html).toContain('name="check_in" value="2026-09-11"');
+    expect(html).toContain('name="check_out" value="2026-09-13"');
+  });
+
+  it("summarises a captured step in words rather than an empty colon", () => {
+    const { html } = renderPage(spec.pages[0]!, { spec, source }, undefined);
+    expect(html).toBeTruthy();
+
+    const answered = renderPage(spec.pages[0]!, {
+      spec,
+      source,
+      flow: { dates: { check_in: "2026-09-11", check_out: "2026-09-13" } },
+    });
+    expect(answered.html).toContain("Your dates: 2026-09-11 – 2026-09-13");
+  });
+
+  it("refuses a step that both selects and captures", () => {
+    expect(() =>
+      SiteSpec.parse({
+        ...JSON.parse(JSON.stringify(spec)),
+        pages: [
+          {
+            key: "book",
+            path: "/book",
+            title: "Book",
+            blocks: [],
+            flows: [
+              {
+                key: "booking",
+                steps: [
+                  {
+                    key: "both",
+                    captures: ["check_in"],
+                    selects: { from: "room", as: "room" },
+                    blocks: [{ type: "text", attrs: { text: "?" } }],
+                  },
+                  { key: "later", blocks: [{ type: "text", attrs: { text: "?" } }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(/one way/);
+  });
+});
+
+describe("a server that cannot reach its own site", () => {
+  it("still answers a page rather than a stack trace", () => {
+    // A 500 is usually the database being unreachable, and the spec lives in
+    // the database — so this one reads nothing.
+    const html = statusHtml(500, "Riverside Rooms");
+    expect(html).toContain("Something went wrong at our end");
+    expect(html).toContain("Riverside Rooms");
+    expect(html).toContain('name="robots" content="noindex,nofollow"');
   });
 });

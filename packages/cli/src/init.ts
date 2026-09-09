@@ -161,6 +161,11 @@ function gitignore(): string {
 # data, not source — back it up, do not commit it.
 .fcms/
 
+# The server reads .env from the directory it starts in, so this is where the
+# owner password ends up. It is a secret, and secrets are not source.
+.env
+.env.*.local
+
 # \`fcms link\` writes fcms.json, and it IS committed: it names the server this
 # directory publishes to and holds no secret. The token lives in your home
 # directory, 0600, and never here.
@@ -199,6 +204,10 @@ ${pm.run("dev")}          # localhost:4321, reloads on save, needs nothing else
 OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-password-of-at-least-12-characters \\
   ${pm.run("start")}
 \`\`\`
+
+Those two can live in a \`.env\` here instead — the server reads one, and
+\`.gitignore\` already keeps it out of git. The admin is then at
+\`localhost:8080/admin\`, or whatever \`PORT\` you set.
 
 Postgres runs inside the process and keeps its data in \`.fcms\`, so there is
 nothing to install. Point \`DATABASE_URL\` at a server when you outgrow one

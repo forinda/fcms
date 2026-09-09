@@ -1852,6 +1852,15 @@
                         ],
                         "additionalProperties": false
                       },
+                      "captures": {
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9_]*$"
+                        }
+                      },
                       "blocks": {
                         "minItems": 1,
                         "type": "array",

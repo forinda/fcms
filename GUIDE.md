@@ -74,22 +74,21 @@ it: <https://fcms.kickjs.app/install/compose.yaml>.
 Use whatever manager you already have — `pnpm start`, `yarn start`, `bun start`
 all run the same script `init` wrote.
 
-A `.env` file is not read for you — the server takes its configuration from the
-environment and nothing else, which is right for a container and awkward at a
-terminal. Nineteen lines of `scripts/server.mjs` fixes that for local work:
+**A `.env` file is read**, from the directory you start the server in:
+`.env.<NODE_ENV>.local`, `.env.<NODE_ENV>`, `.env.local`, `.env`, in that order,
+with the real environment winning over all of them. So the whole of step 2 is
+usually four lines in a file:
 
-```js
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-
-const env = { ...process.env };
-for (const line of readFileSync(".env", "utf8").split("\n")) {
-  const match = /^([A-Z_][A-Z0-9_]*)=(.*)$/.exec(line.trim());
-  if (match) env[match[1]] = match[2];
-}
-
-execFileSync("./node_modules/.bin/forinda-cms", [], { stdio: "inherit", env });
+```sh
+# .env
+PORT=4711
+OWNER_EMAIL=you@example.com
+OWNER_PASSWORD=a-password-of-at-least-12-characters
 ```
+
+Keep it out of version control — `init`'s `.gitignore` already does.
+`KICKJS_ENV_FILE=off` turns the whole thing off for a container, which wants its
+configuration from the environment and nothing else.
 
 ## 3. Point a directory at it
 

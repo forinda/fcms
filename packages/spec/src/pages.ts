@@ -124,9 +124,39 @@ export const FlowStep = z
      * bound anything, which made `as: slot` look valid and fill nothing.
      */
     selects: z.object({ from: Key, as: FieldName }).strict().optional(),
+    /**
+     * Request parameters this step collects, for a step that asks rather than
+     * offers.
+     *
+     * A step was answerable in exactly one way: by choosing a row. So the first
+     * screen of every booking journey — "when are you coming?", which offers
+     * nothing and collects two dates — could not be written at all. A flow could
+     * either start with a list of rooms nobody had given dates for, or start at
+     * step two.
+     *
+     * The parameters are carried back into the address when the step is
+     * answered, so everything downstream filters by `{ param: … }` exactly as it
+     * does on any other page. A captured step is answered when every parameter
+     * it names has a value.
+     */
+    captures: z
+      .array(z.string().regex(/^[a-z][a-z0-9_]*$/, "a lowercase parameter name"))
+      .min(1)
+      .max(8)
+      .optional(),
     blocks: z.array(Block).min(1),
   })
-  .strict();
+  .strict()
+  .superRefine((step, ctx) => {
+    // A step that chooses is already answerable, and two ways to answer one
+    // step is two states to reconcile on the way back.
+    if (step.selects && step.captures) {
+      ctx.addIssue({
+        code: "custom",
+        message: `step "${step.key}" both selects and captures — a step is answered one way`,
+      });
+    }
+  });
 
 export const Flow = z
   .object({

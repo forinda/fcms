@@ -392,6 +392,27 @@ function renderFlow(
     html: renderBlock(b, stepScope, [...path, here.index, j], stepWalk),
   }));
 
+  // A step that asks rather than offers: "when are you coming?" collects two
+  // dates and chooses nothing, and there was no way to answer it — so the first
+  // screen of a booking journey could not be written.
+  //
+  // The blocks already put the parameters in the address, which is how every
+  // filter on the site works. This posts them back so the step is answered, and
+  // the controller returns them to the address so the next step still filters by
+  // them. The button appears once every parameter has a value: a Continue that
+  // continues to the same screen is worse than no button.
+  const captures = here.step.captures ?? [];
+  const captured = captures.map((name) => [name, String(walk.params[name] ?? "")] as const);
+  const carry =
+    captures.length > 0 && captured.every(([, value]) => value !== "")
+      ? el(
+          "form",
+          { method: "post", action: `${action}/${here.step.key}`, class: "fx-flow-continue" },
+          ...captured.map(([name, value]) => el("input", { type: "hidden", name, value })),
+          el("button", { type: "submit", class: "fx-button" }, "Continue"),
+        )
+      : null;
+
   return el(
     "div",
     { class: "fx-flow", "data-flow": flow.key },
@@ -424,7 +445,7 @@ function renderFlow(
                     ),
             ),
           )
-        : fragment(...rendered.map((r) => r.html)),
+        : fragment(...rendered.map((r) => r.html), carry),
     ),
   );
 }
@@ -458,7 +479,11 @@ function describeChoice(value: unknown): string {
     const found = row[key];
     if (typeof found === "string" && found !== "") return found;
   }
-  return "";
+  // A captured step's answer is the parameters it collected, which have none of
+  // those names. Without this the summary line read "Your dates: " — the label,
+  // a colon, and the reason people start a booking again.
+  const values = Object.values(row).filter((v) => typeof v === "string" && v !== "");
+  return values.join(" – ");
 }
 
 export interface RenderedPage {
