@@ -12,10 +12,7 @@
 import Page from '../layouts/Page.astro'
 import Shot from '../components/Shot.astro'
 import Snippet from '../components/Snippet.astro'
-
-const install = `npx @forinda/fcms-cli init my-site
-cd my-site && npm install
-npm start`
+import Managers from '../components/Managers.astro'
 ---
 
 <Page
@@ -32,7 +29,7 @@ npm start`
       a command line, or a model, without three implementations of the same rules.
     </p>
 
-    <Snippet label="install" copy={install}>{install}</Snippet>
+    <Managers name="hero" dlx="@forinda/fcms-cli init my-site" cd="my-site" run={['start']} />
 
     <div class="ctas">
       <a class="cta" href="/docs/install/">Install it — free</a>
