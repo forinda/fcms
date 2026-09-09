@@ -29,7 +29,7 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   SITE_NAME         what the first site is called
   OWNER_EMAIL       created once, on first boot, with
   OWNER_PASSWORD    at least 12 characters
-  MEDIA_DIR         where uploads are written (default ./media)
+  MEDIA_DIR         where uploads are written (default ./.fcms/media)
   SECURE_COOKIES    true behind HTTPS
   TRUST_PROXY       true behind a reverse proxy
 

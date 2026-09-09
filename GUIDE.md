@@ -65,7 +65,8 @@ DATABASE_URL=postgres://user:pass@localhost:5432/my_site npx forinda-cms
 
 A `postgres://` URL is a server; anything else is a directory to keep files in.
 `npx forinda-cms --help` lists every variable it reads — `PORT` (8080 by
-default), `SITE_NAME`, `MEDIA_DIR` for uploads.
+default), `SITE_NAME`, and `MEDIA_DIR` for uploads — which lands in `.fcms`
+beside the database, so one directory is the whole of what the platform owns.
 
 There is a Docker Compose file as well, if you would rather run Postgres beside
 it: <https://forinda-cms.netlify.app/install/compose.yaml>.

@@ -155,9 +155,9 @@ function packageJson(name: string): string {
 
 function gitignore(): string {
   return `node_modules/
-media/
 
-# The embedded database. It is data, not source — back it up, do not commit it.
+# Everything the platform owns: the embedded database, and uploaded media. It is
+# data, not source — back it up, do not commit it.
 .fcms/
 
 # \`fcms link\` writes fcms.json, and it IS committed: it names the server this
