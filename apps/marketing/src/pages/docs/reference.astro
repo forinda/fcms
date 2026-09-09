@@ -1,0 +1,255 @@
+---
+/**
+ * The spec language, generated from the spec package.
+ *
+ * A hand-written reference is a reference that rots: a field type added to the
+ * schema and not to the page is a feature nobody can find, and one removed from
+ * the schema and not from the page is a promise that fails. So the tables here
+ * are built at build time from `FIELD_TYPES` and `CORE_BLOCKS` — the same
+ * definitions the admin's builder and the renderer use. If a block exists, it
+ * is on this page, and the marketing build fails before a wrong page ships.
+ */
+import Docs from '../../layouts/Docs.astro'
+import { FIELD_TYPES, OPERATORS } from '@forinda-cms/spec'
+import { CORE_BLOCKS } from '@forinda-cms/render'
+
+const fields = FIELD_TYPES.filter((f) => !f.computed)
+const derivedFields = FIELD_TYPES.filter((f) => f.computed)
+
+const blocks = Object.values(CORE_BLOCKS)
+  .map((b) => ({ name: b.name, summary: b.summary, attrs: [...b.attrs], variants: [...(b.variants ?? [])] }))
+  .sort((a, b) => a.name.localeCompare(b.name))
+---
+
+<Docs
+  frontmatter={{
+    title: 'Reference — forinda-cms',
+    description:
+      'The spec language: every field type, every block, the query shape, and what a condition may say.',
+    section: 'Documentation',
+    previous: { href: '/docs/developers/', label: 'Build with it' },
+  }}
+  headings={[
+    { depth: 2, slug: 'a-site-is-a-directory', text: 'A site is a directory' },
+    { depth: 2, slug: 'a-content-type', text: 'A content type' },
+    { depth: 2, slug: 'a-page', text: 'A page' },
+    { depth: 2, slug: 'queries', text: 'Queries' },
+  ]}
+>
+
+# Reference
+
+<p class="lede">
+Every field type, every block and every operator the spec accepts — generated
+from the schema itself, so this page cannot describe a version that does not
+exist.
+</p>
+
+## A site is a directory
+
+<pre><code>my-site/
+  site.yaml            name, theme, header and footer, integrations
+  content/*.yaml       one content type per file
+  pages/*.yaml         one page per file
+  logic/*.yaml         one automation per file
+  data/*.yaml          rows, if you keep any in version control</code></pre>
+
+<p><code>npx @forinda/fcms-cli init my-site</code> writes that, already valid and
+already canonical. The file a thing lives in is derived from its <code>key</code>,
+so <code>fcms fmt</code> may move a node into the file it belongs in — that is
+the bargain, and it is what keeps round-tripping exact.</p>
+
+## A content type
+
+<pre><code>key: property
+label: Property
+labelPlural: Properties
+titleField: name
+permalink: /stay/&#123;&#123; entry.slug &#125;&#125;
+fields:
+  - &#123; name: name, label: Name, type: text, required: true &#125;
+  - &#123; name: city, label: City, type: reference, to: city, filterable: true &#125;
+  - &#123; name: stars, label: Star rating, type: number, min: 1, max: 5, filterable: true &#125;
+  - name: score
+    label: Guest score
+    type: aggregate
+    of: review
+    on: property
+    field: score
+    fn: avg</code></pre>
+
+<p>Every field takes <code>name</code>, <code>label</code>, and optionally
+<code>required</code>, <code>unique</code>, <code>filterable</code>,
+<code>help</code>. <strong><code>filterable</code> is what makes a field
+searchable</strong> — it compiles to a partial index scoped to your site and
+type. <strong><code>unique</code> is enforced</strong> by an index of its own.</p>
+
+<h3>Field types</h3>
+
+<table>
+<thead><tr><th>Type</th><th></th><th>Also takes</th></tr></thead>
+<tbody>
+{fields.map((f) => (
+  <tr>
+    <td><code>{f.type}</code></td>
+    <td>{f.summary}</td>
+    <td>{f.takes ? <code>{f.takes}</code> : <span class="muted">—</span>}</td>
+  </tr>
+))}
+</tbody>
+</table>
+
+<h3>Worked out by the platform</h3>
+
+<p>Never written by a form, an API caller or an agent — accepting one would let
+a caller claim their own rating, or their own price.</p>
+
+<table>
+<thead><tr><th>Type</th><th></th><th>Also takes</th></tr></thead>
+<tbody>
+{derivedFields.map((f) => (
+  <tr>
+    <td><code>{f.type}</code></td>
+    <td>{f.summary}</td>
+    <td><code>{f.takes}</code></td>
+  </tr>
+))}
+</tbody>
+</table>
+
+## A page
+
+<pre><code>key: search
+path: /search
+title: Search results
+blocks:
+  - type: list
+    data:
+      from: property
+      where:
+        - &#123; field: stars, op: gte, value: &#123; param: stars &#125; &#125;
+      sort: &#123; param: sort, allow: [score, stars], default: score, dir: desc &#125;
+      limit: 25
+    item:
+      - type: card
+        attrs: &#123; heading: "&#123;&#123; item.name &#125;&#125;", to: "/stay/&#123;&#123; item.slug &#125;&#125;" &#125;</code></pre>
+
+<p>A page with <code>collection: &#123; from: property &#125;</code> answers for
+one row at a time, and its lists can name that row with
+<code>&#123; entry: slug &#125;</code> — "the rooms of <em>this</em> property".</p>
+
+<h3>Blocks</h3>
+
+<table>
+<thead><tr><th>Block</th><th></th><th><code>attrs</code></th><th><code>style.variant</code></th></tr></thead>
+<tbody>
+{blocks.map((b) => (
+  <tr>
+    <td><code>{b.name}</code></td>
+    <td>{b.summary}</td>
+    <td>{b.attrs.length > 0 ? <code>{b.attrs.join(', ')}</code> : <span class="muted">—</span>}</td>
+    <td>{b.variants.length > 0 ? <code>{b.variants.join(', ')}</code> : <span class="muted">—</span>}</td>
+  </tr>
+))}
+</tbody>
+</table>
+
+<h3>Styling</h3>
+
+<p>Three tiers, and the order is the point: a theme first, then structured
+properties, then custom CSS as the pressure valve.</p>
+
+<table>
+<tbody>
+<tr><td><strong>1. Theme</strong></td><td>Colours, fonts, a type scale, radius. One decision for the whole site.</td></tr>
+<tr><td><strong>2. <code>style</code></strong></td><td><code>padding</code>, <code>gap</code>, <code>width</code>, <code>contentWidth</code>, <code>align</code>, <code>justify</code>, <code>background</code>, <code>textColor</code>, <code>radius</code>, <code>border</code>, <code>shadow</code>, <code>textAlign</code>, <code>fontSize</code>, <code>fontWeight</code>, <code>cols</code>, <code>hideOn</code>, <code>variant</code>. Responsive where it makes sense.</td></tr>
+<tr><td><strong>3. <code>css</code></strong></td><td>Declarations for the block, and one level of nested selectors for what it renders inside itself.</td></tr>
+</tbody>
+</table>
+
+<p><code>contentWidth</code> measures a block's <em>children</em> and leaves the
+block alone — a full-bleed coloured band with contained content, which is the
+commonest layout on any site and which <code>width</code> cannot express, because
+constraining a section constrains its background too.</p>
+
+<pre><code>type: section
+style: &#123; background: brand, contentWidth: container &#125;
+
+type: card
+style: &#123; variant: price &#125;
+css: |
+img &#123; aspect-ratio: 1 &#125;
+h3 &#123; font-size: 1.1rem &#125;
+&amp;:hover &#123; opacity: .95 &#125;</code></pre>
+
+<p><strong>A block author never writes a selector.</strong> Declarations apply to
+the block; a nested rule is prefixed with the block's own class, and <code>&amp;</code>
+means the block itself. One level deep, and anything that is not a declaration is
+dropped — so custom CSS cannot reach an element the block does not own, whatever
+is typed into it. Site-wide CSS is the one explicit escape hatch, and it is gated
+to the developer role.</p>
+
+## Queries
+
+<p><code>data</code> is the only iteration in the spec. There is no
+<code>for</code>: <code>data</code> plus <code>item</code> is the whole story.</p>
+
+<ul>
+<li><strong><code>limit</code> is required and capped at 100.</strong> An
+unbounded query is a performance problem you cannot see until your business is
+doing well.</li>
+<li><strong>An absent parameter drops its condition</strong>, because a search
+page has to work before anything is typed. An unresolvable
+<code>&#123; entry: … &#125;</code> returns nothing instead — "this property's
+rooms" with no property is zero rooms, never every room on the site.</li>
+<li><strong>Facets count with their own filter lifted</strong>, so ticking
+"4 stars" does not make every other rating read zero.</li>
+</ul>
+
+<h3>Conditions</h3>
+
+<p>A condition is a triple, never a string. <code>&#123; field, op, value &#125;</code>
+is data — it diffs, it validates, and a model can propose one safely.
+<code>item.price &gt; 100</code> is code hiding in a value, and it is not
+accepted anywhere.</p>
+
+<p>Operators: {OPERATORS.map((op, i) => (<>{i > 0 ? ', ' : ''}<code>{op}</code></>))}.</p>
+
+<p>A <code>value</code> is a literal, a <code>&#123; param: name &#125;</code>
+from the request, or a <code>&#123; entry: field &#125;</code> from the row a
+detail page is for.</p>
+
+<h3>Formulas</h3>
+
+<p>Arithmetic is a declared tree, not an expression string, so you can read one
+and say what it depends on without running it. Six operations —
+<code>add</code>, <code>subtract</code>, <code>multiply</code>,
+<code>divide</code>, <code>min</code>, <code>max</code>, <code>round</code> —
+over a field, a request parameter, a literal, or <strong>one hop across a
+declared reference</strong>.</p>
+
+<pre><code>- name: deposit
+  label: Deposit
+  type: computed
+  precision: 2
+  formula:
+    op: multiply
+    of:
+      - &#123; ref: room, field: price &#125;
+      - &#123; field: nights &#125;</code></pre>
+
+<p>That hop is what lets a price come from the room rather than from the form —
+and a <code>computed</code> field is refused as input, so the amount a payment
+reads cannot be posted by whoever is paying it.</p>
+
+<div class="note">
+
+<strong>Where to go next.</strong> <a href="/docs/developers/">Build with it</a>
+covers the CLI, the MCP server and the API. The
+<a href="https://github.com/forinda/fcms/blob/main/ARCHITECTURE.md">architecture
+notes</a> cover the database: what <code>filterable</code> compiles to, why
+dates are indexed as text, and where to look when a query is slow.
+
+</div>
+
+</Docs>

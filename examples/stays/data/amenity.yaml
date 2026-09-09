@@ -1,0 +1,12 @@
+- { slug: wifi, name: Free WiFi, category: popular }
+- { slug: pool, name: Swimming pool, category: popular }
+- { slug: parking, name: Free parking, category: popular }
+- { slug: breakfast, name: Breakfast, category: popular }
+- { slug: air-conditioning, name: Air conditioning, category: facilities }
+- { slug: restaurant, name: Restaurant, category: facilities }
+- { slug: gym, name: Fitness centre, category: facilities }
+- { slug: beach, name: Beachfront, category: facilities }
+- { slug: airport-shuttle, name: Airport shuttle, category: services }
+- { slug: front-desk-24h, name: 24-hour front desk, category: services }
+- { slug: laundry, name: Laundry, category: services }
+- { slug: step-free, name: Step-free access, category: accessibility }
