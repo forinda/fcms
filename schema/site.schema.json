@@ -149,6 +149,20 @@
             "type": "string"
           }
         },
+        "widths": {
+          "type": "object",
+          "properties": {
+            "container": {
+              "type": "string",
+              "pattern": "^[0-9.]+(rem|px|em|ch|vw|%)$"
+            },
+            "narrow": {
+              "type": "string",
+              "pattern": "^[0-9.]+(rem|px|em|ch|vw|%)$"
+            }
+          },
+          "additionalProperties": false
+        },
         "radius": {
           "type": "object",
           "propertyNames": {

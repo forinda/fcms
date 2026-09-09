@@ -49,6 +49,27 @@ export const Theme = z.object({
   }),
   /** Type scale steps, smallest first. `fontSize` indexes into this by name. */
   typeScale: z.record(Key, z.string()),
+  /**
+   * How wide `width: container` and `width: narrow` actually are.
+   *
+   * They were 72rem and 42rem for everyone, and a site that wanted a wider
+   * measure had to override the rule the platform emitted — which is the shape
+   * of a decision that belongs to the theme rather than to the renderer. The
+   * defaults are unchanged, so a site that says nothing renders as before.
+   */
+  widths: z
+    .object({
+      container: z
+        .string()
+        .regex(/^[0-9.]+(rem|px|em|ch|vw|%)$/)
+        .optional(),
+      narrow: z
+        .string()
+        .regex(/^[0-9.]+(rem|px|em|ch|vw|%)$/)
+        .optional(),
+    })
+    .strict()
+    .optional(),
   radius: z.record(Key, z.string()).optional(),
 });
 export type Theme = z.infer<typeof Theme>;

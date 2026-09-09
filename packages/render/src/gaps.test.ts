@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { llmsTxt } from "./agents.js";
-import { blockCss, scopedCss } from "./css.js";
+import { blockCss, scopedCss, siteCss } from "./css.js";
 import { statusHtml } from "./status.js";
 import { renderPage } from "./render.js";
 import { staticSource, withDerived } from "./entries.js";
@@ -369,7 +369,9 @@ describe("the style system's pressure valves", () => {
     // A section constrained by `width` constrains its background too, so every
     // full-bleed band needed a wrapper block inside it, on every page.
     const css = blockCss("b0", { contentWidth: "container" }, undefined);
-    expect(css).toContain(".b0>*{max-width:72rem;margin-inline:auto;width:100%}");
+    expect(css).toContain(
+      ".b0>*{max-width:var(--width-container, 72rem);margin-inline:auto;width:100%}",
+    );
     expect(css).not.toContain(".b0{max-width");
   });
 
@@ -586,5 +588,141 @@ describe("a server that cannot reach its own site", () => {
     expect(html).toContain("Something went wrong at our end");
     expect(html).toContain("Riverside Rooms");
     expect(html).toContain('name="robots" content="noindex,nofollow"');
+  });
+});
+
+describe("what adopting the last release turned up", () => {
+  const base = {
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "enquiry",
+        label: "Enquiry",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Your name", type: "text", required: true },
+          {
+            name: "topic",
+            label: "What about?",
+            type: "select",
+            options: [
+              { value: "booking", label: "A booking" },
+              { value: "other", label: "Something else" },
+            ],
+          },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "contact",
+        path: "/contact",
+        title: "Contact",
+        blocks: [
+          {
+            type: "form",
+            attrs: { for: "enquiry", submit: "Send" },
+            children: [
+              { type: "field", attrs: { name: "name" } },
+              { type: "field", attrs: { name: "topic" } },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  it("gives a form's fields the type the form collects", () => {
+    // `field` reads its label, type and options from the declared field — but
+    // only a block with its own `for` had a content type, so every input inside
+    // a form fell back to a text box labelled with the raw field name.
+    const spec = SiteSpec.parse(base);
+    const { html } = renderPage(spec.pages[0]!, { spec, source: staticSource({}) });
+
+    expect(html).toContain(">Your name</label>");
+    // A select, with its own options, without repeating `for:` on every field.
+    expect(html).toContain('<option value="booking">A booking</option>');
+    expect(html).not.toContain(">topic</label>");
+  });
+
+  it("keeps a media query in block CSS instead of dropping it in silence", () => {
+    const out = scopedCss(
+      "b0",
+      "@media (min-width: 40rem) { display: flex; img { width: 12rem } }",
+    );
+    const css = out.join("");
+
+    expect(css).toContain("@media (min-width: 40rem){");
+    expect(css).toContain(".b0{display: flex}");
+    expect(css).toContain(".b0 img{width: 12rem}");
+  });
+
+  it("still refuses an at-rule that is not a condition", () => {
+    // `@import` fetches and `@font-face` names something globally; neither
+    // belongs to one block on one page.
+    expect(scopedCss("b0", '@import url("https://evil.example/x.css");').join("")).toBe("");
+    expect(scopedCss("b0", "@font-face { font-family: x }").join("")).toBe("");
+  });
+
+  it("lets the theme name its own measures", () => {
+    const spec = SiteSpec.parse({
+      ...base,
+      theme: { ...base.theme, widths: { container: "80rem" } },
+    });
+    expect(siteCss(spec)).toContain("--width-container: 80rem;");
+  });
+});
+
+describe("a toggle, with no JavaScript to have", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "note",
+        label: "Note",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+    ],
+    pages: [
+      {
+        key: "home",
+        path: "/",
+        title: "Home",
+        blocks: [
+          {
+            type: "disclosure",
+            attrs: { label: "☰ Menu" },
+            style: { hideOn: ["sm"] },
+            children: [
+              { type: "nav", attrs: { label: "Main", links: [{ label: "Stays", to: "/search" }] } },
+            ],
+          },
+          { type: "disclosure", attrs: { label: "Cancellation", open: true }, children: [] },
+        ],
+      },
+    ],
+  });
+
+  it("opens without a script, a checkbox, or a link to itself", () => {
+    // A spec has none of those, so a phone header could not have a menu: it
+    // spent ~190px on a wordmark, two buttons and a nav wrapped over two lines.
+    const { html } = renderPage(spec.pages[0]!, { spec, source: staticSource({}) });
+
+    expect(html).toContain("<summary>☰ Menu</summary>");
+    expect(html).toContain('<nav class="fx-nav');
+    // Native, so the open state is announced and Escape closes it — neither of
+    // which a `:target` link can do.
+    expect(html).toContain("<details");
+    expect(html).not.toContain("<script");
+  });
+
+  it("can start open", () => {
+    const { html } = renderPage(spec.pages[0]!, { spec, source: staticSource({}) });
+    expect(html).toContain("open");
+    expect(html).toContain("<summary>Cancellation</summary>");
   });
 });
