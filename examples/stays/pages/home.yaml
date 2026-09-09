@@ -1,0 +1,79 @@
+key: home
+path: /
+title: Stays — find your next place
+draft: false
+seo:
+  description: Hotels, apartments and guesthouses. Pick your dates and see what is free.
+  noindex: false
+blocks:
+  - type: section
+    style:
+      padding: { x: lg, y: xl }
+      background: token:color.brand
+    children:
+      - type: heading
+        style: { textColor: token:color.background, fontSize: xl }
+        attrs: { text: Find your next stay, level: 1 }
+      - type: text
+        style: { textColor: token:color.background }
+        attrs:
+          text: Search hotels, apartments and guesthouses. No account needed to look.
+      - type: filters
+        attrs: { for: vacancy, submit: Search }
+  - type: section
+    style:
+      padding: { x: lg, y: xl }
+    children:
+      - type: heading
+        attrs: { text: Popular destinations, level: 2 }
+      - type: list
+        style:
+          gap: lg
+          cols: { base: 1, md: 3 }
+        data:
+          from: city
+          sort:
+            param: cities
+            allow:
+              - propertyCount
+              - name
+            default: propertyCount
+            dir: desc
+          limit: 6
+        item:
+          - type: card
+            style: { padding: md, radius: md, border: hairline }
+            attrs:
+              heading: "{{ item.name }}"
+              body: "{{ item.blurb }}"
+              meta: "{{ item.propertyCount }} properties"
+              to: "/search?city={{ item.slug }}"
+  - type: section
+    style:
+      padding: { x: lg, y: xl }
+      background: token:color.surface
+    children:
+      - type: heading
+        attrs: { text: Top reviewed, level: 2 }
+      - type: list
+        style:
+          gap: lg
+          cols: { base: 1, md: 3 }
+        data:
+          from: property
+          sort:
+            param: top
+            allow:
+              - score
+              - priceFrom
+            default: score
+            dir: desc
+          limit: 6
+        item:
+          - type: card
+            style: { padding: md, radius: md, border: hairline }
+            attrs:
+              heading: "{{ item.name }}"
+              body: "{{ item.blurb }}"
+              meta: "{{ item.score }}/10 · from {{ item.priceFrom | currency }}"
+              to: "/stay/{{ item.slug }}"

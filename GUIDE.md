@@ -100,6 +100,12 @@ npx fcms link http://localhost:4711
 npx fcms login
 ```
 
+> **`npx fcms` only works inside a project that has it installed**, where it
+> runs the local binary. Outside one, `fcms` is an unrelated package somebody
+> else publishes — use the scoped name, `npx @forinda/fcms-cli <command>`. The
+> same holds for `forinda-cms`, which is the server's binary and not its
+> package name (`@forinda/fcms-core`).
+
 `link` writes `fcms.json`, which names the server and holds no secret — commit
 it. `login` writes a token to `~/.config/forinda-cms/credentials.json` at mode
 `0600`, which is not in your project and must never be.

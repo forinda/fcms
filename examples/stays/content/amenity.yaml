@@ -1,0 +1,23 @@
+key: amenity
+label: Amenity
+labelPlural: Amenities
+titleField: name
+publishable: true
+fields:
+  - name: name
+    label: Name
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: category
+    label: Category
+    type: select
+    required: false
+    unique: false
+    filterable: true
+    options:
+      - { value: popular, label: Most popular }
+      - { value: facilities, label: Facilities }
+      - { value: services, label: Services }
+      - { value: accessibility, label: Accessibility }

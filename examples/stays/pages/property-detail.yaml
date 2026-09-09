@@ -1,0 +1,133 @@
+key: property-detail
+path: /stay
+title: "{{ entry.name }}"
+collection: { from: property }
+draft: false
+seo: { description: "{{ entry.blurb }}", noindex: false }
+blocks:
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+    children:
+      - type: heading
+        style: { fontSize: xl }
+        attrs: { text: "{{ entry.name }}", level: 1 }
+      - type: text
+        attrs: { text: "{{ entry.address }}" }
+      - type: text
+        style: { textColor: token:color.brand, fontWeight: bold }
+        attrs:
+          text: "{{ entry.score }}/10 · {{ entry.reviewCount }} reviews · from {{ entry.priceFrom | currency
+            }} a night"
+      - type: image
+        attrs: { src: "{{ entry.photo }}", alt: "{{ entry.name }}" }
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+    children:
+      - type: heading
+        attrs: { text: About this property, level: 2 }
+      - type: richtext
+        attrs: { html: "{{ entry.description }}" }
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+    children:
+      - type: heading
+        attrs: { text: Where you'll be, level: 2 }
+      - type: map
+        attrs: { at: location, zoom: 15, title: "{{ entry.name }}" }
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+      background: token:color.surface
+    children:
+      - type: heading
+        attrs: { text: Availability, level: 2 }
+      - type: filters
+        attrs: { for: vacancy, submit: Change dates }
+      - type: list
+        style:
+          gap: md
+          cols: { base: 1, md: 2 }
+        data:
+          from: vacancy
+          where:
+            - field: sleeps
+              op: gte
+              value: { param: guests }
+            # This property's rooms, not the whole site's. Without it a detail
+            # page lists every room on the platform, which reads as a design
+            # decision until you have two properties.
+            - field: property
+              op: eq
+              value: { entry: slug }
+          sort:
+            param: sort
+            allow:
+              - price
+              - sleeps
+            default: price
+            dir: asc
+          limit: 20
+        item:
+          - type: card
+            style: { padding: md, radius: md, border: hairline }
+            attrs:
+              heading: "{{ item.name }}"
+              body: "{{ item.beds }} · sleeps {{ item.sleeps }}"
+              meta: "{{ item.total | currency }} for {{ item.nights }} nights"
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+    children:
+      - type: heading
+        attrs: { text: Guest reviews, level: 2 }
+      - type: list
+        style:
+          gap: md
+          cols: { base: 1, md: 2 }
+        data:
+          from: review
+          where:
+            - field: property
+              op: eq
+              value: { entry: slug }
+          sort:
+            param: reviews
+            allow:
+              - score
+              - stayedOn
+            default: stayedOn
+            dir: desc
+          limit: 6
+        item:
+          - type: card
+            style: { padding: md, radius: md, border: hairline }
+            attrs:
+              heading: "{{ item.title }}"
+              body: "{{ item.body }}"
+              meta: "{{ item.score }}/10 · {{ item.author }}, {{ item.country }}"
+
+  - type: section
+    style: { padding: { y: lg, x: lg }, background: token:color.surface }
+    children:
+      - type: heading
+        attrs: { text: Reserve, level: 2 }
+      - type: text
+        attrs:
+          text: "You will not be charged now — the property takes payment on arrival."
+      # Writes a booking as a draft and sends the guest to pay the deposit.
+      # Nothing is published by paying, and the amount is read from the row the
+      # platform wrote rather than from this form.
+      - type: form
+        attrs: { for: booking, submit: Reserve }
+        children:
+          - { type: field, attrs: { name: reference } }
+          - { type: field, attrs: { name: room } }
+          - { type: field, attrs: { name: checkIn } }
+          - { type: field, attrs: { name: checkOut } }
+          - { type: field, attrs: { name: guests } }
+          - { type: field, attrs: { name: guestName } }
+          - { type: field, attrs: { name: guestEmail } }
+          - { type: field, attrs: { name: nights } }

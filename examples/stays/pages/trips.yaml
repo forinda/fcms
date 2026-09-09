@@ -1,0 +1,35 @@
+key: trips
+path: /trips
+title: Your trips
+seo:
+  description: The bookings you have made, and nobody else's.
+blocks:
+  - type: section
+    style: { padding: { y: lg, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: Your trips, level: 1 }
+        style: { fontSize: xl }
+      # Sign in, or make an account. A booking belongs to the guest who made it,
+      # so there has to be somewhere for them to be.
+      - type: account
+
+  - type: section
+    style: { padding: { y: lg, x: lg } }
+    children:
+      - type: list
+        style: { cols: { base: 1, md: 2 }, gap: md }
+        data:
+          from: booking
+          # Theirs, and nobody else's. Signed out this is empty rather than
+          # everything, which is the only safe default for somebody else's data.
+          mine: true
+          sort: { param: trips, allow: [checkIn], default: checkIn, dir: desc }
+          limit: 20
+        item:
+          - type: card
+            style: { padding: md, border: hairline, radius: md }
+            attrs:
+              heading: "{{ item.reference }}"
+              body: "{{ item.checkIn }} to {{ item.checkOut }}"
+              meta: "{{ item.status }}"

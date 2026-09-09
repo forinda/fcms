@@ -1,0 +1,95 @@
+key: search
+path: /search
+title: Search results
+draft: false
+seo:
+  description: Hotels, apartments and guesthouses. Filter by score, price and what is included.
+  noindex: false
+blocks:
+  - type: section
+    style:
+      padding: { x: lg, y: md }
+      background: token:color.brand
+    children:
+      - type: filters
+        attrs: { for: vacancy, submit: Search }
+  - type: section
+    style:
+      padding: { x: lg, y: lg }
+    children:
+      - type: row
+        style: { gap: lg }
+        children:
+          - type: stack
+            style: { gap: lg }
+            children:
+              - type: facets
+                attrs: { for: property, field: stars, title: Star rating }
+              - type: facets
+                attrs: { for: property, field: kind, title: Property type }
+              - type: facets
+                attrs: { for: property, field: city, title: City }
+              - type: facets
+                attrs:
+                  for: property
+                  field: freeCancellation
+                  title: Cancellation
+              - type: facets
+                attrs: { for: property, field: breakfastIncluded, title: Meals }
+          - type: stack
+            style: { gap: md }
+            children:
+              - type: results-count
+                attrs:
+                  for: property
+                  one: "{{ results.total }} property found"
+                  many: "{{ results.total }} properties found"
+              - type: list
+                style:
+                  gap: md
+                  cols: { base: 1 }
+                data:
+                  from: property
+                  where:
+                    - field: stars
+                      op: gte
+                      value: { param: stars }
+                    - field: kind
+                      op: eq
+                      value: { param: kind }
+                    - field: city
+                      op: eq
+                      value: { param: city }
+                    - field: score
+                      op: gte
+                      value: { param: score }
+                    - field: priceFrom
+                      op: lte
+                      value: { param: max_price }
+                    - field: freeCancellation
+                      op: eq
+                      value: { param: free_cancellation }
+                    - field: breakfastIncluded
+                      op: eq
+                      value: { param: breakfast_included }
+                  sort:
+                    param: sort
+                    allow:
+                      - score
+                      - priceFrom
+                      - stars
+                      - distanceKm
+                    default: score
+                    dir: desc
+                  limit: 25
+                item:
+                  - type: card
+                    style: { padding: md, radius: md, border: hairline }
+                    attrs:
+                      heading: "{{ item.name }}"
+                      body: "{{ item.blurb }}"
+                      meta: "{{ item.score }}/10 · {{ item.reviewCount }} reviews · from {{ item.priceFrom | currency }} a
+                        night"
+                      to: "/stay/{{ item.slug }}"
+              - type: pager
+                attrs: { for: property }

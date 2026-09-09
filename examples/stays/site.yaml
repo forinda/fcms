@@ -1,0 +1,45 @@
+specVersion: 2
+name: Stays
+# Prices are in dollars, and a booking site that quotes the wrong currency is
+# not a booking site.
+locale: en-US
+currency: USD
+theme:
+  colors:
+    brand: "#003580"
+    accent: "#febb02"
+    surface: "#f5f5f5"
+    text: "#1a1a1a"
+    border: "#e7e7e7"
+    background: "#ffffff"
+  fonts: { body: Inter, heading: Inter }
+  typeScale: { sm: 0.8125rem, md: 1rem, lg: 1.375rem, xl: 2rem }
+  radius: { sm: 4px, md: 8px, lg: 12px }
+layout:
+  header:
+    - type: nav
+      style:
+        padding: { x: lg, y: md }
+        background: token:color.brand
+      attrs:
+        links:
+          - { label: Stays, to: / }
+          - { label: Search, to: /search }
+          - { label: Your trips, to: /trips }
+  footer:
+    - type: footer
+      style:
+        padding: { x: lg, y: lg }
+        background: token:color.surface
+        textAlign: center
+      attrs:
+        text: Stays · a forinda-cms reference site · prices are per night
+access: {}
+wiring:
+  - key: on-arrival
+    kind: payment.manual
+    label: Pay at the property
+    enabled: true
+    config:
+      instruction: Pay on arrival — the property takes cash or card.
+components: []

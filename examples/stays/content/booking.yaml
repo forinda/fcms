@@ -1,0 +1,91 @@
+key: booking
+label: Booking
+labelPlural: Bookings
+titleField: reference
+publishable: false
+fields:
+  - name: reference
+    label: Reference
+    type: text
+    required: true
+    unique: true
+    filterable: false
+  - name: room
+    label: Room
+    type: reference
+    required: true
+    unique: false
+    filterable: false
+    to: room
+    many: false
+  - name: checkIn
+    label: Check in
+    type: date
+    required: true
+    unique: false
+    filterable: true
+  - name: checkOut
+    label: Check out
+    type: date
+    required: true
+    unique: false
+    filterable: false
+  - name: guests
+    label: Guests
+    type: number
+    required: false
+    unique: false
+    filterable: false
+    min: 1
+  - name: guestName
+    label: Name
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: guestEmail
+    label: Email
+    type: email
+    required: true
+    unique: false
+    filterable: false
+  - name: nights
+    label: Nights
+    type: number
+    required: true
+  # A night's rate on the room this booking points at, times the nights booked.
+  # Computed, so the schema refuses it as input — which is the whole point: the
+  # amount `payment` reads must not be a number the payer can post.
+  - name: deposit
+    label: Deposit
+    type: computed
+    precision: 2
+    formula:
+      op: multiply
+      of:
+        - { ref: room, field: price }
+        - { field: nights }
+  - name: status
+    label: Status
+    type: state
+    initial: held
+    values:
+      - held
+      - confirmed
+      - arrived
+      - cancelled
+    transitions:
+      - from: held
+        to:
+          - confirmed
+          - cancelled
+      - from: confirmed
+        to:
+          - arrived
+          - cancelled
+submissions: visitors
+payment:
+  amount: { field: deposit }
+  currency: USD
+  via: on-arrival
+  label: Booking deposit
