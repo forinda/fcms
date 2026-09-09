@@ -7,7 +7,14 @@ search with counted filters, and a booking journey.
 Twelve properties across five cities, twenty-five rooms, forty-two reviews.
 
 ```sh
-npx fcms dev examples/stays        # localhost:4321, no server, no database
+pnpm fcms dev examples/stays       # localhost:4321, no server, no database
+```
+
+From outside this repository, the package is scoped and the bare name is
+somebody else's:
+
+```sh
+npx @forinda/fcms-cli dev ./stays
 ```
 
 ## What it is here to prove

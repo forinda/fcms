@@ -6,6 +6,7 @@
   "packageManager": "pnpm@11.24.0",
   "scripts": {
     "dev": "pnpm --filter @forinda-cms/engine dev",
+    "fcms": "tsx packages/cli/src/bin.ts",
     "build": "pnpm --filter @forinda-cms/admin build && pnpm --filter @forinda-cms/engine build && pnpm --filter @forinda/fcms-cli build",
     "start": "pnpm --filter @forinda-cms/engine start",
     "typecheck": "pnpm -r --no-bail run typecheck",
@@ -26,6 +27,7 @@
     "esbuild": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:"
   }
 }

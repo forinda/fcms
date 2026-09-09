@@ -8,6 +8,13 @@ npm install -g @forinda/fcms-cli
 fcms --help
 ```
 
+Or without installing anything — **with the scoped name**, because `fcms` on its
+own is an unrelated package somebody else publishes:
+
+```sh
+npx @forinda/fcms-cli --help
+```
+
 ## Without a server
 
 These read the directory and nothing else — no network, no database, no
