@@ -358,3 +358,101 @@ describe("a collection page filters by its own entry", () => {
     expect(html).not.toContain("Hillside suite");
   });
 });
+
+/**
+ * An aggregate has to find the rows that point at its row.
+ *
+ * A reference is written `ref:<type>/<slug>` — the spec says so, and every
+ * authored file uses it. Aggregates matched only the parent's id, so a hotel's
+ * guest score, its review count and its cheapest room were all empty on any
+ * site whose content came from files rather than from the admin. That is the
+ * site the CLI exists to make.
+ */
+describe("aggregates over a written reference", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          {
+            name: "score",
+            label: "Score",
+            type: "aggregate",
+            of: "review",
+            on: "property",
+            field: "score",
+            fn: "avg",
+          },
+          {
+            name: "reviewCount",
+            label: "Reviews",
+            type: "aggregate",
+            of: "review",
+            on: "property",
+            fn: "count",
+          },
+        ],
+      },
+      {
+        key: "review",
+        label: "Review",
+        titleField: "title",
+        fields: [
+          { name: "title", label: "Title", type: "text", required: true },
+          { name: "score", label: "Score", type: "number", required: true },
+          { name: "property", label: "Property", type: "reference", to: "property" },
+        ],
+      },
+    ],
+    pages: [],
+  });
+
+  it("counts rows that name it by slug, the way a file does", () => {
+    const source = withDerived(
+      spec,
+      staticSource({
+        property: [{ id: "p1", slug: "harbour", name: "The Harbour" }],
+        review: [
+          { id: "r1", slug: "r1", title: "Good", score: 9, property: "ref:property/harbour" },
+          { id: "r2", slug: "r2", title: "Fine", score: 7, property: "ref:property/harbour" },
+        ],
+      }),
+    );
+
+    const [row] = source.all("property");
+    expect(row?.["reviewCount"]).toBe(2);
+    expect(row?.["score"]).toBe(8);
+  });
+
+  it("still counts rows that name it by id, the way the admin does", () => {
+    const source = withDerived(
+      spec,
+      staticSource({
+        property: [{ id: "p1", slug: "harbour", name: "The Harbour" }],
+        review: [{ id: "r1", slug: "r1", title: "Good", score: 9, property: "p1" }],
+      }),
+    );
+
+    expect(source.all("property")[0]?.["reviewCount"]).toBe(1);
+  });
+
+  it("does not count a review of another property", () => {
+    const source = withDerived(
+      spec,
+      staticSource({
+        property: [{ id: "p1", slug: "harbour", name: "The Harbour" }],
+        review: [
+          { id: "r1", slug: "r1", title: "Good", score: 9, property: "ref:property/hillside" },
+        ],
+      }),
+    );
+
+    expect(source.all("property")[0]?.["reviewCount"]).toBe(0);
+  });
+});

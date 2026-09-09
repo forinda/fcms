@@ -397,11 +397,15 @@ function addAggregates(
     const computed: Record<string, unknown> = { ...row };
 
     for (const field of aggregates) {
-      // Rows of the related type that point back at this one. `id` is what a
-      // reference holds, and the repository merges it in from the column.
+      // Rows of the related type that point back at this one, by either form a
+      // reference takes: the row's id, or `ref:<type>/<slug>` — which is the
+      // form the spec documents and the form every authored file uses.
+      // Matching only the id meant a hotel's rating, review count and cheapest
+      // room were all empty on a site whose content was written rather than
+      // clicked, which is the site the CLI exists to make.
       const related = source
         .all(field.of)
-        .filter((other) => referencesRow(other[field.on], row["id"]));
+        .filter((other) => referencesRow(other[field.on], row, type.key));
 
       computed[field.name] = aggregate(field, related);
     }
@@ -490,11 +494,16 @@ function evaluate(operand: Operand, row: Entry, params: RequestParams): number |
 }
 
 /** A reference may hold one id or several (`many: true`). */
-function referencesRow(value: unknown, id: unknown): boolean {
-  if (id === undefined) return false;
-  const target = String(id);
-  if (Array.isArray(value)) return value.some((entry) => String(entry) === target);
-  return value !== undefined && value !== null && String(value) === target;
+function referencesRow(value: unknown, row: Entry, typeKey: string): boolean {
+  const targets = new Set<string>();
+  if (row["id"] !== undefined && row["id"] !== null) targets.add(String(row["id"]));
+  if (row["slug"] !== undefined && row["slug"] !== null) {
+    targets.add(`ref:${typeKey}/${String(row["slug"])}`);
+  }
+  if (targets.size === 0) return false;
+
+  if (Array.isArray(value)) return value.some((entry) => targets.has(String(entry)));
+  return value !== undefined && value !== null && targets.has(String(value));
 }
 
 function aggregate(

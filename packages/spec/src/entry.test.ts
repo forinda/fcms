@@ -247,3 +247,51 @@ describe("a week of opening hours", () => {
     expect(Object.keys(result.errors ?? {})).toContain("workingHours");
   });
 });
+
+/**
+ * A field declared `many` has to be able to hold many.
+ *
+ * `many` was part of the field type and not part of its schema, so a
+ * multi-reference accepted nothing at all: an array failed as "not a string"
+ * and a single string meant one value. A property could declare its amenities
+ * and then never hold any — found by trying to give twelve of them some.
+ */
+describe("a multi-reference", () => {
+  const type = ContentType.parse({
+    key: "property",
+    label: "Property",
+    titleField: "name",
+    fields: [
+      { name: "name", label: "Name", type: "text", required: true },
+      { name: "amenities", label: "Amenities", type: "reference", to: "amenity", many: true },
+      { name: "city", label: "City", type: "reference", to: "city" },
+    ],
+  });
+
+  it("takes a list", () => {
+    const result = validateEntry(type, {
+      name: "The Harbour",
+      amenities: ["ref:amenity/wifi", "ref:amenity/pool"],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.data?.["amenities"]).toEqual(["ref:amenity/wifi", "ref:amenity/pool"]);
+  });
+
+  it("takes the one value a form sends when only one is ticked", () => {
+    const result = validateEntry(type, { name: "The Harbour", amenities: "ref:amenity/wifi" });
+    expect(result.ok).toBe(true);
+    expect(result.data?.["amenities"]).toEqual(["ref:amenity/wifi"]);
+  });
+
+  it("reads an empty selection as none rather than as missing", () => {
+    const result = validateEntry(type, { name: "The Harbour", amenities: "" });
+    expect(result.ok).toBe(true);
+    expect(result.data?.["amenities"]).toEqual([]);
+  });
+
+  it("still refuses a list where one reference was declared", () => {
+    const result = validateEntry(type, { name: "The Harbour", city: ["ref:city/nairobi"] });
+    expect(result.ok).toBe(false);
+    expect(result.errors).toHaveProperty("city");
+  });
+});

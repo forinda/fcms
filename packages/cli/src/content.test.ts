@@ -162,6 +162,26 @@ describe("pushing content", () => {
     expect(created.map((c) => c.input.slug)).toEqual(["new"]);
   });
 
+  it("keeps a published row published, and a draft a draft", async () => {
+    // `pull` writes `__status` only for a draft, so absent means published.
+    // Reading absent as the server's default for a new row — draft — made
+    // `pull --content` followed by `apply --content` unpublish a whole site
+    // in silence, which is a backup that destroys what it restores.
+    const root = dir();
+    write(
+      root,
+      "service.yaml",
+      "- slug: cut\n  name: Cut\n- slug: wip\n  __status: draft\n  name: WIP\n",
+    );
+    const { client, created } = fakeSite({ service: [] });
+
+    await pushContent(root, client, spec);
+    expect(created.map((c) => [c.input.slug, c.input.status])).toEqual([
+      ["cut", "published"],
+      ["wip", "draft"],
+    ]);
+  });
+
   it("matches an unnamed row by its id", async () => {
     const root = dir();
     write(root, "booking.yaml", "- __id: abc\n  reference: BK-1\n");

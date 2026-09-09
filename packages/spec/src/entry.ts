@@ -80,8 +80,14 @@ function schemaForField(field: Field): z.ZodType {
         return z
           .object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
           .strict();
-      case "reference":
-        return z.string().regex(/^ref:/);
+      case "reference": {
+        // `many` is part of the field and was not part of the schema, so a
+        // multi-reference accepted nothing: an array failed as "not a string",
+        // and a single string meant one value. A property could declare its
+        // amenities and then never hold any.
+        const one = z.string().regex(/^ref:/);
+        return "many" in field && field.many ? z.array(one) : one;
+      }
       case "state":
         return z.enum(("values" in field ? field.values : []) as [string, ...string[]]);
       case "aggregate":
@@ -172,6 +178,19 @@ export function coerceEntryInput(
             : // Left as it was so the schema reports it, rather than silently
               // becoming nothing and reading as "no location given".
               raw;
+        break;
+      }
+      case "reference": {
+        // A multi-reference in a form is one field with several values, and a
+        // browser sends one value as a string rather than a list of one. An
+        // empty selection sends nothing at all, which means none rather than
+        // missing.
+        if (!("many" in field && field.many)) break;
+        if (raw === undefined || raw === "") {
+          out[field.name] = [];
+          break;
+        }
+        out[field.name] = Array.isArray(raw) ? raw : [raw];
         break;
       }
       case "hours": {

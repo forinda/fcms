@@ -140,7 +140,13 @@ export async function pushContent(root: string, client: Client, spec: SiteSpec):
       const input: EntryInput = {
         data,
         ...(slug ? { slug } : {}),
-        ...(status === "draft" || status === "published" ? { status } : {}),
+        // Absent means published, because that is what `pull` means by absent:
+        // it writes `__status` only for a draft, so a file of published rows
+        // reads as content rather than as a database dump. Reading absent as
+        // "draft" instead — the server's default for a new row — made
+        // `pull --content` followed by `apply --content` unpublish an entire
+        // site in silence, which is a backup that destroys what it restores.
+        status: status === "draft" ? "draft" : "published",
       };
 
       // One row's failure is not the import's. A restore that stops at the
