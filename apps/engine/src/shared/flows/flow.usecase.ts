@@ -61,10 +61,14 @@ export class FlowUseCase {
       if (!field) continue;
 
       const id = String(chosen["slug"] ?? chosen["id"] ?? "");
-      // A reference field names the row; anything else takes the value the
-      // author meant, which for a slot is when it starts.
+      // A reference names the type the *field* declares, not the type the step
+      // read from. A step choosing from a derived type — the free rooms for
+      // these dates — wrote `ref:vacancy/…` into a field declared `to: room`,
+      // which is a reference to a type that holds no rows. It resolved anyway,
+      // because matching compares the slug, and would stop the day a derived
+      // row's slug differed from the row it was derived from.
       out[selects.as] =
-        field.type === "reference" ? `ref:${selects.from}/${id}` : (chosen["startsAt"] ?? id);
+        field.type === "reference" ? `ref:${field.to}/${id}` : (chosen["startsAt"] ?? id);
     }
     return out;
   }

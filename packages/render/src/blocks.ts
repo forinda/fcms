@@ -58,6 +58,15 @@ export interface BlockType {
   readonly variants?: readonly string[];
   /** True for blocks that lay out children (`gap` applies to these only). */
   readonly layout?: boolean;
+  /**
+   * True for blocks that emit a `<form>` of their own.
+   *
+   * A flow step that chooses wraps its blocks in a form to post the choice, and
+   * a form inside a form is not markup a browser keeps — it closes the outer
+   * one early, and whichever of the two the author needed stops working. The
+   * flow reads this rather than guessing by name.
+   */
+  readonly ownsForm?: boolean;
   render(ctx: BlockContext): Html;
 }
 
@@ -205,6 +214,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     }),
     define({
       name: "filters",
+      ownsForm: true,
       summary: "A search form for the parameters this page's list actually reads.",
       attrs: ["for", "submit"],
       render: ({ className, attrs, contentType, request }) => {
@@ -445,6 +455,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     }),
     define({
       name: "account",
+      ownsForm: true,
       summary: "Sign in, register, or sign out — for the site's own visitors.",
       attrs: ["mode", "submit"],
       render: ({ className, attrs, request }) => {
@@ -663,6 +674,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     // ── Forms ───────────────────────────────────────────────────────────────
     define({
       name: "form",
+      ownsForm: true,
       summary: "A form over a content type. Submits to the site when the type allows it.",
       attrs: ["for", "submitLabel"],
       /**
