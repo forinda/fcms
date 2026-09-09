@@ -16,9 +16,12 @@ from the schema at <https://fcms.kickjs.app/docs/reference/>.
 | `@forinda/fcms-mcp` | the same doors for an agent. Binary: `fcms-mcp` |
 
 All three carry the same version, because one is the client of the other and
-nobody should read a compatibility table. **The binaries are not the package
-names**: outside a project that has them installed, `npx fcms` is somebody
-else's package. Use `npx @forinda/fcms-cli`.
+nobody should read a compatibility table.
+
+**The binaries are not the package names.** Inside a project that has the CLI
+installed, running the bare `fcms` binary works — the local one wins. Outside
+one, asking a runner for that bare name asks npm for it, and it belongs to
+somebody else. Name the package: `npx @forinda/fcms-cli <command>`.
 
 ## Files in a project
 
