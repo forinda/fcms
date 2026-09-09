@@ -13,7 +13,13 @@
  * instead of to every caller.
  */
 import { Inject, Service } from "@forinda/kickjs";
-import { renderPage, routes, type Entry } from "@forinda-cms/render";
+import {
+  declaredStatusPage,
+  renderPage,
+  routes,
+  statusPage,
+  type Entry,
+} from "@forinda-cms/render";
 import type { SiteSpec } from "@forinda-cms/spec";
 
 import { BLOCKS } from "@/plugins";
@@ -122,5 +128,31 @@ export class SiteService {
     return routes(resolved.spec, resolved.source)
       .filter((r) => !r.page.draft && r.page.seo?.noindex !== true)
       .map((r) => r.path);
+  }
+  /**
+   * The page a visitor gets when there is no page.
+   *
+   * A site answered 404 with `<h1>Not found</h1>` — no header, no footer, no
+   * colours, nothing to do next. That is a developer's 404 shown to somebody
+   * who mistyped an address, and it reads as "this site is broken" rather than
+   * "that address is wrong".
+   *
+   * An author who writes a page at `/404` gets theirs; everybody else gets one
+   * in their own site's clothes without asking for it. `null` only when the
+   * site has no spec at all, which is a genuinely different situation.
+   */
+  async renderStatus(status: number, canonicalBase?: string): Promise<Rendered | null> {
+    const resolved = await this.resolve(null);
+    if (!resolved) return null;
+
+    const page = declaredStatusPage(resolved.spec, status) ?? statusPage(resolved.spec, status);
+    return renderPage(page, {
+      spec: resolved.spec,
+      source: resolved.source,
+      registry: BLOCKS,
+      locale: { locale: resolved.spec.locale, currency: resolved.spec.currency },
+      path: `/${status}`,
+      ...(canonicalBase ? { canonicalBase } : {}),
+    });
   }
 }
