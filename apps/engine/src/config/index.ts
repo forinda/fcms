@@ -22,8 +22,14 @@ const envSchema = fromZod(
      * keep files, and the database runs inside this process. The default means
      * `npx forinda-cms` starts a working site with nothing configured, which
      * was the last thing standing between somebody and one.
+     *
+     * `.fcms/` and not `data/`: a site directory already uses `data/` for
+     * content files — `fcms pull --content` writes them there and an author
+     * commits them — so the default put a forty-megabyte Postgres cluster in
+     * the middle of somebody's YAML. Hidden, named after the product, and one
+     * line in `.gitignore`.
      */
-    DATABASE_URL: z.string().default("./data/postgres"),
+    DATABASE_URL: z.string().default("./.fcms/db"),
 
     /**
      * Where a single-site install serves from.
