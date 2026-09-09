@@ -341,11 +341,35 @@ function renderFlow(
 
   // A copy rather than a mutation: `css` is the same array, so styles still
   // collect, and the flag lasts exactly as long as this step's subtree.
-  const stepWalk: Walk = here.step.selects ? { ...walk, selecting: here.step.selects.from } : walk;
+  //
+  // The step's own query is its primary one, so `results-count` and `pager`
+  // inside a step can say what the step found. Without it a step reported
+  // " rooms free for those nights" — the sentence with the number missing.
+  const stepQuery = firstQuery(here.step.blocks);
+  const stepWalk: Walk = {
+    ...walk,
+    ...(here.step.selects ? { selecting: here.step.selects.from } : {}),
+    ...(stepQuery
+      ? {
+          primary: {
+            query: stepQuery,
+            result: runQueryPage(walk.source, stepQuery, walk.params, walk.viewer, walk.entry),
+          },
+        }
+      : {}),
+  };
 
-  const blocks = here.step.blocks.map((b, j) =>
-    renderBlock(b, scope, [...path, here.index, j], stepWalk),
-  );
+  // `{{ results.total }}` resolves from the scope, and the scope was built once
+  // for the page — so a step's own count has to reach it here or the sentence
+  // renders with the number missing.
+  const stepScope: Scope = stepWalk.primary
+    ? { ...scope, results: stepWalk.primary.result }
+    : scope;
+
+  const rendered = here.step.blocks.map((b, j) => ({
+    block: b,
+    html: renderBlock(b, stepScope, [...path, here.index, j], stepWalk),
+  }));
 
   return el(
     "div",
@@ -357,15 +381,52 @@ function renderFlow(
       { class: "fx-flow-step", "data-step": here.step.key },
       // A step that chooses posts its choice back; one that does not is
       // whatever its blocks are — usually the form that completes the journey.
+      //
+      // Blocks that own a form are left outside it. A date filter above the
+      // rooms it filters is the obvious way to write this step, and nesting its
+      // form inside the choose-form is markup a browser will not keep: it closes
+      // the outer form early, and one of the two stops working.
       here.step.selects
-        ? el(
-            "form",
-            { method: "post", action: `${action}/${here.step.key}`, class: "fx-flow-choose" },
-            ...blocks,
+        ? fragment(
+            ...groupBy(rendered, (r) => walk.registry[r.block.type]?.ownsForm === true).map(
+              (run) =>
+                run.ownsForm
+                  ? fragment(...run.items.map((r) => r.html))
+                  : el(
+                      "form",
+                      {
+                        method: "post",
+                        action: `${action}/${here.step.key}`,
+                        class: "fx-flow-choose",
+                      },
+                      ...run.items.map((r) => r.html),
+                    ),
+            ),
           )
-        : fragment(...blocks),
+        : fragment(...rendered.map((r) => r.html)),
     ),
   );
+}
+
+/**
+ * Consecutive items that answer the same way, in order.
+ *
+ * A step's blocks keep the order the author wrote them in, so a filter above a
+ * list stays above it — the runs are what decides which of them the choosing
+ * form wraps, not a reordering.
+ */
+function groupBy<T>(
+  items: readonly T[],
+  ownsForm: (item: T) => boolean,
+): { ownsForm: boolean; items: T[] }[] {
+  const runs: { ownsForm: boolean; items: T[] }[] = [];
+  for (const item of items) {
+    const flag = ownsForm(item);
+    const last = runs.at(-1);
+    if (last && last.ownsForm === flag) last.items.push(item);
+    else runs.push({ ownsForm: flag, items: [item] });
+  }
+  return runs;
 }
 
 /** A choice, as a line of text: its title if it has one, its id otherwise. */

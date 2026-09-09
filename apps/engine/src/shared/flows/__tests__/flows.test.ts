@@ -161,3 +161,100 @@ describe("what a selection fills", () => {
     expect(fields).toEqual({});
   });
 });
+
+/**
+ * A reference names the type the field declares.
+ *
+ * A step that chooses from a *derived* type — the rooms free for these dates —
+ * wrote `ref:vacancy/…` into a field declared `to: room`. That is a reference
+ * to a type which holds no rows. It resolved anyway, because matching compares
+ * the slug, and it would stop the day a derived row's slug differed from the row
+ * it was derived from.
+ */
+describe("choosing from a derived type", () => {
+  const withVacancy = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "room",
+        label: "Room",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "price", label: "Price", type: "number", required: true },
+        ],
+      },
+      {
+        key: "booking",
+        label: "Booking",
+        titleField: "reference",
+        submissions: "anyone",
+        fields: [
+          { name: "reference", label: "Reference", type: "text", required: true },
+          { name: "room", label: "Room", type: "reference", to: "room" },
+          { name: "checkIn", label: "Check in", type: "date" },
+          { name: "checkOut", label: "Check out", type: "date" },
+        ],
+      },
+      {
+        key: "vacancy",
+        label: "Available room",
+        derived: {
+          kind: "stay",
+          resource: { type: "room" },
+          occupied: { type: "booking", resource: "room", from: "checkIn", to: "checkOut" },
+          range: { from: "check-in", to: "check-out" },
+          window: { days: 365 },
+        },
+        fields: [
+          { name: "name", label: "Name", type: "text" },
+          { name: "price", label: "Price", type: "number" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "book",
+        path: "/book",
+        title: "Book",
+        blocks: [{ type: "heading", attrs: { text: "Book" } }],
+        flows: [
+          {
+            key: "stay",
+            steps: [
+              {
+                key: "room",
+                selects: { from: "vacancy", as: "room" },
+                blocks: [
+                  { type: "list", data: { from: "vacancy", limit: 8 }, item: [{ type: "card" }] },
+                ],
+              },
+              {
+                key: "details",
+                requires: ["room"],
+                blocks: [{ type: "form", attrs: { for: "booking" } }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  it("stores a reference to the type the field points at", () => {
+    const fields = FlowUseCase.fieldsFrom(
+      withVacancy,
+      withVacancy.pages[0]!.flows![0]!,
+      "booking",
+      {
+        room: { slug: "sea-view", name: "Sea view", price: 175 },
+      },
+    );
+
+    // Not `ref:vacancy/sea-view`: `vacancy` is computed and holds no rows, so
+    // nothing else in the system could ever resolve it.
+    expect(fields).toEqual({ room: "ref:room/sea-view" });
+  });
+});
