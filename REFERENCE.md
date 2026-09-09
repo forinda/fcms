@@ -133,6 +133,39 @@ is right for a container and awkward at a terminal.
 
 `npx @forinda/fcms-core --help` prints this list from the binary itself.
 
+## Styling
+
+Three tiers, in order: a theme, then structured properties, then custom CSS.
+
+```yaml
+- type: section
+  style: { background: brand, contentWidth: container }
+  children:
+    - type: card
+      style: { variant: price }
+      css: |
+        img { aspect-ratio: 1 }
+        h3 { font-size: 1.1rem }
+        &:hover { opacity: .95 }
+```
+
+`contentWidth` measures a block's **children** and leaves the block alone. A
+full-bleed band with contained content is the commonest layout on any site and
+`width` cannot express it, because constraining a section constrains its
+background too.
+
+`variant` is each block's own list — `button` takes `primary`, `secondary`,
+`outline`; `card` takes `plain`, `elevated`, `price`. A variant a block does not
+declare is ignored rather than styled by accident, and the full list per block is
+in the [reference](https://fcms.kickjs.app/docs/reference/).
+
+**In `css`, the author never writes a selector.** Declarations apply to the
+block; a nested rule is prefixed with the block's own class, and `&` is the block
+itself. One level deep, and anything that is not a declaration is dropped — so
+block CSS cannot reach an element the block does not own, whatever is typed into
+it. Site-wide `css` on `site.yaml` is the one explicit escape hatch and is gated
+to the `developer` role.
+
 ## Search, sharing and structured data
 
 Every page carries these without being asked. There is no SEO plugin because

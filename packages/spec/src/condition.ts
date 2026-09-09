@@ -17,7 +17,7 @@
  */
 import { z } from "zod";
 
-import { FieldName, Scalar } from "./primitives.js";
+import { FieldName, Label, Scalar } from "./primitives.js";
 
 /** Fixed set. Adding one is a deliberate vocabulary decision, not a convenience. */
 export const OPERATORS = [
@@ -64,6 +64,19 @@ export const ParamValue = z
   .object({
     param: z.string().regex(/^[a-z][a-z0-9_]*$/, "a lowercase parameter name"),
     default: Scalar.optional(),
+    /**
+     * What to call this filter on screen, and what to hint inside its box.
+     *
+     * The `filters` block builds one control per parameter a query reads, and
+     * labelled each from the field it filters — so a help centre searched by
+     * `title` had a search box labelled "Title", and a price range labelled
+     * "Price" twice. The field's label answers "what is this column"; this
+     * answers "what am I asking you", and they are only sometimes the same
+     * sentence.
+     */
+    label: Label.optional(),
+    /** In addition to the label, never instead of it. */
+    placeholder: Label.optional(),
   })
   .strict();
 

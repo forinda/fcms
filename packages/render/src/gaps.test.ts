@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { llmsTxt } from "./agents.js";
+import { blockCss, scopedCss } from "./css.js";
 import { renderPage } from "./render.js";
 import { staticSource, withDerived } from "./entries.js";
 
@@ -331,5 +332,129 @@ describe("what a site publishes to machines", () => {
     expect(() =>
       SiteSpec.parse({ ...base, analytics: { gtag: "G-1'></script><script>alert(1)</script>" } }),
     ).toThrow();
+  });
+});
+
+describe("the style system's pressure valves", () => {
+  it("keeps block CSS inside the block, whatever the author types", () => {
+    // This used to be `.cls{` + the author's text + `}`, so a `}` in the middle
+    // closed the rule and the rest applied to the whole page — tier 3's
+    // boundary was a promise the emitter did not keep.
+    const out = scopedCss("b0", "color:red} body{display:none").join("");
+    expect(out).not.toContain("body{display:none}");
+    expect(out).not.toContain("} body");
+  });
+
+  it("lets a block reach its own internals, and nothing else", () => {
+    const out = scopedCss(
+      "b0",
+      "display:flex; ul { list-style: none; gap: 1rem } &:hover { opacity: .9 }",
+    ).join("");
+
+    expect(out).toContain(".b0{display:flex}");
+    // A block author never writes a selector, so the class is prefixed for them
+    // — which is what makes a nested one safe.
+    expect(out).toContain(".b0 ul{list-style: none;gap: 1rem}");
+    expect(out).toContain(".b0:hover{opacity: .9}");
+  });
+
+  it("drops a second level rather than emitting it half-scoped", () => {
+    const out = scopedCss("b0", "ul { color: red; li { color: blue } }").join("");
+    expect(out).toContain(".b0 ul{color: red}");
+    expect(out).not.toContain("blue");
+  });
+
+  it("measures a band's children without narrowing the band", () => {
+    // A section constrained by `width` constrains its background too, so every
+    // full-bleed band needed a wrapper block inside it, on every page.
+    const css = blockCss("b0", { contentWidth: "container" }, undefined);
+    expect(css).toContain(".b0>*{max-width:72rem;margin-inline:auto;width:100%}");
+    expect(css).not.toContain(".b0{max-width");
+  });
+
+  it("emits a class for a variant the block declares, and only then", () => {
+    const spec = SiteSpec.parse({
+      specVersion: 2,
+      name: "Stays",
+      theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "note",
+          label: "Note",
+          fields: [{ name: "name", label: "Name", type: "text", required: true }],
+        },
+      ],
+      pages: [
+        {
+          key: "home",
+          path: "/",
+          title: "Home",
+          blocks: [
+            { type: "button", attrs: { text: "Book", to: "/book" }, style: { variant: "outline" } },
+            { type: "button", attrs: { text: "Call", to: "/call" }, style: { variant: "ghost" } },
+          ],
+        },
+      ],
+    });
+
+    const { html } = renderPage(spec.pages[0]!, { spec, source: staticSource({}) });
+    expect(html).toContain("fx-variant-outline");
+    // `ghost` is not one of the button's declared variants: ignored rather than
+    // styled by accident.
+    expect(html).not.toContain("fx-variant-ghost");
+  });
+});
+
+describe("a filter names itself", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Help",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "article",
+        label: "Article",
+        titleField: "title",
+        fields: [{ name: "title", label: "Title", type: "text", required: true }],
+      },
+    ],
+    pages: [
+      {
+        key: "help",
+        path: "/help",
+        title: "Help centre",
+        blocks: [
+          {
+            type: "filters",
+            attrs: { for: "article" },
+            data: {
+              from: "article",
+              where: [
+                {
+                  field: "title",
+                  op: "contains",
+                  value: { param: "q", label: "Search help", placeholder: "How do I cancel?" },
+                },
+              ],
+              limit: 10,
+            },
+            item: [{ type: "text", attrs: { text: "{{ item.title }}" } }],
+          },
+        ],
+      },
+    ],
+  });
+
+  it("uses the clause's own words rather than the field's", () => {
+    // The help centre's search box was labelled "Title", because that is the
+    // name of the column it happens to filter.
+    const { html } = renderPage(spec.pages[0]!, {
+      spec,
+      source: staticSource({ article: [{ id: "a1", slug: "cancel", title: "Cancelling" }] }),
+    });
+
+    expect(html).toContain(">Search help</label>");
+    expect(html).toContain('placeholder="How do I cancel?"');
+    expect(html).not.toContain(">Title</label>");
   });
 });

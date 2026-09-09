@@ -96,6 +96,16 @@
                               "boolean",
                               "null"
                             ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "placeholder": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
                           }
                         },
                         "required": [
@@ -264,6 +274,16 @@
                                 "boolean",
                                 "null"
                               ]
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "placeholder": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
                             }
                           },
                           "required": [
@@ -922,6 +942,14 @@
                 }
               ]
             },
+            "contentWidth": {
+              "type": "string",
+              "enum": [
+                "full",
+                "container",
+                "narrow"
+              ]
+            },
             "align": {
               "type": "string",
               "enum": [
@@ -1190,6 +1218,16 @@
                         "boolean",
                         "null"
                       ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "placeholder": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
                     }
                   },
                   "required": [
@@ -1290,6 +1328,16 @@
                               "boolean",
                               "null"
                             ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "placeholder": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
                           }
                         },
                         "required": [

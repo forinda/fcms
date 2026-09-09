@@ -67,6 +67,16 @@ export const StyleProps = z
     /** Spacing *between* children — what people mean when they say "margin". Layout blocks only. */
     gap: Responsive(Scale).optional(),
     width: Responsive(z.enum(["full", "container", "narrow"])).optional(),
+    /**
+     * How wide this block's *children* may get. Layout blocks.
+     *
+     * A full-bleed band with contained content is the commonest layout on any
+     * site, and `width` could not express it: constraining a section
+     * constrains its background too, so every coloured band needed a wrapper
+     * block inside it, on every page. This measures the children and leaves the
+     * background alone.
+     */
+    contentWidth: z.enum(["full", "container", "narrow"]).optional(),
     align: z.enum(["start", "center", "end", "stretch"]).optional(),
     justify: z.enum(["start", "center", "end", "between"]).optional(),
 

@@ -220,8 +220,17 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
         )
       : undefined;
 
+  // `style.variant` has validated since the schema had a style, the admin has
+  // offered a Variant select from `block.variants`, and nothing was ever
+  // emitted for it — the declared pressure valve was inert. A block declares
+  // its variants and gets the class; one it did not declare is ignored rather
+  // than styled by accident.
+  const variant = block.style?.variant;
+  const classes =
+    variant && type.variants?.includes(variant) ? `${cls} fx-variant-${variant}` : cls;
+
   const rendered = type.render({
-    className: cls,
+    className: classes,
     attrs,
     ...(facetRows ? { rows: facetRows } : {}),
     request: {

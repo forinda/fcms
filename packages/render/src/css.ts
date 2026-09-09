@@ -186,12 +186,121 @@ export function blockCss(
           : `@media (min-width:${min}px){.${className}{display:none}}`,
       );
     }
+
+    // Full-bleed band, measured content — the layout every site needs and no
+    // property could say. The children are centred rather than the block, so
+    // the background still runs the width of the page.
+    if (style.contentWidth) {
+      rules.push(
+        `.${className}>*{max-width:${WIDTHS[style.contentWidth]};` +
+          `margin-inline:auto;width:100%}`,
+      );
+    }
   }
 
   // Tier 3, scoped to this block instance. The AI reads this and never writes it.
-  if (custom) rules.push(`.${className}{${custom}}`);
+  if (custom) rules.push(...scopedCss(className, custom));
 
   return rules.join("");
+}
+
+/** A declaration, loosely: a property, a colon, and no way out of the rule. */
+const DECLARATION = /^[-a-zA-Z][-a-zA-Z0-9]*\s*:[^;{}]*$/;
+
+/**
+ * Block CSS, scoped — and now allowed one level of nesting.
+ *
+ * Two problems, one parser.
+ *
+ * The first is a hole: this used to be `.${cls}{${custom}}` by string
+ * concatenation, so a `}` in the middle of an author's declarations closed the
+ * rule and everything after it applied to the whole page. Tier 3's boundary was
+ * a promise the emitter did not keep.
+ *
+ * The second is the reason people reached for site-level CSS. `nav`, `card`,
+ * `filters`, `facets`, `form` and `pager` all render internal structure — `ul`,
+ * `img`, `h3`, `input` — that a block author could not address, because the
+ * author never writes a selector. So making a footer's columns vertical needed
+ * site-level CSS, which is gated to the `developer` role: a site owner could not
+ * restyle their own footer.
+ *
+ * So: declarations still go on the block itself, and a nested rule is prefixed
+ * with the block's class. `&` means the block. One level — anything deeper is
+ * dropped, along with anything that is not a declaration. An author cannot
+ * write a selector that leaves their own block, whatever they type.
+ */
+export function scopedCss(className: string, custom: string): string[] {
+  const source = custom.replace(/\/\*[\s\S]*?\*\//g, "");
+  const own: string[] = [];
+  const nested: string[] = [];
+
+  let buffer = "";
+  let body = "";
+  let depth = 0;
+
+  const declare = (into: string[], text: string): void => {
+    const declaration = text.trim();
+    if (DECLARATION.test(declaration)) into.push(declaration);
+  };
+
+  const rule = (selector: string, inner: string): void => {
+    const declarations: string[] = [];
+    // One level: a `{` inside a nested rule takes the rest of it with it.
+    for (const part of inner.split(";")) {
+      if (part.includes("{") || part.includes("}")) break;
+      declare(declarations, part);
+    }
+    if (declarations.length === 0) return;
+
+    const scoped = selector
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part !== "" && !/[{}@]/.test(part))
+      // `&` is this block; anything else is a descendant of it. Either way the
+      // emitted selector begins with the block's own class.
+      .map((part) =>
+        part.includes("&") ? part.replaceAll("&", `.${className}`) : `.${className} ${part}`,
+      );
+
+    if (scoped.length > 0) nested.push(`${scoped.join(",")}{${declarations.join(";")}}`);
+  };
+
+  for (const ch of source) {
+    if (depth > 0) {
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          rule(buffer, body);
+          buffer = "";
+          body = "";
+          continue;
+        }
+      }
+      body += ch;
+      continue;
+    }
+
+    if (ch === "{") {
+      depth = 1;
+      continue;
+    }
+    if (ch === ";") {
+      declare(own, buffer);
+      buffer = "";
+      continue;
+    }
+    // A stray `}` at the top level is what an escape attempt looks like. Drop
+    // what came before it rather than emitting either half.
+    if (ch === "}") {
+      buffer = "";
+      continue;
+    }
+    buffer += ch;
+  }
+  declare(own, buffer);
+
+  return [...(own.length > 0 ? [`.${className}{${own.join(";")}}`] : []), ...nested];
 }
 
 /** A small, opinionated baseline. Mobile-first, no reset framework. */
@@ -206,7 +315,18 @@ a{color:var(--color-brand,#06c)}
 .fx-row{display:flex;flex-direction:row;flex-wrap:wrap}
 .fx-grid{display:grid}
 .fx-section{display:block}
-.fx-card-meta{color:var(--color-brand,#06c);font-weight:600;margin:0}
+/* A card's meta line is a price, a distance, or a date. It was brand-coloured
+   for the price, which made "Updated 5 Sept" read as a link inside a card that
+   is already one big link. Emphasis without the colour, and the colour behind a
+   variant for the case that wanted it. */
+.fx-card-meta{color:inherit;font-weight:600;margin:0}
+.fx-card.fx-variant-price .fx-card-meta{color:var(--color-brand,#06c)}
+.fx-card.fx-variant-elevated{background:var(--color-surface,#fff);border:1px solid var(--color-border,#e5e5e5);border-radius:var(--radius-md,8px);padding:.75rem}
+/* style.variant validated, the admin offered a Variant select, and nothing
+   emitted anything for it: variant "outline" on a button was silently inert.
+   These are the defaults for the variants the core blocks declare. */
+.fx-button.fx-variant-secondary{background:var(--color-surface,#f4f4f4);color:var(--color-text,#1a1a1a);border:1px solid var(--color-border,#e5e5e5)}
+.fx-button.fx-variant-outline{background:transparent;color:var(--color-brand,#06c);border:1px solid currentColor}
 .fx-map iframe{width:100%;height:20rem;border:0;display:block;border-radius:var(--radius-md,8px)}
 .fx-map-link{display:inline-block;margin-top:.4rem;font-size:.9rem}
 .fx-flow-steps{display:flex;gap:1rem;list-style:none;padding:0;flex-wrap:wrap}
