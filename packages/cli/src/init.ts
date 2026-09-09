@@ -58,6 +58,7 @@ export function init(root: string, options: InitOptions = {}): number {
   const spec = SiteSpec.parse(starter.build(name));
   const files: Record<string, string> = {
     ...splitFiles(spec),
+    "fcms.json": `${JSON.stringify({ port: 4321 }, null, 2)}\n`,
     "package.json": packageJson(name),
     ".gitignore": gitignore(),
     ".mcp.json": mcpJson(),
@@ -177,7 +178,7 @@ function mcpJson(): string {
 function readme(name: string, pm: PackageManager): string {
   return `# ${name}
 
-A [forinda-cms](https://forinda-cms.netlify.app) site. The whole thing is the
+A [forinda-cms](https://fcms.kickjs.app) site. The whole thing is the
 YAML in this directory.
 
 \`\`\`sh

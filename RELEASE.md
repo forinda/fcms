@@ -148,8 +148,9 @@ file that is permanently one release stale.
 
 ## The site
 
-<https://forinda-cms.netlify.app> is not part of a tag. It builds from `main` on
-every push, using [`netlify.toml`](netlify.toml) at the repository root. It also
+<https://fcms.kickjs.app> is not part of a tag. It builds from `main` on every
+push, using [`netlify.toml`](netlify.toml) at the repository root — Netlify
+hosts it, the domain is ours, and moving hosts should change neither. It also
 serves the install files the quickstart downloads, copied from
 [`install/`](install/) at build time — a release note saying "install with this
 command" is only true if the file that command fetches is already there.

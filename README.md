@@ -26,7 +26,7 @@ content:
 📖 **[Building a site](GUIDE.md)** — from nothing to a published site.
 🔧 **[How it works](ARCHITECTURE.md)** — the data model, what `filterable`
 compiles to, and where to look when something is wrong.
-Longer tour and reference: <https://forinda-cms.netlify.app>
+Longer tour and reference: <https://fcms.kickjs.app>
 
 ## Install
 

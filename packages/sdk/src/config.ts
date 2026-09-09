@@ -13,9 +13,23 @@ import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+/**
+ * `fcms.json` — what this directory is, and how it behaves.
+ *
+ * It began as one field, the server URL `fcms link` wrote, and stayed that way
+ * while every other decision had nowhere to live: the dev port was retyped on
+ * every run, and a project could not say which port it uses even though the
+ * port belongs to the project rather than to the person starting it.
+ *
+ * Committed on purpose. Nothing in here is a secret — the token lives in
+ * `~/.config/forinda-cms/credentials.json` at mode 0600 — and this file is what
+ * a second person needs before they can plan or apply against the same site.
+ */
 export interface Link {
   /** Base URL of the forinda-cms server this directory publishes to. */
-  readonly url: string;
+  readonly url?: string;
+  /** What `fcms dev` serves on when `--port` does not say otherwise. */
+  readonly port?: number;
 }
 
 export const LINK_FILE = "fcms.json";
@@ -24,9 +38,17 @@ export function readLink(root: string): Link | null {
   return readJson<Link>(join(root, LINK_FILE));
 }
 
+/**
+ * Write the file, keeping whatever else is in it.
+ *
+ * `fcms link` sets one field. Reading the rest first is what stops it from
+ * deleting a port somebody set by hand, which is the kind of thing a tool does
+ * once and is never trusted with again.
+ */
 export function writeLink(root: string, link: Link): string {
   const path = join(root, LINK_FILE);
-  writeFileSync(path, `${JSON.stringify(link, null, 2)}\n`, "utf8");
+  const existing = readLink(root) ?? {};
+  writeFileSync(path, `${JSON.stringify({ ...existing, ...link }, null, 2)}\n`, "utf8");
   return path;
 }
 
