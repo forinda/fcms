@@ -1,6 +1,6 @@
 {
   "name": "@forinda/fcms-mcp",
-  "version": "2026.4.0",
+  "version": "2026.5.0",
   "description": "fcms-mcp — the machine door: ten tools over a forinda-cms server, for an agent driving a site.",
   "keywords": [
     "agent",
