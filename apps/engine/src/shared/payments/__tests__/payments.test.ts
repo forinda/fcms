@@ -16,7 +16,7 @@ import {
   sites,
   type PaymentRow,
 } from "@forinda-cms/db";
-import { SiteSpec, type ContentType } from "@forinda-cms/spec";
+import { ContentType, SiteSpec } from "@forinda-cms/spec";
 
 import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
@@ -252,5 +252,70 @@ suite("payments", () => {
       expect(result.ok && result.payment.amount).toBe(50000);
       void service;
     });
+  });
+});
+
+/**
+ * A price the payer cannot post.
+ *
+ * `payment.amount` reads a field off the row the platform wrote. A plain field
+ * comes from a form, so a guest could post `deposit=1` — and every example
+ * wrote it that way, because a formula could only reach the row's own fields.
+ *
+ * A computed field crossing one reference closes it: the schema refuses a
+ * computed field as input, and the amount is worked out from the room's own
+ * price. It is worked out rather than read, because a computed field is never
+ * stored — and by the renderer's evaluator, so the number shown and the number
+ * charged cannot disagree.
+ */
+describe("an amount computed through a reference", () => {
+  const type = ContentType.parse({
+    key: "booking",
+    label: "Booking",
+    titleField: "reference",
+    payment: { amount: { field: "deposit" }, currency: "USD", via: "on-arrival" },
+    fields: [
+      { name: "reference", label: "Reference", type: "text", required: true },
+      { name: "room", label: "Room", type: "reference", to: "room" },
+      { name: "nights", label: "Nights", type: "number" },
+      {
+        name: "deposit",
+        label: "Deposit",
+        type: "computed",
+        precision: 2,
+        formula: { op: "multiply", of: [{ ref: "room", field: "price" }, { field: "nights" }] },
+      },
+    ],
+  });
+
+  it("multiplies the referenced price by what the row carries", () => {
+    // Minor units, because money kept as a float is a rounding bug with a
+    // schedule attached: 175 × 3 = 525.00 = 52500.
+    expect(
+      PaymentUseCase.amountOf(
+        type,
+        { reference: "BK-1", room: "ref:room/sea-view", nights: 3 },
+        { price: 175 },
+      ),
+    ).toBe(52_500);
+  });
+
+  it("is null when the reference could not be read", () => {
+    // A refusal, not a charge for an amount nobody meant.
+    expect(
+      PaymentUseCase.amountOf(type, { reference: "BK-1", room: "ref:room/gone", nights: 3 }, {}),
+    ).toBeNull();
+  });
+
+  it("ignores a deposit somebody posted", () => {
+    // The schema refuses it first, and this refuses it second: the amount is
+    // the formula's answer, never the form's.
+    expect(
+      PaymentUseCase.amountOf(
+        type,
+        { reference: "BK-1", room: "ref:room/sea-view", nights: 3, deposit: 1 },
+        { price: 175 },
+      ),
+    ).toBe(52_500);
   });
 });

@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { indexName, planMigration } from "./planner.js";
+import { indexName, planMigration, uniqueIndexName } from "./planner.js";
 
 const SITE = "site_planner";
 
@@ -97,5 +97,86 @@ describe("planning (no database needed)", () => {
     expect(() =>
       planMigration(undefined, indexed, { siteId: "bad'; drop table entries; --" }),
     ).toThrow(/unsafe site id/);
+  });
+});
+
+/**
+ * `unique` used to be a word in the schema and nothing else.
+ *
+ * It was accepted by the parser, editable in the admin, and enforced by no
+ * index and no check — two bookings held the same reference on a site whose
+ * spec said the reference was unique.
+ */
+describe("a field declared unique", () => {
+  const spec = (fields: Record<string, unknown>[]): SiteSpec =>
+    SiteSpec.parse({
+      specVersion: 2,
+      name: "Stays",
+      theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [{ key: "booking", label: "Booking", titleField: "reference", fields }],
+      pages: [],
+    });
+
+  const reference = { name: "reference", label: "Reference", type: "text" };
+  const scope = { siteId: "s1", orgId: "o1" };
+
+  it("gets a unique index of its own", () => {
+    const steps = planMigration(undefined, spec([{ ...reference, unique: true }]), scope);
+    const created = steps.filter((s) => s.statement.includes("CREATE UNIQUE INDEX"));
+
+    expect(created).toHaveLength(1);
+    expect(created[0]!.statement).toContain(uniqueIndexName("s1", "booking", "reference"));
+    // Scoped, so one site's duplicate is not another site's problem.
+    expect(created[0]!.statement).toContain("site_id = 's1'");
+    expect(created[0]!.statement).toContain("type_key = 'booking'");
+  });
+
+  it("is additive on a type being created and destructive on one that has rows", () => {
+    // The planner cannot see rows, so it is honest rather than clever: a field
+    // that becomes unique on an existing type might fail on data somebody
+    // already has, and being told beats a Postgres error nobody asked for.
+    const fresh = planMigration(undefined, spec([{ ...reference, unique: true }]), scope);
+    expect(fresh.find((s) => s.statement.includes("CREATE UNIQUE INDEX"))?.classification).toBe(
+      "additive",
+    );
+
+    const tightened = planMigration(
+      spec([reference]),
+      spec([{ ...reference, unique: true }]),
+      scope,
+    );
+    expect(tightened.find((s) => s.statement.includes("CREATE UNIQUE INDEX"))?.classification).toBe(
+      "destructive",
+    );
+  });
+
+  it("drops the index when the field stops being unique", () => {
+    const steps = planMigration(spec([{ ...reference, unique: true }]), spec([reference]), scope);
+    const dropped = steps.filter((s) => s.statement.includes("DROP INDEX"));
+
+    expect(dropped).toHaveLength(1);
+    expect(dropped[0]!.statement).toContain(uniqueIndexName("s1", "booking", "reference"));
+  });
+
+  it("does not index something computed on read", () => {
+    // An aggregate is never written to `data`, so a unique index over one would
+    // enforce nothing while reporting that it does.
+    const steps = planMigration(
+      undefined,
+      spec([
+        reference,
+        {
+          name: "seen",
+          label: "Seen",
+          type: "aggregate",
+          of: "booking",
+          on: "reference",
+          fn: "count",
+          unique: true,
+        },
+      ]),
+      scope,
+    );
+    expect(steps.filter((s) => s.statement.includes("CREATE UNIQUE INDEX"))).toHaveLength(0);
   });
 });

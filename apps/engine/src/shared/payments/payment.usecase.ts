@@ -6,7 +6,8 @@
  * provider says "the customer paid"; this decides what that means to the row.
  */
 import { Inject, Scope as Lifetime, Service, getEnv } from "@forinda/kickjs";
-import type { ContentType, Integration, SiteSpec } from "@forinda-cms/spec";
+import { evaluateFormula, type Entry } from "@forinda-cms/render";
+import type { ContentType, Integration, Operand, SiteSpec } from "@forinda-cms/spec";
 import type { PaymentRow } from "@forinda-cms/db";
 
 import { EntryRepository } from "@/shared/repositories";
@@ -82,8 +83,23 @@ export class PaymentUseCase {
     if (!payment) return null;
     if ("fixed" in payment.amount) return payment.amount.fixed;
 
-    const path = payment.amount.field.split(".");
-    const value = path.length === 2 ? referenced[path[1]!] : data[payment.amount.field];
+    const wanted = payment.amount.field;
+    const path = wanted.split(".");
+    const named = type.fields.find((f) => f.name === wanted);
+
+    // A computed price is worked out here rather than read, because a computed
+    // field is never stored — it is added on read by whoever is reading. The
+    // renderer's own evaluator, so the number shown and the number charged
+    // cannot disagree.
+    const value =
+      named?.type === "computed"
+        ? evaluateFormula(named.formula, data as Entry, {}, (_ref, wanted) => {
+            const found = referenced[wanted];
+            return typeof found === "number" ? found : null;
+          })
+        : path.length === 2
+          ? referenced[path[1]!]
+          : data[payment.amount.field];
     const major = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(major) || major <= 0) return null;
 
@@ -194,11 +210,24 @@ export class PaymentUseCase {
     data: Readonly<Record<string, unknown>>,
   ): Promise<Record<string, unknown>> {
     const amount = type.payment?.amount;
-    if (!amount || !("field" in amount) || !amount.field.includes(".")) return {};
+    if (!amount || !("field" in amount)) return {};
 
-    const [first] = amount.field.split(".") as [string, string];
-    const ref = String(data[first] ?? "");
-    const slug = ref.startsWith("ref:") ? ref.split("/")[1] : ref;
+    // Two shapes name a reference to read through, and both have to be found
+    // here or the price is null on a row that plainly has one:
+    //
+    //   amount: { field: room.price }        — the dotted form
+    //   amount: { field: deposit }           — where `deposit` is computed
+    //                                          from `{ ref: room, … }`
+    const named = type.fields.find((f) => f.name === amount.field);
+    const reference = amount.field.includes(".")
+      ? amount.field.split(".")[0]
+      : named?.type === "computed"
+        ? firstHop(named.formula)
+        : undefined;
+    if (!reference) return {};
+
+    const held = String(data[reference] ?? "");
+    const slug = held.startsWith("ref:") ? held.split("/")[1] : held;
     if (!slug) return {};
 
     const row = await this.entries.bySlug(slug);
@@ -299,3 +328,20 @@ function base(): string {
 }
 
 export type { PaymentProvider };
+
+/**
+ * The reference a formula reads through, if it reads through one.
+ *
+ * One hop is all a formula may take, so the first is the only one — and a
+ * formula that takes none has no row to load.
+ */
+function firstHop(operand: Operand): string | undefined {
+  if ("ref" in operand) return operand.ref;
+  if ("of" in operand) {
+    for (const child of operand.of) {
+      const found = firstHop(child);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}

@@ -7,7 +7,7 @@
  * page.
  */
 import { describe, expect, it } from "vitest";
-import { SiteSpec } from "@forinda-cms/spec";
+import { checkReferences, SiteSpec } from "@forinda-cms/spec";
 
 import { runQueryExcluding, runQueryPage, staticSource, withDerived } from "./entries.js";
 import { renderPage } from "./render.js";
@@ -717,5 +717,116 @@ describe("a page with two lists", () => {
     expect(html).toContain("Ours");
     expect(html).not.toContain("Hillside suite");
     expect(html).not.toContain("Somebody else's");
+  });
+});
+
+/**
+ * A price the payer cannot choose.
+ *
+ * `payment.amount` reads a field off the row the platform wrote, and a formula
+ * could only reach that row's own fields — so on a booking the amount came from
+ * a form, and a guest could post `deposit=1`. Every example wrote it that way
+ * because there was no alternative.
+ *
+ * `{ ref: room, field: price }` is the alternative: one hop across a declared
+ * reference. A computed field refuses input at the schema, so an amount built
+ * from one cannot be supplied by whoever is paying it.
+ */
+describe("a formula that follows a reference", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "room",
+        label: "Room",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "price", label: "Price", type: "number", required: true },
+        ],
+      },
+      {
+        key: "booking",
+        label: "Booking",
+        titleField: "reference",
+        fields: [
+          { name: "reference", label: "Reference", type: "text", required: true },
+          { name: "room", label: "Room", type: "reference", to: "room" },
+          { name: "nights", label: "Nights", type: "number" },
+          {
+            name: "deposit",
+            label: "Deposit",
+            type: "computed",
+            precision: 2,
+            formula: { op: "multiply", of: [{ ref: "room", field: "price" }, { field: "nights" }] },
+          },
+        ],
+      },
+    ],
+    pages: [],
+  });
+
+  const source = withDerived(
+    spec,
+    staticSource({
+      room: [{ id: "m1", slug: "sea-view", name: "Sea view", price: 175 }],
+      booking: [
+        { id: "b1", slug: "b1", reference: "BK-1", room: "ref:room/sea-view", nights: 3 },
+        { id: "b2", slug: "b2", reference: "BK-2", room: "m1", nights: 2 },
+        { id: "b3", slug: "b3", reference: "BK-3", room: "ref:room/gone", nights: 2 },
+      ],
+    }),
+  );
+
+  it("reads the number off the row the reference points at", () => {
+    const [long, short] = source.all("booking");
+    expect(long?.["deposit"]).toBe(525);
+    // The same reference written as an id, because both forms exist in the wild.
+    expect(short?.["deposit"]).toBe(350);
+  });
+
+  it("is null when the reference points at nothing", () => {
+    // Not zero. A deposit of nothing is a claim, and a missing room is a
+    // question with no answer.
+    expect(source.all("booking")[2]?.["deposit"]).toBeNull();
+  });
+
+  it("refuses the hop at validate time when it cannot be followed", () => {
+    const broken = (formula: unknown) =>
+      checkReferences(
+        SiteSpec.parse({
+          specVersion: 2,
+          name: "Stays",
+          theme: {
+            colors: { brand: "#003580" },
+            fonts: { body: "Inter" },
+            typeScale: { md: "1rem" },
+          },
+          content: [
+            {
+              key: "booking",
+              label: "Booking",
+              titleField: "reference",
+              fields: [
+                { name: "reference", label: "Reference", type: "text", required: true },
+                { name: "nights", label: "Nights", type: "number" },
+                { name: "deposit", label: "Deposit", type: "computed", precision: 2, formula },
+              ],
+            },
+          ],
+          pages: [],
+        }),
+      ).map((issue) => issue.message);
+
+    // No such field to follow at all.
+    expect(broken({ op: "multiply", of: [{ ref: "room", field: "price" }, { value: 1 }] })).toEqual(
+      ['"booking" has no field "room"'],
+    );
+    // A field, but not one that points anywhere.
+    expect(
+      broken({ op: "multiply", of: [{ ref: "nights", field: "price" }, { value: 1 }] }),
+    ).toEqual(['"nights" is a number, not a reference to follow']);
   });
 });

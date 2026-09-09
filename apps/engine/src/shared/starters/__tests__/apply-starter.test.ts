@@ -56,11 +56,14 @@ suite("applying a starter", () => {
     });
 
     expect((await new SpecRepository(db, scope).find())?.name).toBe("Riverside Salon");
-    // Entries share one table; a migration step is a generated column and its
-    // index, one per field somebody can filter or sort by. So the count is a
-    // property of the starter, and zero is the right answer for one with none.
+    // Entries share one table, so a migration step is an index rather than a
+    // column: one per field somebody can filter or sort by, and one per field
+    // that has to be unique. The count is a property of the starter, and zero
+    // is the right answer for one that declares neither.
+    const stored = spec.content.filter((t) => !t.derived).flatMap((t) => t.fields);
     expect(result.migration.length).toBe(
-      spec.content.flatMap((t) => t.fields).filter((f) => "filterable" in f && f.filterable).length,
+      stored.filter((f) => "filterable" in f && f.filterable).length +
+        stored.filter((f) => "unique" in f && f.unique).length,
     );
 
     const [first] = await new SiteHistoryUseCase(db, scope).execute(1);

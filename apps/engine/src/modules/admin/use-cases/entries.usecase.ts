@@ -11,7 +11,7 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { and, eq } from "drizzle-orm";
 import { validateEntry, type ContentType, type SiteSpec } from "@forinda-cms/spec";
 
-import { entries, type EntryRow } from "@forinda-cms/db";
+import { entries, uniqueIndexName, type EntryRow } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
@@ -100,7 +100,7 @@ export class EntryWriteUseCase {
       // useful to the caller — a form would show no error, and an agent would
       // report the site as broken.
       if (!isUniqueViolation(error)) throw error;
-      return { ok: false, errors: { slug: `Another ${type.label} already uses "${input.slug}".` } };
+      return { ok: false, errors: taken(this.scope.siteId, type, input, error) };
     }
   }
 
@@ -137,7 +137,7 @@ export class EntryWriteUseCase {
         .returning();
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
-      return { ok: false, errors: { slug: `Another ${type.label} already uses "${input.slug}".` } };
+      return { ok: false, errors: taken(this.scope.siteId, type, input, error) };
     }
 
     if (!row) return { ok: false, errors: { _: "That entry no longer exists." } };
@@ -188,6 +188,42 @@ export class EntryWriteUseCase {
   find(id: string): Promise<EntryRow | null> {
     return this.repo.byId(id);
   }
+}
+
+/**
+ * Which field the collision was on, said in the caller's words.
+ *
+ * The slug is not the only unique thing any more — a field declared `unique`
+ * gets its own index (ADR 0009), so a booking reference or an invoice number
+ * can collide too. Postgres names the index it refused on, and the index name
+ * is a hash, so the field is found by asking which of this type's unique fields
+ * the row is carrying a value for.
+ *
+ * Falls back to the slug, because that is what it was and what it usually is.
+ */
+function taken(
+  siteId: string,
+  type: ContentType,
+  input: EntryInput,
+  error: unknown,
+): Record<string, string> {
+  const constraint = String(
+    (error as { constraint_name?: unknown }).constraint_name ??
+      (error as { cause?: { constraint_name?: unknown } }).cause?.constraint_name ??
+      "",
+  );
+
+  for (const field of type.fields) {
+    if (!("unique" in field) || field.unique !== true) continue;
+    if (constraint !== "" && constraint !== uniqueIndexName(siteId, type.key, field.name)) continue;
+    const value = input.data[field.name];
+    if (value === undefined || value === null || value === "") continue;
+    return {
+      [field.name]: `Another ${type.label} already uses "${String(value)}" for ${field.label}.`,
+    };
+  }
+
+  return { slug: `Another ${type.label} already uses "${input.slug}".` };
 }
 
 /**

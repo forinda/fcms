@@ -100,6 +100,36 @@ function indexExpression(field: Field): string {
  * so an expression index over it would index nothing while reporting that the
  * field is fast — the worst of both.
  */
+/** The unique index's name, distinct from the plain one on the same field. */
+export function uniqueIndexName(siteId: string, typeKey: string, fieldName: string): string {
+  const digest = createHash("sha256")
+    .update(`unique:${siteId}:${typeKey}:${fieldName}`)
+    .digest("hex");
+  return `ux_e_${digest.slice(0, 24)}`;
+}
+
+/**
+ * Worth a unique index: declared unique, and actually stored.
+ *
+ * An aggregate or a computed field is worked out on read and never written, so
+ * a unique index over one would enforce nothing while claiming to.
+ */
+const unique = (f: Field): boolean =>
+  "unique" in f && f.unique === true && f.type !== "aggregate" && f.type !== "computed";
+
+/**
+ * Could the rows that exist already break this?
+ *
+ * The planner cannot see rows, so this is honest rather than clever: a field
+ * that is newly unique on a type that already existed might collide, and one on
+ * a type being created cannot. Being told "this may fail" beats an apply that
+ * fails with a Postgres error nobody asked for.
+ */
+function rowsMayCollide(before: SiteSpec | undefined, typeKey: string, name: string): boolean {
+  const was = (before?.content ?? []).find((t) => t.key === typeKey);
+  return was !== undefined && was.fields.some((f) => f.name === name);
+}
+
 const filterable = (f: Field): boolean =>
   "filterable" in f &&
   f.filterable === true &&
@@ -145,6 +175,42 @@ export function planMigration(
 
     const wasFields = fieldsOf(beforeTypes.get(typeKey));
     const nowFields = fieldsOf(type);
+
+    // `unique` was accepted by the schema, editable in the admin, and enforced
+    // by nothing at all — two bookings held the same reference on a site whose
+    // spec said it was unique. The same mechanism `filterable` uses, with the
+    // word UNIQUE in it: one index per site and type, so one site's duplicate
+    // is not another site's problem.
+    for (const [name, field] of nowFields) {
+      const was = wasFields.get(name);
+      if (!unique(field) || (was !== undefined && unique(was) && was.type === field.type)) continue;
+
+      steps.push({
+        kind: "create-index",
+        // Destructive in the sense that matters: it can fail, and it fails on
+        // data somebody already has. A plan that called this additive would
+        // promise an apply that cannot be refused.
+        classification: rowsMayCollide(before, typeKey, name) ? "destructive" : "additive",
+        description:
+          `Requires ${type.label}.${name} to be unique from now on` +
+          `${rowsMayCollide(before, typeKey, name) ? ", which fails if two rows already share a value" : ""}.`,
+        statement:
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${uniqueIndexName(siteId, typeKey, name)} ` +
+          `ON entries ((${indexExpression(field)})) WHERE ${where(typeKey)}`,
+      });
+    }
+
+    for (const [name, was] of wasFields) {
+      const now = nowFields.get(name);
+      if (unique(was) && (now === undefined || !unique(now))) {
+        steps.push({
+          kind: "drop-index",
+          classification: "additive",
+          description: `${type.label}.${name} no longer has to be unique.`,
+          statement: `DROP INDEX IF EXISTS ${uniqueIndexName(siteId, typeKey, name)}`,
+        });
+      }
+    }
 
     for (const [name, field] of nowFields) {
       const was = wasFields.get(name);
