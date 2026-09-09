@@ -8,8 +8,8 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { PGlite } from "@electric-sql/pglite";
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import postgres from "postgres";
 
 import * as schema from "./schema/index.js";
@@ -53,6 +53,73 @@ function poolFor(url: string): postgres.Sql {
  */
 const embedded = new Map<string, PGlite>();
 
+/**
+ * Refuse a data directory another process is already using.
+ *
+ * The embedded database is one process as well as one connection, and nothing
+ * stops a second one opening the same directory — PGlite writes a
+ * `postmaster.pid`, but the pid in it is the constant `-42`, so it identifies
+ * nothing. Two processes on one directory corrupts it *permanently*: the second
+ * boot succeeds, and every boot after that dies in the WASM runtime with
+ * `RuntimeError: Aborted()`, with no `pg_ctl` to recover it.
+ *
+ * That happened here — a restart that overlapped its predecessor by a few
+ * seconds destroyed a site's database — so this is a lock with a real pid in
+ * it, checked before the directory is opened rather than after it is ruined.
+ *
+ * A stale lock is taken over rather than obeyed: a machine that lost power
+ * leaves one behind, and refusing to start until somebody deletes a file they
+ * have never heard of is its own kind of data loss.
+ */
+function claim(dir: string): void {
+  const lock = join(resolve(dir), "fcms.lock");
+
+  const held = readPid(lock);
+  if (held !== null && held !== process.pid && alive(held)) {
+    throw new Error(
+      `the database in ${resolve(dir)} is already open in process ${held}.\n` +
+        `  An embedded database is one process: a second one corrupts it permanently.\n` +
+        `  Stop the other server, or point this one somewhere else with DATABASE_URL.`,
+    );
+  }
+
+  mkdirSync(resolve(dir), { recursive: true });
+  writeFileSync(lock, String(process.pid), "utf8");
+
+  // Best effort, and only best effort: a killed process leaves the file behind,
+  // which is what the staleness check above is for.
+  const release = () => {
+    try {
+      if (readPid(lock) === process.pid) rmSync(lock, { force: true });
+    } catch {
+      // Releasing a lock is not worth failing a shutdown over.
+    }
+  };
+  process.once("exit", release);
+  process.once("SIGINT", release);
+  process.once("SIGTERM", release);
+}
+
+function readPid(lock: string): number | null {
+  try {
+    const pid = Number.parseInt(readFileSync(lock, "utf8").trim(), 10);
+    return Number.isInteger(pid) && pid > 0 ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Signal 0 asks whether a process exists without touching it. */
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // `EPERM` means it exists and belongs to somebody else, which still counts.
+    return (error as { code?: string }).code === "EPERM";
+  }
+}
+
 /** A server, or a directory. Anything that is not a URL is a place to put files. */
 export function isEmbedded(url: string): boolean {
   return !/^postgres(ql)?:\/\//.test(url);
@@ -76,9 +143,10 @@ export function createDb(url: string) {
     let client = embedded.get(url);
     if (!client) {
       // PGlite creates its own directory but not the ones above it, and the
-      // default is `./data/postgres` — so a first boot in an empty directory
-      // failed with `ENOENT: mkdir`, which is the one boot that has to work.
+      // default is nested — so a first boot in an empty directory failed with
+      // `ENOENT: mkdir`, which is the one boot that has to work.
       mkdirSync(dirname(resolve(url)), { recursive: true });
+      claim(url);
       client = new PGlite(url);
       embedded.set(url, client);
     }

@@ -247,7 +247,11 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
       }
       // An unknown collection type is already reported on its own.
       if (!collected) continue;
-      if (!collected.fields.some((f) => f.name === named)) {
+      // `id` and `slug` are on every row and declared by none: the platform
+      // puts them there. Requiring a declared field refused `{ entry: slug }`,
+      // which is the form that matches a written `ref:<type>/<slug>` — so the
+      // check refused the only way the feature is normally used.
+      if (named !== "id" && named !== "slug" && !collected.fields.some((f) => f.name === named)) {
         issues.push({ path, message: `"${collects}" has no field "${named}"` });
       }
     }

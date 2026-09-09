@@ -348,6 +348,32 @@ describe("a collection page filters by its own entry", () => {
     expect(html).not.toContain("Hillside suite");
   });
 
+  it("accepts `slug` and `id`, which every row has and no type declares", () => {
+    // The form that matches a written `ref:<type>/<slug>` reference, and so the
+    // form a detail page normally uses. A check that only allowed declared
+    // fields refused it.
+    const withSlug = {
+      ...JSON.parse(JSON.stringify(twoProperties)),
+      pages: [
+        {
+          ...JSON.parse(JSON.stringify(twoProperties.pages[0])),
+          blocks: [
+            {
+              type: "list",
+              data: {
+                from: "room",
+                where: [{ field: "property", op: "eq", value: { entry: "id" } }],
+                limit: 10,
+              },
+              item: [{ type: "heading", attrs: { text: "{{ item.name }}", level: 2 } }],
+            },
+          ],
+        },
+      ],
+    };
+    expect(() => SiteSpec.parse(withSlug)).not.toThrow();
+  });
+
   it("lists nothing at all when the page has no entry", () => {
     // Not everything. "The rooms of this property" with no property is zero
     // rooms — the opposite failure to the one above, and the tempting one to
