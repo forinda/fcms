@@ -13,19 +13,18 @@ import Page from '../layouts/Page.astro'
 import Shot from '../components/Shot.astro'
 import Snippet from '../components/Snippet.astro'
 
-const install = `mkdir my-site && cd my-site
-curl -O https://forinda-cms.netlify.app/install/compose.yaml
-curl -o .env https://forinda-cms.netlify.app/install/env.example
-docker compose up -d`
+const install = `npx @forinda/fcms-cli init my-site
+cd my-site && npm install
+npm start`
 ---
 
 <Page
   title="forinda-cms — a CMS you own, that an AI can drive"
-  description="Self-hostable CMS built on a declarative site spec. Two files to install, every change reversible, your data exportable with one command."
+  description="Self-hostable CMS built on a declarative site spec. One command to install — no database to set up — every change reversible, your data exportable with one command."
   width="wide"
 >
   <section class="hero">
-    <span class="badge"><b>Self-hosted</b> · one command · your database</span>
+    <span class="badge"><b>Self-hosted</b> · one command · no database to set up</span>
     <h1>A CMS you own, that an AI can drive.</h1>
     <p class="lede">
       Your site is a <strong>spec</strong> — content types, pages, logic, access — not a pile

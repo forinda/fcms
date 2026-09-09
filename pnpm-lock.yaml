@@ -349,6 +349,12 @@ importers:
 
   apps/marketing:
     dependencies:
+      '@forinda-cms/render':
+        specifier: workspace:*
+        version: link:../../packages/render
+      '@forinda-cms/spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
       astro:
         specifier: 'catalog:'
         version: 6.4.8(@types/node@25.9.5)(jiti@2.7.0)(lightningcss@1.33.0)(rollup@4.63.1)(tsx@4.23.13)(yaml@2.9.0)

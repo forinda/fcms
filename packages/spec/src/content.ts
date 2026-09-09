@@ -485,3 +485,56 @@ export const ContentType = z
   });
 
 export type ContentType = z.infer<typeof ContentType>;
+
+/**
+ * What each field type is, in one line, for anyone reading rather than parsing.
+ *
+ * The schema above is the truth about what validates; this is the truth about
+ * what each one is *for*, and it lives beside the schema so the two are edited
+ * together. The admin's builder and the documentation both read it, which is
+ * what stops a field type existing in one and not the other.
+ */
+export const FIELD_TYPES: readonly {
+  readonly type: string;
+  readonly summary: string;
+  /** Keys this type takes beyond the shared ones, if any. */
+  readonly takes?: string;
+  /** Written by the platform, never by a form or an API caller. */
+  readonly computed?: boolean;
+}[] = [
+  { type: "text", summary: "One line of plain text.", takes: "max" },
+  { type: "richtext", summary: "Formatted prose, edited in the admin." },
+  { type: "number", summary: "A number, sortable and filterable.", takes: "min, max" },
+  { type: "boolean", summary: "Yes or no. An unticked box means no, not missing." },
+  { type: "date", summary: "A day, with no time on it." },
+  { type: "datetime", summary: "A moment, normalised to UTC on write." },
+  { type: "email", summary: "An address, checked for shape." },
+  { type: "phone", summary: "A number people ring." },
+  { type: "url", summary: "A link somewhere else." },
+  { type: "asset", summary: "An uploaded file.", takes: "accept: image | video | document | any" },
+  { type: "geo", summary: "One coordinate. Pasted from a map — nothing here geocodes." },
+  { type: "select", summary: "One of a closed list.", takes: "options: [{ value, label }]" },
+  {
+    type: "reference",
+    summary: "A relation to another content type. Integrity is declared, not implied.",
+    takes: "to, many",
+  },
+  {
+    type: "state",
+    summary: "Where a row is in a process, and which moves are allowed.",
+    takes: "values, initial, transitions",
+  },
+  { type: "hours", summary: "Opening hours as a week, not a document." },
+  {
+    type: "aggregate",
+    summary: "A number counted or averaged over rows of another type that reference this one.",
+    takes: "of, on, field, fn: count | avg | sum | min | max",
+    computed: true,
+  },
+  {
+    type: "computed",
+    summary: "A number this type works out for itself, from a declared formula.",
+    takes: "formula, precision",
+    computed: true,
+  },
+];

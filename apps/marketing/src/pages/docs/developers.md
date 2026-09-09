@@ -28,6 +28,10 @@ content/service.yaml a content type per file
 pages/home.yaml      a page per file
 logic/confirm.yaml   an automation per file</code></pre>
 
+<p><code>npx @forinda/fcms-cli init my-site</code> writes all of that, already
+valid and already canonical. Every field type, block and operator the spec
+accepts is listed in the <a href="/docs/reference/">reference</a>.</p>
+
 ## The CLI
 
 <table>

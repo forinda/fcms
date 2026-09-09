@@ -53,6 +53,14 @@ The spec as files, <code>fcms</code>, the API, and the MCP server for agents.
 </div>
 <div class="card">
 
+### <a href="/docs/reference/">Reference</a>
+
+Every field type, every block, every operator — generated from the schema, so it
+cannot describe a version that does not exist.
+
+</div>
+<div class="card">
+
 ### <a href="/docs/operating/">5 · Keep it running</a>
 
 Backups and restores, upgrades, and what to do when something is wrong.
