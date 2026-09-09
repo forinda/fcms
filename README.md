@@ -24,6 +24,8 @@ content:
 ```
 
 📖 **[Building a site](GUIDE.md)** — from nothing to a published site.
+🔧 **[How it works](ARCHITECTURE.md)** — the data model, what `filterable`
+compiles to, and where to look when something is wrong.
 Longer tour and reference: <https://forinda-cms.netlify.app>
 
 ## Install
@@ -31,9 +33,16 @@ Longer tour and reference: <https://forinda-cms.netlify.app>
 Node 22 or newer. Nothing else.
 
 ```bash
-mkdir my-site && cd my-site
-OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-  npx @forinda/fcms-core
+npx @forinda/fcms-cli init my-site && cd my-site
+npm install
+npm run dev
+```
+
+`init` writes a site you can already run — valid, canonical, and accepted by
+every other command without being fixed first. To serve it for real:
+
+```bash
+OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password npm start
 ```
 
 That is the whole install. **Postgres runs inside the process** — the real

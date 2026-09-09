@@ -10,7 +10,7 @@
  * is, and every one of them can be changed afterwards — which the screen says,
  * because "choose carefully" is the wrong feeling for a first screen.
  */
-import type { Starter } from "@/shared/starters";
+import type { Starter } from "@forinda-cms/spec";
 
 import { esc } from "./view";
 

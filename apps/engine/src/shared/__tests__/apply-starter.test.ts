@@ -24,7 +24,7 @@ import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.usecase";
 import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SpecRepository } from "@/shared/repositories";
-import { STARTERS, starterFor } from "..";
+import { STARTERS, starterFor } from "@forinda-cms/spec";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;

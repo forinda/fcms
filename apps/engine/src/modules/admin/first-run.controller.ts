@@ -11,7 +11,7 @@ import { roleOf } from "@/shared/roles";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { SiteSpecUseCase } from "@/shared/use-cases";
-import { starterFor } from "@/shared/starters";
+import { starterFor } from "@forinda-cms/spec";
 import { ApplySpecUseCase } from "./use-cases/apply-spec.usecase";
 import { redirect } from "./utils/http";
 import { untouched } from "./utils/first-run.view";
