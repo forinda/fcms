@@ -18,6 +18,8 @@ import { resolve } from "node:path";
 import { Command, InvalidArgumentError, Option } from "commander";
 
 import { dev, diff, fmt, validate } from "./commands.js";
+import { init, type InitOptions } from "./init.js";
+import { STARTERS } from "@forinda-cms/spec";
 import { apply, link, login, logout, plan, pull, status } from "./remote.js";
 import { dim } from "./report.js";
 
@@ -48,6 +50,15 @@ export function buildProgram(): Command {
     .version(VERSION, "-v, --version")
     .showHelpAfterError()
     .configureHelp({ sortSubcommands: false });
+
+  program
+    .command("init")
+    .argument("[dir]", "where to put it", ".")
+    .option("--starter <key>", `what to start from — ${STARTERS.map((s) => s.key).join(", ")}`)
+    .option("--name <name>", "the site's name, if not the directory's")
+    .option("--force", "scaffold into a directory that already has files in it")
+    .description("create a site you can already run")
+    .action((dir: string, options: InitOptions) => process.exit(init(resolve(dir), options)));
 
   program
     .command("validate", { isDefault: false })

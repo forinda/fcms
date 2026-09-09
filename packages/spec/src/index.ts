@@ -48,3 +48,4 @@ export function validateSpec(input: unknown): ValidationResult {
 export * from "./jsonschema.js";
 export * from "./diff.js";
 export * from "./entry.js";
+export * from "./starters.js";

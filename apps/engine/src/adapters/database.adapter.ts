@@ -28,7 +28,7 @@ import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 // Side-effect import: `src/shared` sits outside every module, so no module glob
 // reaches it and its `@Repository` / `@Service` decorators would never run.
 import "@/shared";
-import { starterFor } from "@/shared/starters";
+import { starterFor } from "@forinda-cms/spec";
 import { SpecRepository } from "@/shared/repositories";
 import { ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 

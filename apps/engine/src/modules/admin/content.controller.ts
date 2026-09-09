@@ -27,7 +27,7 @@ import { MediaUseCase } from "./use-cases/media.usecase";
 import { SiteHistoryUseCase } from "./use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "./use-cases/undo-spec.usecase";
 import { html, noSiteYet, notFound, readForm, redirect } from "./utils/http";
-import { STARTERS } from "@/shared/starters";
+import { STARTERS } from "@forinda-cms/spec";
 import { dashboard } from "./utils/dashboard.view";
 import { entryList } from "./utils/entries.view";
 import { firstRun, untouched } from "./utils/first-run.view";

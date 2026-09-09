@@ -7,10 +7,8 @@
  * naming a field that does not exist parses fine and renders nothing.
  */
 import { describe, expect, it } from "vitest";
-import { checkReferences, collectionType, SiteSpec } from "@forinda-cms/spec";
+import { checkReferences, collectionType, SiteSpec, STARTERS, starterFor } from "@forinda-cms/spec";
 import { CORE_BLOCKS } from "@forinda-cms/render";
-
-import { STARTERS, starterFor } from "..";
 
 describe.each(STARTERS.map((s) => [s.key, s] as const))("the %s starter", (_key, starter) => {
   const spec = SiteSpec.parse(starter.build("Riverside Salon"));
