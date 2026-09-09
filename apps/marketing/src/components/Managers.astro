@@ -1,0 +1,70 @@
+---
+/**
+ * One command, in whichever package manager the reader uses.
+ *
+ * Four managers are normal now, and a page that shows only npm makes three
+ * quarters of readers translate before they can try anything. Translating is
+ * where people decide a tool is not for them, and it is a translation we can do
+ * for them once, here.
+ *
+ * Every variant is in the HTML. The tabs are a `:checked` radio and CSS, so the
+ * page works with JavaScript off — the copy button is still the only script on
+ * this site, and it copies whichever tab is showing because each tab has its
+ * own button.
+ */
+interface Props {
+  /** A package to run without installing: `@forinda/fcms-cli init my-site`. */
+  dlx: string
+  /** Change into this directory before the lines below, if given. */
+  cd?: string
+  /** Scripts to run after installing — `dev`, `start`. */
+  run?: string[]
+  /** Distinct per instance, because two on one page must not share a radio group. */
+  name?: string
+}
+
+const { dlx, cd, run = [], name = 'pm' } = Astro.props
+
+const managers = [
+  { key: 'pnpm', label: 'pnpm', dlx: 'pnpm dlx', install: 'pnpm install', run: (s: string) => `pnpm ${s}` },
+  { key: 'npm', label: 'npm', dlx: 'npx', install: 'npm install', run: (s: string) => `npm run ${s}` },
+  { key: 'yarn', label: 'yarn', dlx: 'yarn dlx', install: 'yarn', run: (s: string) => `yarn ${s}` },
+  { key: 'bun', label: 'bun', dlx: 'bunx', install: 'bun install', run: (s: string) => `bun run ${s}` },
+]
+
+const lines = (m: (typeof managers)[number]) =>
+  [
+    `${m.dlx} ${dlx}`,
+    ...(cd ? [`cd ${cd} && ${m.install}`] : []),
+    ...run.map((script) => m.run(script)),
+  ].join('\n')
+---
+
+<div class="managers">
+  {managers.map((m, i) => (
+    <input
+      type="radio"
+      name={name}
+      id={`${name}-${m.key}`}
+      class={`pm-${m.key}`}
+      checked={i === 0}
+      hidden
+    />
+  ))}
+
+  <header>
+    <span class="prompt">&gt;_</span>
+    <div class="tabs">
+      {managers.map((m) => (
+        <label for={`${name}-${m.key}`}>{m.label}</label>
+      ))}
+    </div>
+  </header>
+
+  {managers.map((m) => (
+    <div class={`panel panel-${m.key}`}>
+      <button class="copy" type="button" data-copy={lines(m)}>Copy</button>
+      <pre><code>{lines(m)}</code></pre>
+    </div>
+  ))}
+</div>

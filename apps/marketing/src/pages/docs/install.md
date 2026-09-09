@@ -28,20 +28,38 @@ count is low, and every prerequisite is stated before it is needed.
 
 ## Start a project
 
-<div class="snippet">
-<header><span>terminal</span><button class="copy" type="button" data-copy="npx @forinda/fcms-cli init my-site
+<div class="managers">
+<input type="radio" name="install" id="install-pnpm" class="pm-pnpm" checked hidden>
+<input type="radio" name="install" id="install-npm" class="pm-npm" hidden>
+<input type="radio" name="install" id="install-yarn" class="pm-yarn" hidden>
+<input type="radio" name="install" id="install-bun" class="pm-bun" hidden>
+<header><span class="prompt">&gt;_</span><div class="tabs"><label for="install-pnpm">pnpm</label><label for="install-npm">npm</label><label for="install-yarn">yarn</label><label for="install-bun">bun</label></div></header>
+<div class="panel panel-pnpm"><button class="copy" type="button" data-copy="pnpm dlx @forinda/fcms-cli init my-site
+cd my-site && pnpm install
+pnpm start">Copy</button><pre><code>pnpm dlx @forinda/fcms-cli init my-site
+cd my-site &amp;&amp; pnpm install
+pnpm start</code></pre></div>
+<div class="panel panel-npm"><button class="copy" type="button" data-copy="npx @forinda/fcms-cli init my-site
 cd my-site && npm install
-npm start">Copy</button></header>
-<pre><code>npx @forinda/fcms-cli init my-site
+npm run start">Copy</button><pre><code>npx @forinda/fcms-cli init my-site
 cd my-site &amp;&amp; npm install
-npm start</code></pre>
+npm run start</code></pre></div>
+<div class="panel panel-yarn"><button class="copy" type="button" data-copy="yarn dlx @forinda/fcms-cli init my-site
+cd my-site && yarn
+yarn start">Copy</button><pre><code>yarn dlx @forinda/fcms-cli init my-site
+cd my-site &amp;&amp; yarn
+yarn start</code></pre></div>
+<div class="panel panel-bun"><button class="copy" type="button" data-copy="bunx @forinda/fcms-cli init my-site
+cd my-site && bun install
+bun run start">Copy</button><pre><code>bunx @forinda/fcms-cli init my-site
+cd my-site &amp;&amp; bun install
+bun run start</code></pre></div>
 </div>
 
 That writes a site you can already run — a spec that validates, a
 <code>package.json</code>, and a <code>.gitignore</code> that keeps the database
-out of version control. Use whatever you already use: <code>pnpm dlx</code>,
-<code>yarn dlx</code> and <code>bunx</code> all work, and the next steps it
-prints come back in that manager's own commands.
+out of version control. The next steps it prints come back in whichever
+manager you used, too.
 
 <strong>Postgres runs inside the process</strong> — the real thing, compiled to
 WebAssembly — and keeps its data in <code>.fcms</code>. Nothing to install,

@@ -858,3 +858,83 @@ tbody tr:last-child td {
   margin-left: 0.5rem;
   font-weight: 600;
 }
+
+/* ── One command, four package managers ───────────────────────────────────
+   Tabs are radios and CSS: the page works with JavaScript off, and every
+   variant is in the HTML rather than built by a script nobody asked to run. */
+
+.managers {
+  position: relative;
+  /* The hero centres its text, and a centred command is a command nobody can
+     read as a command. Code is left-aligned wherever it lands. */
+  text-align: left;
+  margin: 0 0 1.3rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+.managers header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.7rem 0.35rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.managers .prompt {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.managers .tabs {
+  display: flex;
+  gap: 0.15rem;
+}
+.managers .tabs label {
+  padding: 0.2rem 0.6rem;
+  border-radius: 6px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.managers .tabs label:hover {
+  color: var(--ink);
+}
+.managers .panel {
+  display: none;
+  position: relative;
+}
+.managers .panel pre {
+  border: 0;
+  border-radius: 0;
+  margin: 0;
+  background: none;
+}
+.managers .panel .copy {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+}
+/* Room for the button, so a long command does not run under it. */
+.managers .panel pre {
+  padding-right: 4.5rem;
+}
+
+/* The selected tab, and the panel that goes with it. `:has` keeps the rules to
+   one per manager rather than one per manager per element. */
+.managers:has(.pm-pnpm:checked) .tabs label[for$="-pnpm"],
+.managers:has(.pm-npm:checked) .tabs label[for$="-npm"],
+.managers:has(.pm-yarn:checked) .tabs label[for$="-yarn"],
+.managers:has(.pm-bun:checked) .tabs label[for$="-bun"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.managers:has(.pm-pnpm:checked) .panel-pnpm,
+.managers:has(.pm-npm:checked) .panel-npm,
+.managers:has(.pm-yarn:checked) .panel-yarn,
+.managers:has(.pm-bun:checked) .panel-bun {
+  display: block;
+}
