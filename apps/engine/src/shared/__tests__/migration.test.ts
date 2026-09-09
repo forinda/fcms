@@ -21,8 +21,10 @@ import {
   indexName,
   organizations,
   planMigration,
+  reconcileIndexes,
   rowsOf,
   runMigration,
+  uniqueIndexName,
   siteSpecs,
   sites,
   specPatches,
@@ -244,7 +246,93 @@ suite("executing a plan (needs a database)", () => {
     await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
     expect(await indexExists(indexName("site_someone_else", "service", "price"))).toBe(false);
   });
+});
 
+/**
+ * Indexes are reconciled against the spec, not against the diff.
+ *
+ * A field that was already `unique` before uniqueness was enforced got no
+ * index, because the flag never changed — and no future edit would ever create
+ * one. An index is derived state: what should exist is a function of the
+ * current spec and nothing else.
+ */
+suite("reconciling indexes (needs a database)", () => {
+  const scope = { siteId: SITE, orgId: ORG };
+
+  const spec = (fields: Record<string, unknown>[]): SiteSpec =>
+    SiteSpec.parse({
+      specVersion: 2,
+      name: "Planner",
+      theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [{ key: "service", label: "Service", titleField: "name", fields }],
+      pages: [],
+    });
+
+  const name = { name: "name", label: "Name", type: "text", required: true };
+  const price = { name: "price", label: "Price", type: "number" };
+
+  const exists = async (index: string) =>
+    rowsOf(await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${index}'`)))
+      .length > 0;
+
+  const clean = async () => {
+    for (const index of [
+      indexName(SITE, "service", "price"),
+      uniqueIndexName(SITE, "service", "price"),
+      uniqueIndexName(SITE, "service", "name"),
+    ]) {
+      await db.execute(sql.raw(`DROP INDEX IF EXISTS ${index}`));
+    }
+  };
+
+  it("creates what the spec asks for even when nothing changed", async () => {
+    await clean();
+    // The case that was unfixable before: the spec already says unique, so a
+    // diff sees nothing to do, and the index never exists.
+    const declared = spec([name, { ...price, filterable: true, unique: true }]);
+
+    const first = await reconcileIndexes(db, declared, scope);
+    expect(first.created).toContain(indexName(SITE, "service", "price"));
+    expect(first.created).toContain(uniqueIndexName(SITE, "service", "price"));
+    expect(await exists(uniqueIndexName(SITE, "service", "price"))).toBe(true);
+
+    // And again changes nothing, because it is a reconciliation rather than a
+    // change — it runs on every apply, so it has to be silent when it agrees.
+    const second = await reconcileIndexes(db, declared, scope);
+    expect(second).toEqual({ created: [], dropped: [] });
+  });
+
+  it("drops what the spec no longer asks for", async () => {
+    await clean();
+    await reconcileIndexes(db, spec([name, { ...price, filterable: true, unique: true }]), scope);
+
+    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
+    expect(dropped).toContain(indexName(SITE, "service", "price"));
+    expect(dropped).toContain(uniqueIndexName(SITE, "service", "price"));
+    expect(await exists(indexName(SITE, "service", "price"))).toBe(false);
+  });
+
+  it("leaves another site's indexes alone", async () => {
+    await clean();
+    const other = { siteId: "site_other_planner", orgId: ORG };
+    await reconcileIndexes(db, spec([name, { ...price, filterable: true }]), other);
+
+    // This site's spec asks for nothing, and the other site's index is not this
+    // site's to drop — ownership is the partial predicate, not the name.
+    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
+    expect(dropped).not.toContain(indexName("site_other_planner", "service", "price"));
+    expect(await exists(indexName("site_other_planner", "service", "price"))).toBe(true);
+
+    await db.execute(
+      sql.raw(`DROP INDEX IF EXISTS ${indexName("site_other_planner", "service", "price")}`),
+    );
+  });
+});
+
+// Last in the file, because it ends the connection every suite above shares.
+// It used to sit at the end of the first database suite, which meant the second
+// one opened against a pool that had already been closed.
+suite("teardown", () => {
   it("closes its pools", async () => {
     if (url) await closeAllPools();
   });
