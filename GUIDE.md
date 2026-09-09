@@ -6,36 +6,44 @@ something below is wrong it is a bug in this file.
 
 ## 1. Run a server
 
-Your site's content lives in a database, so something has to be running. Two
-ways, and neither needs this repository.
-
-**Docker**, if you have it:
-
 ```sh
 mkdir my-site && cd my-site
-curl -O https://forinda-cms.netlify.app/install/compose.yaml
-curl -o .env https://forinda-cms.netlify.app/install/env.example
-# edit .env — POSTGRES_PASSWORD, OWNER_EMAIL, OWNER_PASSWORD
-docker compose up -d
-```
-
-**Node and a Postgres URL**, if you would rather:
-
-```sh
 npm install --save-dev @forinda/fcms-core
 
-DATABASE_URL=postgres://user:pass@localhost:5432/my_site \
 OWNER_EMAIL=you@example.com \
 OWNER_PASSWORD=a-password-of-at-least-12-characters \
 PORT=4711 \
 npx forinda-cms
 ```
 
-It migrates the database on boot and creates the first owner once. Booting
-again changes nothing, so this is safe to run from a process manager.
+That is everything. **Postgres runs inside the process** — the real thing,
+compiled to WebAssembly — and keeps its data in `./data`. Nothing to install,
+nothing listening but the site itself, and a backup is `cp -r data`.
 
-`npx forinda-cms --help` lists every variable it reads. The ones worth knowing
-early: `PORT` (8080 by default), `SITE_NAME`, and `MEDIA_DIR` for uploads.
+It migrates on boot and creates the first owner once. Booting again changes
+nothing, so this is safe under a process manager.
+
+Two things to know before you rely on it:
+
+- **One connection.** The embedded database serves one query at a time. For a
+  business taking bookings that is invisible; under real traffic it is a
+  ceiling, and the way past it is below.
+- **Sizes.** About 26 MB installed, and about 40 MB for an empty site's data
+  directory.
+
+When you outgrow it — or already have a Postgres — it is one variable. Same
+schema and same migrations, so moving is `pg_dump` and nothing else:
+
+```sh
+DATABASE_URL=postgres://user:pass@localhost:5432/my_site npx forinda-cms
+```
+
+A `postgres://` URL is a server; anything else is a directory to keep files in.
+`npx forinda-cms --help` lists every variable it reads — `PORT` (8080 by
+default), `SITE_NAME`, `MEDIA_DIR` for uploads.
+
+There is a Docker Compose file as well, if you would rather run Postgres beside
+it: <https://forinda-cms.netlify.app/install/compose.yaml>.
 
 A `.env` file is not read for you — the server takes its configuration from the
 environment and nothing else, which is right for a container and awkward at a
@@ -210,6 +218,7 @@ nothing to remember.
 | It says | It means |
 |---|---|
 | `cannot reach http://localhost:4711` | The server is not running, or `fcms.json` points elsewhere. |
+| the site is slow under load | The embedded database serves one query at a time. Move to a Postgres server — one variable, same schema. |
 | `not linked` | Run `fcms link <url>` in this directory. |
 | `session expired` | Run `fcms login` again. Tokens are short-lived on purpose. |
 | `refusing N destructive change(s)` | Read them, then `--yes` if that is what you meant. |
