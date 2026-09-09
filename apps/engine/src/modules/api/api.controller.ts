@@ -20,7 +20,9 @@ import {
   Inject,
   Patch,
   Post,
+  reply,
   type Ctx,
+  type Reply,
 } from "@forinda/kickjs";
 import { SiteSpec, type ContentType } from "@forinda-cms/spec";
 
@@ -239,7 +241,7 @@ export class ApiController {
       data: body.data ?? {},
     });
 
-    if (!result.ok) throw invalidEntry(result.errors);
+    if (!result.ok) return invalidEntry(result.errors);
     return { entry: result.entry };
   }
 
@@ -261,7 +263,7 @@ export class ApiController {
       data: body.data ?? {},
     });
 
-    if (!result.ok) throw invalidEntry(result.errors);
+    if (!result.ok) return invalidEntry(result.errors);
     return { entry: result.entry };
   }
 
@@ -300,17 +302,28 @@ export class ApiController {
 /**
  * Field-level errors, kept per field rather than flattened into a sentence.
  *
- * The third argument, not the second: the message parameter is a string, and an
- * object passed there is stringified — `"[object Object]"` reached the client
- * instead of the errors, which is worse than no detail because it looks like a
- * bug in the caller. `details` serializes into the problem body's `errors`.
+ * Returned rather than thrown, and this is the whole point: the framework's
+ * error handler exposes an exception's `details` only when `NODE_ENV` is not
+ * `production` — and the published server sets `NODE_ENV=production`. So every
+ * self-hosted install answered a rejected write with
+ *
+ *     {"status":422,"detail":"That entry is not valid."}
+ *
+ * and nothing else. `fcms apply --content` printed "refused … That entry is not
+ * valid" for twelve rows without naming a single field, which is not a message
+ * anybody can act on.
+ *
+ * A response is not an error, so nothing strips it. Same status, same shape as
+ * the problem body — `errors` as a list of `{ path, message }` — so a client
+ * reading either does not have to care which produced it.
  */
-function invalidEntry(errors: Record<string, string>): HttpException {
-  return new HttpException(
-    422,
-    "That entry is not valid.",
-    Object.entries(errors).map(([path, message]) => ({ path, message })),
-  );
+export function invalidEntry(errors: Record<string, string>): Reply<422> {
+  return reply(422, {
+    status: 422,
+    title: "Unprocessable Entity",
+    detail: "That entry is not valid.",
+    errors: Object.entries(errors).map(([path, message]) => ({ path, message })),
+  });
 }
 
 /**
