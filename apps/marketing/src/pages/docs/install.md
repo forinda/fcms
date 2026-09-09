@@ -73,7 +73,7 @@ npx @forinda/fcms-core">Copy</button></header>
 npx @forinda/fcms-core</code></pre>
 </div>
 
-<strong>Postgres runs inside the process</strong> — the real thing, compiled to WebAssembly — and keeps its data in <code>./data</code>. It migrates on boot, creates the owner once, and serves on <code>PORT</code> (8080 by default). A backup is <code>cp -r data</code>.
+<strong>Postgres runs inside the process</strong> — the real thing, compiled to WebAssembly — and keeps its data in <code>./.fcms</code>. It migrates on boot, creates the owner once, and serves on <code>PORT</code> (8080 by default). A backup is <code>cp -r .fcms</code>.
 
 The embedded database serves one query at a time. For a business taking bookings that is invisible. Under real traffic it is a ceiling, and the way past it is a Postgres server — the same schema and the same migrations, so moving is <code>pg_dump</code> and one variable:
 

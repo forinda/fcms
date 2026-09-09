@@ -37,7 +37,7 @@ OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
 ```
 
 That is the whole install. **Postgres runs inside the process** — the real
-thing, compiled to WebAssembly — and keeps its data in `./data`. No database to
+thing, compiled to WebAssembly — and keeps its data in `./.fcms`. No database to
 obtain, no container, no connection string, and a backup is `cp -r`.
 
 It migrates and provisions itself on boot, so the first run lands on a working

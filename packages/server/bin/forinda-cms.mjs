@@ -22,8 +22,8 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(`forinda-cms — run a site
 
   DATABASE_URL      a directory, or postgres://user:pass@host:5432/db
-                    default ./data/postgres — Postgres runs in this process,
-                    so there is nothing to install and nothing to connect to
+                    default ./.fcms/db — Postgres runs in this process, so
+                    there is nothing to install and nothing to connect to
   PORT              default 8080
   ORG_ID, SITE_ID   default "default"
   SITE_NAME         what the first site is called
