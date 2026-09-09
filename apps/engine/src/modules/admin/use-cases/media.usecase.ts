@@ -9,6 +9,7 @@ import { Inject, Scope as Lifetime, Service, getEnv } from "@forinda/kickjs";
 import type { AssetRow } from "@forinda-cms/db";
 
 import { AssetRepository } from "@/shared/repositories/asset.repository";
+import { defaultMediaDir } from "@/config";
 import { BlobStore } from "@/shared/media/blob-store";
 
 /**
@@ -42,7 +43,14 @@ export class MediaUseCase {
   constructor(@Inject(AssetRepository) private readonly assets: AssetRepository) {
     // Beside the database in the install's data directory, so one backup
     // command can cover both once `backup.sh` learns about it.
-    this.blobs = new BlobStore(getEnv("MEDIA_DIR") ?? "./data/media");
+    // The schema's default, not a second one written out again — this used to
+    // say `./data/media` and kept saying it after that moved. `getEnv` is
+    // undefined wherever the env schema is not loaded, which is every unit
+    // test, so the fallback reads the environment and then resolves the same
+    // way the schema does.
+    this.blobs = new BlobStore(
+      getEnv("MEDIA_DIR") ?? process.env["MEDIA_DIR"] ?? defaultMediaDir(),
+    );
   }
 
   list(): Promise<AssetRow[]> {

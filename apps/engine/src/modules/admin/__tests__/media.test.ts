@@ -6,15 +6,16 @@
  * uploaded files from the site's own origin gets exactly one chance to get that
  * wrong.
  */
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { assets, closeAllPools, createDb, organizations, sites } from "@forinda-cms/db";
 
 import { AssetRepository } from "@/shared/repositories/asset.repository";
 import { MediaUseCase } from "../use-cases/media.usecase";
+import { defaultMediaDir } from "@/config";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -110,4 +111,40 @@ suite("media", () => {
 
 afterAll(async () => {
   if (url) await closeAllPools();
+});
+
+/**
+ * Where uploads go when nobody says.
+ *
+ * `./data/media` put binary uploads inside the directory an author keeps their
+ * content files in — the same collision the database had before it moved to
+ * `.fcms`. Moving it is right for a new install and wrong for an existing one,
+ * whose pictures would all answer 404, so an install that already has the old
+ * directory keeps it.
+ */
+describe("the default media directory", () => {
+  const dirs: string[] = [];
+  const cwd = process.cwd();
+
+  afterEach(() => {
+    process.chdir(cwd);
+    for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+  });
+
+  const inEmptyDirectory = (build: (root: string) => void) => {
+    const root = mkdtempSync(join(tmpdir(), "fcms-media-default-"));
+    dirs.push(root);
+    build(root);
+    process.chdir(root);
+  };
+
+  it("is beside the database on a fresh install", () => {
+    inEmptyDirectory(() => undefined);
+    expect(defaultMediaDir()).toBe("./.fcms/media");
+  });
+
+  it("stays where it was on an install that already has media", () => {
+    inEmptyDirectory((root) => mkdirSync(join(root, "data", "media"), { recursive: true }));
+    expect(defaultMediaDir()).toBe("./data/media");
+  });
 });

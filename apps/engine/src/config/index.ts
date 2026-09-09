@@ -1,6 +1,27 @@
 import { loadEnvFromSchema } from "@forinda/kickjs/config";
 import { fromZod } from "@forinda/kickjs-schema/zod";
 import { z } from "zod";
+import { existsSync } from "node:fs";
+
+/**
+ * Where uploads go when nobody says.
+ *
+ * Beside the database, in `.fcms`, so one directory holds everything the
+ * platform owns and one volume covers it. It used to be `./data/media`, which
+ * put binary uploads inside the directory an author keeps their content files
+ * in — the same collision the database had before it moved.
+ *
+ * An install that already has `./data/media` keeps using it: moving somebody's
+ * pictures on an upgrade would answer 404 for every one of them, and a tidier
+ * default is not worth that.
+ *
+ * A function, and the only one, because the resolved value is needed in two
+ * places — here, and wherever a store is built before the schema is loaded —
+ * and two defaults for one setting is how they come to disagree.
+ */
+export function defaultMediaDir(): string {
+  return existsSync("./data/media") ? "./data/media" : "./.fcms/media";
+}
 
 /**
  * Project environment schema (Zod).
@@ -68,11 +89,20 @@ const envSchema = fromZod(
     /**
      * Where uploaded media is written.
      *
-     * Beside the database in the install's data directory by default, so one
-     * volume covers both. Content-addressed on disk (ADR 0010), so the path is
-     * a hash and the same photo uploaded twice is one file.
+     * Beside the database, in `.fcms`, so one directory holds everything the
+     * platform owns and one volume covers it. It used to default to
+     * `./data/media`, which put binary uploads inside the directory an author
+     * keeps their content files in — the same collision the database had before
+     * it moved.
+     *
+     * An install that already has `./data/media` keeps using it. Moving
+     * somebody's pictures on upgrade would answer 404 for every one of them,
+     * and a default is not worth that.
+     *
+     * Content-addressed on disk (ADR 0010), so the path is a hash and the same
+     * photo uploaded twice is one file.
      */
-    MEDIA_DIR: z.string().default("./data/media"),
+    MEDIA_DIR: z.string().default(defaultMediaDir()),
 
     /** Shown on the starter page a fresh install boots into. */
     SITE_NAME: z.string().optional(),
