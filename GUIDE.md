@@ -60,11 +60,11 @@ When you outgrow it — or already have a Postgres — it is one variable. Same
 schema and same migrations, so moving is `pg_dump` and nothing else:
 
 ```sh
-DATABASE_URL=postgres://user:pass@localhost:5432/my_site npx forinda-cms
+DATABASE_URL=postgres://user:pass@localhost:5432/my_site npm start
 ```
 
 A `postgres://` URL is a server; anything else is a directory to keep files in.
-`npx forinda-cms --help` lists every variable it reads — `PORT` (8080 by
+`npx @forinda/fcms-core --help` lists every variable it reads — `PORT` (8080 by
 default), `SITE_NAME`, and `MEDIA_DIR` for uploads — which lands in `.fcms`
 beside the database, so one directory is the whole of what the platform owns.
 
@@ -93,25 +93,27 @@ execFileSync("./node_modules/.bin/forinda-cms", [], { stdio: "inherit", env });
 
 ## 3. Point a directory at it
 
-```sh
-npm install --save-dev @forinda/fcms-cli
+`init` already added the CLI, so there is nothing to install:
 
-npx fcms link http://localhost:4711
-npx fcms login
+```sh
+npx @forinda/fcms-cli link http://localhost:4711
+npx @forinda/fcms-cli login
 ```
 
-> **`npx fcms` only works inside a project that has it installed**, where it
-> runs the local binary. Outside one, `fcms` is an unrelated package somebody
-> else publishes — use the scoped name, `npx @forinda/fcms-cli <command>`. The
-> same holds for `forinda-cms`, which is the server's binary and not its
-> package name (`@forinda/fcms-core`).
+> **The package is scoped; the binary is not.** Inside this project the bare
+> `fcms` binary works, because the local one wins. But that name on its own
+> belongs to an unrelated package somebody else publishes, so a line copied out
+> of here and run somewhere else would fetch theirs. Every command below
+> therefore names the package, or runs a script `init` already wrote — and the
+> same holds for `forinda-cms`, which is the server's binary and not its package
+> name.
 
 `link` writes `fcms.json`, which names the server and holds no secret — commit
 it. `login` writes a token to `~/.config/forinda-cms/credentials.json` at mode
 `0600`, which is not in your project and must never be.
 
 ```sh
-npx fcms status
+npx @forinda/fcms-cli status
 ```
 
 ## 4. Write the site
@@ -179,14 +181,14 @@ Three rules that will save you an afternoon:
 Check it as you go — it reports the file, line and column:
 
 ```sh
-npx fcms validate
-npx fcms fmt          # rewrite every file in canonical form; `--check` in CI
+npm run validate
+npm run fmt          # rewrite every file in canonical form; `--check` in CI
 ```
 
 ## 5. Look at it
 
 ```sh
-npx fcms dev
+npm run dev
 ```
 
 Serves the directory at `localhost:4321` and reloads on save. No server, no
@@ -196,9 +198,13 @@ in.
 ## 6. Publish it
 
 ```sh
-npx fcms plan         # what applying would change
-npx fcms apply        # do it
+npm run plan            # what applying would change
+npm run apply           # do it
+npm run apply -- --yes  # …including the destructive parts
 ```
+
+The `--` is npm's, not ours: without it the flag goes to npm rather than to the
+command it runs.
 
 `plan` classifies every change and exits `2` if any of them is destructive, so
 CI can gate on it without parsing anything. `apply` prints the same plan before
@@ -211,8 +217,8 @@ or an agent.
 To go the other way — the server's spec, written back as canonical files:
 
 ```sh
-npx fcms pull             # the spec
-npx fcms pull --content   # and the rows
+npx @forinda/fcms-cli pull             # the spec
+npx @forinda/fcms-cli pull --content   # and the rows
 ```
 
 `pull` then `fmt --check` is silent, so pulling never produces a diff you did
