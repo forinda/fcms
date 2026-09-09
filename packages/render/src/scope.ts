@@ -35,7 +35,12 @@ export interface FormatLocale {
 
 export const DEFAULT_LOCALE: FormatLocale = { locale: "en-KE", currency: "KES" };
 
-function format(value: unknown, formatter: Formatter | undefined, fmt: FormatLocale): string {
+function format(
+  value: unknown,
+  formatter: Formatter | undefined,
+  fmt: FormatLocale,
+  args: readonly string[] = [],
+): string {
   const { locale, currency } = fmt;
   if (value === null || value === undefined) return "";
   switch (formatter) {
@@ -66,6 +71,12 @@ function format(value: unknown, formatter: Formatter | undefined, fmt: FormatLoc
         dateStyle: "medium",
         timeStyle: "short",
       });
+    case "plural": {
+      // The number itself is not printed: the template already has it, and a
+      // formatter that printed it too would read "1 1 property".
+      const [one = "", many = ""] = args;
+      return Number(value) === 1 ? one : many;
+    }
   }
 }
 
@@ -84,7 +95,7 @@ export function resolve(
 ): string {
   let out = template;
   for (const expr of parseTemplate(template)) {
-    out = out.replace(expr.raw, format(lookup(scope, expr.path), expr.formatter, fmt));
+    out = out.replace(expr.raw, format(lookup(scope, expr.path), expr.formatter, fmt, expr.args));
   }
   return out;
 }

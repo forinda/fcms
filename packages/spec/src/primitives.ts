@@ -99,18 +99,40 @@ export const FORMATTERS = [
   "lower",
   "title",
   "truncate",
+  /**
+   * The word that goes with a number.
+   *
+   * `{{ n | plural: property, properties }}`. `results-count` has had `one` and
+   * `many` since it existed, so the idea was already in the vocabulary — it was
+   * simply not available to a template, and "1 properties" appeared on every
+   * city with one property in it.
+   *
+   * The only formatter that takes arguments, and it takes exactly two. That is
+   * a deliberate ceiling: an argument list is the first half of an expression
+   * language, and English plurals are the one place a lookup genuinely cannot
+   * answer.
+   */
+  "plural",
 ] as const;
 
 export type Formatter = (typeof FORMATTERS)[number];
 
-/** `{{ a.b.c }}` or `{{ a.b | currency }}`. Whitespace is free-form. */
+/**
+ * `{{ a.b.c }}`, `{{ a.b | currency }}`, or `{{ n | plural: room, rooms }}`.
+ *
+ * Whitespace is free-form. The argument list is one capture and belongs to
+ * `plural` alone — anything else that grows arguments should be a field with a
+ * declared formula instead, which is where computation lives.
+ */
 const EXPRESSION =
-  /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(?:\|\s*([a-z]+)\s*)?\}\}/g;
+  /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*(?:\|\s*([a-z]+)\s*(?::\s*([^}]*?)\s*)?)?\}\}/g;
 
 export interface TemplateExpression {
   /** The dotted path, e.g. `item.name` or `flow.service.deposit`. */
   readonly path: string;
   readonly formatter?: Formatter;
+  /** `plural`'s two words, in order. Empty for every other formatter. */
+  readonly args?: readonly string[];
   /** The whole `{{ … }}`, for error messages. */
   readonly raw: string;
 }
@@ -119,9 +141,14 @@ export interface TemplateExpression {
 export function parseTemplate(input: string): TemplateExpression[] {
   const out: TemplateExpression[] = [];
   for (const m of input.matchAll(EXPRESSION)) {
+    const args = m[3]
+      ?.split(",")
+      .map((word) => word.trim())
+      .filter(Boolean);
     out.push({
       path: m[1]!,
       ...(m[2] ? { formatter: m[2] as Formatter } : {}),
+      ...(args && args.length > 0 ? { args } : {}),
       raw: m[0]!,
     });
   }

@@ -133,7 +133,20 @@ export function dev(root: string, port: number): void {
     // `fcms dev` reads files and has no database, so a journey has no state to
     // be part-way through: every step is shown, which is what an author needs
     // while writing one (ADR 0028).
-    const { html } = renderPage(match.page, { spec, source, previewFlows: true }, match.entry);
+    // The site's own money and dates. The engine passes these and this did not,
+    // so a spec saying `currency: USD` rendered shillings under `fcms dev` and
+    // dollars once applied — the preview disagreeing with the site is the one
+    // thing a preview may not do.
+    const { html } = renderPage(
+      match.page,
+      {
+        spec,
+        source,
+        previewFlows: true,
+        locale: { locale: spec.locale, currency: spec.currency },
+      },
+      match.entry,
+    );
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
     res.end(html + LIVE_RELOAD);
   });

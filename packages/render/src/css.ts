@@ -238,6 +238,39 @@ a{color:var(--color-brand,#06c)}
 .fx-field textarea{min-height:8rem}
 .fx-form button{font:inherit;align-self:flex-start;padding:.6rem 1.1rem;border:0;cursor:pointer;color:#fff;background:var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
 .fx-form :focus-visible{outline:2px solid var(--color-brand,#06c);outline-offset:2px}
+/* Half the blocks this file ships styled nothing at all, and they were the
+   controls: a search bar rendered as a browser-default form, a facet rail as a
+   bulleted paragraph, a card with no idea what to do with the image the block
+   itself emits. Every site had to write these before it could look like a site,
+   and each one wrote them differently. */
+.fx-filters{display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end}
+.fx-filters .fx-field{flex:1 1 10rem;gap:.25rem}
+.fx-filters button{font:inherit;padding:.55rem 1.1rem;border:0;cursor:pointer;color:#fff;
+  background:var(--color-brand,#06c);border-radius:var(--radius-md,8px)}
+.fx-facets h3{font-size:.9rem;margin:0 0 .4rem}
+.fx-facets ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:.15rem}
+.fx-facets li{display:flex;justify-content:space-between;gap:.5rem;align-items:baseline}
+.fx-facets a{text-decoration:none}
+.fx-facets li[aria-current=true] a{font-weight:700}
+.fx-facet-count{color:var(--color-muted,#777);font-size:.8rem;font-variant-numeric:tabular-nums}
+.fx-pager{display:flex;gap:1rem;align-items:baseline;margin:1rem 0}
+/* A card is usually one big link. Without a border it is a paragraph, and with
+   an unsized image it is a paragraph under a photograph the size of a wall. */
+.fx-card{display:block;color:inherit;text-decoration:none}
+.fx-card img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--radius-md,8px)}
+.fx-card h3{margin:.5rem 0 .25rem}
+.fx-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.75rem}
+.fx-gallery img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--radius-md,8px)}
+.fx-account{display:flex;flex-direction:column;gap:1rem;max-width:24rem}
+.fx-save{font:inherit;background:none;border:1px solid var(--color-border,#e5e5e5);cursor:pointer;
+  border-radius:var(--radius-md,8px);padding:.35rem .7rem}
+/* A nav on a brand-coloured band was invisible: links take the brand colour,
+   and the starter's own header is that colour. A nav takes the colour of what
+   it sits on. */
+.fx-nav a{color:inherit}
+/* The anchor a block id emits: it must move nothing, and must not hide under
+   a sticky header. */
+.fx-anchor{display:block;height:0;scroll-margin-top:5rem}
 `.trim();
 
 /**

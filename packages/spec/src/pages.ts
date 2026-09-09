@@ -25,6 +25,8 @@ import { CustomCss, Layout, StyleProps } from "./style.js";
  */
 export interface Block {
   type: string;
+  /** An anchor for this block, so `to: "#book"` can reach it. */
+  id?: string;
   layout?: z.infer<typeof Layout>;
   style?: z.infer<typeof StyleProps>;
   attrs?: Record<string, unknown>;
@@ -41,6 +43,14 @@ export const Block: z.ZodType<Block> = z.lazy(() =>
   z
     .object({
       type: Key,
+      /**
+       * An anchor, emitted as the element's `id`.
+       *
+       * Without one, `to: "#anything"` could never resolve: no block emitted an
+       * id, so a landing page could not link its own hero to its own form. Same
+       * grammar as every other key, which is also what makes it safe in a URL.
+       */
+      id: Key.optional(),
       layout: Layout.optional(),
       style: StyleProps.optional(),
       attrs: z.record(z.string(), z.unknown()).optional(),

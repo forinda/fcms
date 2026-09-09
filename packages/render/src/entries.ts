@@ -62,7 +62,17 @@ function sameValue(actual: unknown, expected: unknown): boolean {
  * down at request time.
  */
 export function matches(row: Entry, c: Condition): boolean {
-  const actual = get(row, c.field.replace(/^item\./, ""));
+  // Two callers, two shapes. A query's `where` names a field of the row it is
+  // filtering — `price`. A block's `when` names a path into the scope —
+  // `entry.photo`, `item.photo` — and the scope is what it is given.
+  //
+  // Stripping `item.` served the first and broke the second: inside a list
+  // item, `item.photo` became `photo`, which is not on the scope either, so a
+  // `when` on an item matched nothing at all and did so silently. The full path
+  // is tried first, and the stripped one is the fallback that keeps the queries
+  // working.
+  const direct = get(row, c.field);
+  const actual = direct === undefined ? get(row, c.field.replace(/^item\./, "")) : direct;
   const expected = c.value;
 
   switch (c.op) {
@@ -80,6 +90,12 @@ export function matches(row: Entry, c: Condition): boolean {
       return typeof actual === "number" && typeof expected === "number" && actual >= expected;
     case "in":
       return Array.isArray(expected) && expected.includes(actual as never);
+    case "exists":
+      // A value somebody would see. `null`, `undefined` and `""` are all "no
+      // photo"; `false` and `0` are answers and count as present.
+      return actual !== undefined && actual !== null && actual !== "";
+    case "empty":
+      return actual === undefined || actual === null || actual === "";
     case "contains":
       return typeof actual === "string" && typeof expected === "string"
         ? actual.toLowerCase().includes(expected.toLowerCase())

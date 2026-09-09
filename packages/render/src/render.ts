@@ -219,7 +219,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
         )
       : undefined;
 
-  return type.render({
+  const rendered = type.render({
     className: cls,
     attrs,
     ...(facetRows ? { rows: facetRows } : {}),
@@ -232,7 +232,18 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
     scope,
     hasChildren: (block.children?.length ?? 0) > 0,
     ...(forType ? { contentType: forType } : {}),
+    // For a facet naming a reference: the label is on the row it points at.
+    spec: walk.spec,
+    source: walk.source,
   });
+
+  // An anchor, beside the block rather than on it.
+  //
+  // A block owns its own root element and some render several, or none — so
+  // putting the id *on* it would mean every block type in the registry
+  // agreeing to carry one, and a plugin's block silently not. An empty span
+  // costs nothing, moves nothing, and `#book` resolves.
+  return block.id ? fragment(el("span", { id: block.id, class: "fx-anchor" }), rendered) : rendered;
 }
 
 /**

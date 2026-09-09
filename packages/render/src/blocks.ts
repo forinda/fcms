@@ -11,11 +11,12 @@
  * which is why that package leaves `attrs` open: the document schema knows the
  * shape of *a block*, the registry knows the vocabulary of *each block type*.
  */
-import type { ContentType, Query } from "@forinda-cms/spec";
+import type { ContentType, Query, SiteSpec } from "@forinda-cms/spec";
 
 import { el, esc, fragment, raw, type Html } from "./html.js";
 import { pointOf } from "./places.js";
 import type { Scope } from "./scope.js";
+import type { EntrySource } from "./entries.js";
 
 export interface BlockContext {
   readonly className: string;
@@ -24,6 +25,15 @@ export interface BlockContext {
   readonly scope: Scope;
   /** Set when a block declares `for: <type>` — used to generate form inputs. */
   readonly contentType?: ContentType;
+  /**
+   * The whole spec and the rows behind it.
+   *
+   * A facet counting a `reference` holds `ref:city/nairobi` and has to show
+   * "Nairobi", which is on the row that reference points at — so the block
+   * needs to reach past its own rows. Optional, because most blocks do not.
+   */
+  readonly spec?: SiteSpec;
+  readonly source?: EntrySource;
   /** True when the block author supplied children of their own. */
   readonly hasChildren: boolean;
   /**
@@ -309,8 +319,8 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     define({
       name: "facets",
       summary: "Filter options for one field, with how many rows each would match.",
-      attrs: ["for", "field", "param", "title"],
-      render: ({ className, attrs, request, rows }) => {
+      attrs: ["for", "field", "param", "title", "order"],
+      render: ({ className, attrs, request, rows, contentType, spec, source }) => {
         const field = String(attrs["field"] ?? "");
         const param = String(attrs["param"] ?? field);
         if (!field || !rows) return raw("");
@@ -345,14 +355,46 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
           return search ? `${request?.path ?? ""}?${search}` : (request?.path ?? "");
         };
 
+        // What a person calls this value. A `select` declares its own labels, a
+        // `reference` has them on the row it points at, and a `boolean` has two
+        // that no spec should have to write out. Showing `ref:city/nairobi` in
+        // a filter rail is showing somebody the storage format.
+        const declared = contentType?.fields.find((f) => f.name === field);
+        const labelOf = (value: string): string => {
+          if (declared?.type === "select") {
+            return declared.options.find((o) => o.value === value)?.label ?? value;
+          }
+          if (declared?.type === "boolean") return value === "true" ? "Yes" : "No";
+          if (declared?.type === "reference" && source && spec) {
+            const target = spec.content.find((t) => t.key === declared.to);
+            const slug = value.startsWith("ref:") ? value.slice(value.indexOf("/") + 1) : value;
+            const row = source
+              .all(declared.to)
+              .find((r) => String(r["slug"] ?? r["id"] ?? "") === slug);
+            const title = row?.[target?.titleField ?? "name"];
+            return typeof title === "string" && title !== "" ? title : slug;
+          }
+          return value;
+        };
+
+        // By count is right for "which of these is popular" and wrong for a
+        // star rating, which reads 4, 3, 1, 2, 5 when the answer wanted is
+        // 1, 2, 3, 4, 5.
+        const order = String(attrs["order"] ?? "count");
+        const collate = (a: [string, number], b: [string, number]): number => {
+          if (order === "value") return a[0].localeCompare(b[0], undefined, { numeric: true });
+          if (order === "label") return labelOf(a[0]).localeCompare(labelOf(b[0]));
+          return b[1] - a[1] || a[0].localeCompare(b[0]);
+        };
+
         const options = [...counts.entries()]
-          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+          .sort(collate)
           .map(([value, count]) =>
             el(
               "li",
               value === chosen ? { "aria-current": "true" } : {},
               fragment(
-                el("a", { href: href(value) }, raw(esc(value))),
+                el("a", { href: href(value) }, raw(esc(labelOf(value)))),
                 el("span", { class: "fx-facet-count" }, raw(esc(String(count)))),
               ),
             ),
@@ -635,12 +677,15 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     define({
       name: "nav",
       summary: "Site navigation.",
-      attrs: ["links"],
+      attrs: ["links", "label"],
       render: ({ className, attrs }) => {
         const links = Array.isArray(attrs["links"]) ? attrs["links"] : [];
         return el(
           "nav",
-          { class: `fx-nav ${className}`, "aria-label": "Main" },
+          // Named, because a footer of five link columns and a header nav are
+          // six landmarks, and announcing all of them "Main navigation" is
+          // worse than announcing none of them.
+          { class: `fx-nav ${className}`, "aria-label": str(attrs["label"], "Main") },
           el(
             "ul",
             {},
@@ -692,6 +737,10 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
             ? fragment(
                 ...contentType.fields
                   .filter((f) => f.type !== "state" && f.name !== "slug")
+                  // Computed on read and never written, so an input for one is
+                  // an input the schema refuses — the form would collect a
+                  // number and be told it is invalid.
+                  .filter((f) => f.type !== "aggregate" && f.type !== "computed")
                   .map((f) =>
                     renderField(
                       f.name,
@@ -699,6 +748,9 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
                       inputTypeFor(f.type),
                       f.type === "richtext",
                       "required" in f ? f.required === true : false,
+                      "",
+                      "options" in f ? f.options : [],
+                      "help" in f && typeof f.help === "string" ? f.help : "",
                     ),
                   ),
               )
@@ -727,17 +779,26 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
     define({
       name: "field",
       summary: "One input inside a form.",
-      attrs: ["name", "label", "type", "required"],
-      render: ({ className, attrs }) => {
+      attrs: ["name", "label", "type", "required", "placeholder"],
+      render: ({ className, attrs, contentType }) => {
         const name = str(attrs["name"]);
-        const type = str(attrs["type"], "text");
+        // The declaration wins over the attribute where there is one: a field
+        // named here is a field the type already describes, and repeating its
+        // type in the page is how the two come to disagree.
+        const declared = contentType?.fields.find((f) => f.name === name);
+        const type = declared ? inputTypeFor(declared.type) : str(attrs["type"], "text");
+
         return renderField(
           name,
-          str(attrs["label"], name),
+          str(attrs["label"], declared?.label ?? name),
           type,
-          type === "richtext",
-          attrs["required"] === true,
+          declared ? declared.type === "richtext" : type === "richtext",
+          declared && "required" in declared
+            ? declared.required === true
+            : attrs["required"] === true,
           className,
+          declared && "options" in declared ? declared.options : [],
+          str(attrs["placeholder"]),
         );
       },
     }),
@@ -779,16 +840,45 @@ function renderField(
   multiline: boolean,
   required: boolean,
   className = "",
+  /**
+   * A `select` field's own options.
+   *
+   * `filters` has rendered these since it existed; a `form` rendered the same
+   * field as a free-text box, which made a closed set of choices into a place
+   * to type anything — and then refused what was typed.
+   */
+  options: readonly { value: string; label: string }[] = [],
+  /**
+   * Hint text, *in addition to* the label and never instead of it: a
+   * placeholder is not a label and screen readers do not treat it as one.
+   */
+  placeholder = "",
 ): Html {
   const id = `f-${name}`;
+  const hint = placeholder === "" ? {} : { placeholder };
+
+  const control =
+    options.length > 0
+      ? el(
+          "select",
+          { id, name, required },
+          // An empty first option, so a select that is not required can be left
+          // alone and one that is required does not answer with its first
+          // option by accident.
+          el("option", { value: "" }, required ? "Choose one" : "Any"),
+          ...options.map((option) => el("option", { value: option.value }, option.label)),
+        )
+      : multiline
+        ? el("textarea", { id, name, required, ...hint })
+        : el("input", { id, name, type, required, ...hint });
+
   return el(
     "div",
     { class: `fx-field ${className}`.trim() },
-    // Always a real `<label for>` rather than a placeholder: a placeholder is not
-    // a label, and screen readers do not treat it as one. Accessibility basics
-    // are not something to simplify away.
+    // Always a real `<label for>`. Accessibility basics are not something to
+    // simplify away.
     el("label", { for: id }, label),
-    multiline ? el("textarea", { id, name, required }) : el("input", { id, name, type, required }),
+    control,
   );
 }
 

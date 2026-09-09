@@ -20,7 +20,28 @@ import { z } from "zod";
 import { FieldName, Scalar } from "./primitives.js";
 
 /** Fixed set. Adding one is a deliberate vocabulary decision, not a convenience. */
-export const OPERATORS = ["eq", "ne", "lt", "lte", "gt", "gte", "in", "contains"] as const;
+export const OPERATORS = [
+  "eq",
+  "ne",
+  "lt",
+  "lte",
+  "gt",
+  "gte",
+  "in",
+  "contains",
+  /**
+   * Has a value at all, or has none.
+   *
+   * `{ op: ne, value: "" }` is **true** for a field that is null, so a page
+   * hiding an image behind one rendered `<img src="">` for every row without a
+   * photo. The workaround was a string test standing in for a question the
+   * vocabulary could not ask — which is the definition of a missing operator.
+   *
+   * Neither takes a value; the schema below says so rather than ignoring one.
+   */
+  "exists",
+  "empty",
+] as const;
 export const Operator = z.enum(OPERATORS);
 export type Operator = (typeof OPERATORS)[number];
 
@@ -69,7 +90,7 @@ export const Condition = z
   .object({
     field: FieldPath,
     op: Operator,
-    value: z.union([Scalar, z.array(Scalar), ParamValue, EntryValue]),
+    value: z.union([Scalar, z.array(Scalar), ParamValue, EntryValue]).optional(),
   })
   .strict()
   .superRefine((c, ctx) => {
@@ -78,6 +99,16 @@ export const Condition = z
     // either.
     if (typeof c.value === "object" && c.value !== null && "param" in c.value) return;
     if (typeof c.value === "object" && c.value !== null && "entry" in c.value) return;
+
+    // `exists` and `empty` ask about presence, so a value is not wrong so much
+    // as meaningless — and a meaningless value in a spec is a misunderstanding
+    // worth reporting.
+    if (c.op === "exists" || c.op === "empty") {
+      if (c.value !== undefined && c.value !== null) {
+        ctx.addIssue({ code: "custom", message: `\`${c.op}\` takes no value` });
+      }
+      return;
+    }
 
     // `in` takes a list; everything else takes a scalar. Catching this here beats
     // a renderer silently matching nothing.

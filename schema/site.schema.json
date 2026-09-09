@@ -282,6 +282,12 @@
           "maxLength": 64,
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
         },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
         "layout": {
           "oneOf": [
             {
@@ -1037,7 +1043,9 @@
                 "gt",
                 "gte",
                 "in",
-                "contains"
+                "contains",
+                "exists",
+                "empty"
               ]
             },
             "value": {
@@ -1102,8 +1110,7 @@
           },
           "required": [
             "field",
-            "op",
-            "value"
+            "op"
           ],
           "additionalProperties": false
         },
@@ -1136,7 +1143,9 @@
                       "gt",
                       "gte",
                       "in",
-                      "contains"
+                      "contains",
+                      "exists",
+                      "empty"
                     ]
                   },
                   "value": {
@@ -1201,8 +1210,7 @@
                 },
                 "required": [
                   "field",
-                  "op",
-                  "value"
+                  "op"
                 ],
                 "additionalProperties": false
               }
