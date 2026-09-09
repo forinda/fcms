@@ -15,6 +15,8 @@
  *   pnpm release --dry-run    # say what would happen, change nothing
  */
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const args = process.argv.slice(2);
@@ -23,6 +25,7 @@ const skipVerify = args.includes("--skip-verify");
 const explicit = args.find((a) => !a.startsWith("-"));
 
 const git = (...argv) => execFileSync("git", argv, { encoding: "utf8" }).trim();
+const dim = (text) => `\x1b[2m${text}\x1b[0m`;
 const die = (message, hint) => {
   console.error(`\x1b[31mrefusing\x1b[0m ${message}`);
   if (hint) console.error(`  ${hint}`);
@@ -45,6 +48,29 @@ const local = git("rev-parse", "HEAD");
 const remote = git("rev-parse", "origin/main");
 if (local !== remote) {
   die("`main` and `origin/main` disagree.", "git pull --ff-only, then look at what came in.");
+}
+
+/**
+ * Every package a tag would publish, read rather than listed.
+ *
+ * This printed two names while the release workflow published three, because
+ * the list was written out by hand and a package was added to one and not the
+ * other. The preview exists to say what is about to go out, so it has to be
+ * derived from the same thing that decides: a manifest that is not private and
+ * asks for public access.
+ */
+function publishable() {
+  return readdirSync("packages", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const directory = join("packages", entry.name);
+      const manifest = join(directory, "package.json");
+      if (!existsSync(manifest)) return [];
+      const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+      if (pkg.private === true || pkg.publishConfig?.access !== "public") return [];
+      return [{ name: pkg.name, directory }];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -84,8 +110,9 @@ const [year, minor] = version.split(".");
 console.log(
   `\x1b[2m  ghcr.io/forinda/fcms       ${version}, ${year}.${minor}, ${year}, latest\x1b[0m`,
 );
-console.log("\x1b[2m  @forinda/fcms-core         " + version + "\x1b[0m");
-console.log("\x1b[2m  @forinda/fcms-cli          " + version + "\x1b[0m");
+for (const pkg of publishable()) {
+  console.log(`\x1b[2m  ${pkg.name.padEnd(26)}${version}\x1b[0m`);
+}
 
 const previous = git("tag", "--list", "--sort=-v:refname").split("\n").filter(Boolean)[0];
 if (previous) {
@@ -123,8 +150,39 @@ if (answer !== "y" && answer !== "yes") {
   process.exit(1);
 }
 
+/**
+ * The number, written where somebody can read it.
+ *
+ * It used to live only in the tag: CI wrote it into each manifest at publish
+ * time and `main` stayed at `0.0.0` forever. That kept releases to one command
+ * and made the repository misreport itself — every local `pnpm pack` produced a
+ * `0.0.0` tarball, `fcms --version` needed a bundler trick to avoid printing a
+ * lie, and answering "what version is this?" meant leaving the checkout.
+ *
+ * So the manifests are bumped and committed, and the tag points at that commit.
+ * CI still runs `npm version` with `--allow-same-version`, where it is now a
+ * no-op that keeps a hand-pushed tag publishing the right number.
+ */
+const manifests = ["package.json", ...publishable().map((pkg) => join(pkg.directory, "package.json"))];
+for (const pkg of publishable()) {
+  execFileSync("npm", ["version", version, "--no-git-tag-version", "--allow-same-version"], {
+    cwd: pkg.directory,
+    stdio: "ignore",
+  });
+}
+execFileSync("npm", ["version", version, "--no-git-tag-version", "--allow-same-version"], {
+  stdio: "ignore",
+});
+
+git("add", ...manifests);
+git("commit", "-m", `chore(release): ${version}`);
+
+// Tagged after the commit, so the tag names a tree whose manifests say what the
+// tag says. Pushed in that order too: a tag on a commit nobody else has is a
+// release nobody can check out.
 git("tag", "-a", version, "-m", `Release ${version}`);
+git("push", "origin", "main");
 git("push", "origin", version);
 
-console.log(`\n\x1b[32mpushed\x1b[0m ${version}`);
-console.log("\x1b[2m  gh run watch — the image, then both packages, then the release notes.\x1b[0m");
+console.log(`\n\x1b[32mpushed\x1b[0m ${version} ${dim("— manifests bumped, tagged, both pushed")}`);
+console.log("\x1b[2m  gh run watch — the image, then every package, then the release notes.\x1b[0m");

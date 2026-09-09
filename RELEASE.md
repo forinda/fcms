@@ -36,14 +36,19 @@ The number is calendar versioning — `YYYY.N.P`: the year, a release counting
 from 1 within it, and a patch. The count restarts each January, so the first
 release of 2027 is `2027.1.0`.
 
+`pnpm release` writes it into every manifest, commits that as
+`chore(release): <version>`, and tags the commit. So a checkout says what it is
+without anybody going to look at the tags, and a local `pnpm pack` produces a
+tarball named after the version it actually holds.
+
 The third number is not decoration. npm rejects anything that is not full
 semver, and `npm version 2026.1` fails with `Invalid version: 2026.1` — after
 the image has already been pushed, which is the worst half of a release to
 have.
 
-It comes from the tag. CI writes it into the manifests at publish time, so
-releasing needs no version commit and `package.json` on `main` is a
-placeholder.
+CI still runs `npm version` from the tag before publishing, with
+`--allow-same-version`. That is a no-op when the manifests already agree, and it
+is what keeps a tag pushed by hand publishing the right number.
 
 The libraries — `@forinda-cms/spec`, `@forinda-cms/lang`, `@forinda-cms/sdk`
 and `@forinda-cms/plugin` — will use semver when they ship, because they are
