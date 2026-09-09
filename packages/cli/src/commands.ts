@@ -14,7 +14,7 @@ import { readFileSync, watch, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { diffSpecs, summarise, type EntryCounts } from "@forinda-cms/spec";
 import { splitFiles } from "@forinda-cms/lang";
-import { renderPage, routes } from "@forinda-cms/render";
+import { declaredStatusPage, renderPage, routes, statusPage } from "@forinda-cms/render";
 
 import { loadProject } from "./project.js";
 import { bold, dim, green, printDiagnostics, rel, yellow } from "./report.js";
@@ -42,6 +42,35 @@ export function validate(root: string): number {
  * `fmt` may move a node into its canonical file — the gofmt bargain ADR 0006
  * took knowingly, and what keeps round-tripping honest rather than approximate.
  */
+/**
+ * The routes, as pages rather than as rows.
+ *
+ * A collection page is one page and as many addresses as it has entries, so
+ * printing every address means a site's whole catalogue scrolls past on every
+ * start. What an author needs is the shape: which pages exist, and roughly how
+ * much sits behind each one.
+ */
+function summariseRoutes(
+  spec: Parameters<typeof routes>[0],
+  source: Parameters<typeof routes>[1],
+): void {
+  const all = routes(spec, source);
+  const byPage = new Map<string, { path: string; count: number }>();
+
+  for (const route of all) {
+    const found = byPage.get(route.page.key);
+    if (found) found.count += 1;
+    else byPage.set(route.page.key, { path: route.entry ? route.page.path : route.path, count: 1 });
+  }
+
+  for (const [, { path, count }] of byPage) {
+    console.log(count > 1 ? dim(`  ${path}/…  ${count} pages`) : dim(`  ${path}`));
+  }
+  console.log(
+    dim(`  ${byPage.size} ${byPage.size === 1 ? "page" : "pages"}, ${all.length} addresses`),
+  );
+}
+
 export function fmt(root: string, check = false): number {
   const loaded = loadProject(root);
   if (!loaded.ok) {
@@ -126,14 +155,36 @@ export function dev(root: string, port: number): void {
 
     if (!match) {
       res.writeHead(404, { "content-type": "text/html; charset=utf-8" });
-      res.end(notFoundPage(all.map((r) => r.path)));
+      // The site's own 404, in the site's own clothes — and the author's, if
+      // they wrote one. A list of every route is a developer's answer to a
+      // visitor's question.
+      res.end(
+        renderPage(declaredStatusPage(spec, 404) ?? statusPage(spec, 404), {
+          spec,
+          source,
+          locale: { locale: spec.locale, currency: spec.currency },
+        }).html + LIVE_RELOAD,
+      );
       return;
     }
 
     // `fcms dev` reads files and has no database, so a journey has no state to
     // be part-way through: every step is shown, which is what an author needs
     // while writing one (ADR 0028).
-    const { html } = renderPage(match.page, { spec, source, previewFlows: true }, match.entry);
+    // The site's own money and dates. The engine passes these and this did not,
+    // so a spec saying `currency: USD` rendered shillings under `fcms dev` and
+    // dollars once applied — the preview disagreeing with the site is the one
+    // thing a preview may not do.
+    const { html } = renderPage(
+      match.page,
+      {
+        spec,
+        source,
+        previewFlows: true,
+        locale: { locale: spec.locale, currency: spec.currency },
+      },
+      match.entry,
+    );
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
     res.end(html + LIVE_RELOAD);
   });
@@ -146,16 +197,16 @@ export function dev(root: string, port: number): void {
   });
 
   server.listen(port, () => {
-    console.log(
-      `${green("dev")} ${bold(`http://localhost:${port}`)}  ${dim(rel(process.cwd(), root))}`,
-    );
     const loaded = loadProject(root);
-    if (loaded.ok) {
-      for (const r of routes(loaded.project.spec, loaded.project.source))
-        console.log(dim(`  ${r.path}`));
-    } else {
-      printDiagnostics(root, loaded.diagnostics);
-    }
+    if (loaded.ok) summariseRoutes(loaded.project.spec, loaded.project.source);
+    else printDiagnostics(root, loaded.diagnostics);
+
+    // Last, so it is the line still on screen. It came first and was then
+    // pushed off by the routes — a site with two hundred rooms printed two
+    // hundred lines, and the address you actually needed was above all of them.
+    console.log(
+      `\n${green("dev")} ${bold(`http://localhost:${port}`)}  ${dim(rel(process.cwd(), root))}`,
+    );
   });
 }
 
@@ -208,13 +259,6 @@ function errorPage(
     })
     .join("");
   return shell("Spec error", `<h1>The spec did not validate</h1><ul>${items}</ul>`);
-}
-
-function notFoundPage(paths: readonly string[]): string {
-  const items = paths
-    .map((p) => `<li><a href="${escapeHtml(p)}">${escapeHtml(p)}</a></li>`)
-    .join("");
-  return shell("Not found", `<h1>No page answers that path</h1><ul>${items}</ul>`);
 }
 
 /**

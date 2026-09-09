@@ -200,7 +200,13 @@ export class SiteController {
 
     ctx.res.statusCode = 404;
     ctx.res.setHeader("content-type", "text/html; charset=utf-8");
-    ctx.res.end("<!doctype html><meta charset=utf-8><title>Not found</title><h1>Not found</h1>");
+    // The site's own 404 — its layout, its colours, a sentence somebody outside
+    // this project would write, and a way back. The bare `<h1>Not found</h1>`
+    // that was here reads as a broken site rather than a wrong address.
+    const page = await this.sites.renderStatus(404, this.base(ctx));
+    ctx.res.end(
+      page?.html ?? "<!doctype html><meta charset=utf-8><title>Not found</title><h1>Not found</h1>",
+    );
   }
 }
 
