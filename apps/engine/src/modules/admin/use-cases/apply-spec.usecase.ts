@@ -10,7 +10,7 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { checkReferences, classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
 
-import { planMigration, runMigration, type MigrationStep } from "@forinda-cms/db";
+import { planMigration, reconcileIndexes, runMigration, type MigrationStep } from "@forinda-cms/db";
 import type { Db, Scope } from "@forinda-cms/db";
 import { EntryRepository, PatchRepository, SpecRepository } from "@/shared/repositories";
 
@@ -182,6 +182,18 @@ export class ApplySpecUseCase {
       const { applied } = await runMigration(tx, plan, {
         allowDestructive: input.allowDestructive === true,
       });
+
+      // The plan is what a person agreed to; this is what makes the indexes
+      // true. An index is derived state — what should exist is a function of
+      // the spec, not of the diff — so anything the diff could not see is
+      // repaired here rather than never. It is idempotent, and a site whose
+      // indexes already match does nothing and reports nothing.
+      //
+      // Not for a destructive plan that was refused: the spec did not fully
+      // land, so reconciling to it would enforce a shape the caller declined.
+      if (applied.length === plan.length) {
+        await reconcileIndexes(tx, validated, { siteId: this.scope.siteId });
+      }
 
       return { seq, changes, migration: applied };
     });

@@ -28,7 +28,7 @@
  */
 import { sql } from "drizzle-orm";
 
-import type { Executor } from "./client.js";
+import { rowsOf, type Executor } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
 import type { Classification } from "@forinda-cms/spec";
@@ -326,4 +326,83 @@ export async function runMigration(
   }
 
   return { applied, skipped };
+}
+
+/**
+ * Make the indexes match the spec, rather than match the diff.
+ *
+ * An index is *derived state*, not a change: what should exist is a function of
+ * the current spec and nothing else. Planning them from a diff meant anything
+ * the diff could not see never happened — a field that was already `unique`
+ * before uniqueness was enforced got no index, because the flag never changed,
+ * and no future edit would ever create one.
+ *
+ * So this reconciles: every index the spec calls for is created, and every one
+ * of ours that the spec no longer calls for is dropped. Idempotent by
+ * construction, which is what lets it run on every apply without the plan
+ * having to describe it — the plan is what a person agrees to, and "the indexes
+ * still match" is not a decision anybody makes.
+ *
+ * Ours is decided by the partial predicate: every index this file writes is
+ * scoped `WHERE site_id = '…'`, so one site can never drop another's.
+ */
+export async function reconcileIndexes(
+  tx: Executor,
+  spec: SiteSpec,
+  scope: PlanScope,
+): Promise<{ created: string[]; dropped: string[] }> {
+  const siteId = assertSafe(scope.siteId, "site id");
+  const where = (typeKey: string) =>
+    `site_id = '${siteId}' AND type_key = '${assertSafe(typeKey, "content type key")}'`;
+
+  const wanted = new Map<string, string>();
+  for (const type of spec.content) {
+    // A derived type has no stored rows, so indexing it indexes a table that
+    // will never hold its data.
+    if (type.derived) continue;
+    const typeKey = type.key;
+
+    for (const field of type.fields) {
+      const name = assertSafe(field.name, "field name");
+      if (filterable(field)) {
+        wanted.set(
+          indexName(siteId, typeKey, name),
+          `CREATE INDEX IF NOT EXISTS ${indexName(siteId, typeKey, name)} ` +
+            `ON entries ((${indexExpression(field)})) WHERE ${where(typeKey)}`,
+        );
+      }
+      if (unique(field)) {
+        wanted.set(
+          uniqueIndexName(siteId, typeKey, name),
+          `CREATE UNIQUE INDEX IF NOT EXISTS ${uniqueIndexName(siteId, typeKey, name)} ` +
+            `ON entries ((${indexExpression(field)})) WHERE ${where(typeKey)}`,
+        );
+      }
+    }
+  }
+
+  const rows = rowsOf<{ indexname: string; indexdef: string }>(
+    await tx.execute(sql`select indexname, indexdef from pg_indexes where tablename = 'entries'`),
+  );
+  // The predicate is what says whose it is. Matching on the name would mean
+  // trusting a hash to be ours, and a prefix is not ownership.
+  const ours = rows.filter((row) => row.indexdef.includes(`site_id = '${siteId}'`));
+
+  const created: string[] = [];
+  const dropped: string[] = [];
+
+  for (const row of ours) {
+    if (wanted.has(row.indexname)) continue;
+    await tx.execute(sql.raw(`DROP INDEX IF EXISTS ${row.indexname}`));
+    dropped.push(row.indexname);
+  }
+
+  const existing = new Set(ours.map((row) => row.indexname));
+  for (const [name, statement] of wanted) {
+    if (existing.has(name)) continue;
+    await tx.execute(sql.raw(statement));
+    created.push(name);
+  }
+
+  return { created, dropped };
 }
