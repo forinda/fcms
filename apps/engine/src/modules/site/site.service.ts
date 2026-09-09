@@ -101,6 +101,10 @@ export class SiteService {
         spec: resolved.spec,
         source: resolved.source,
         registry: BLOCKS,
+        // What the site says its money and dates look like. Without this the
+        // renderer fell back to its own default and every site on earth priced
+        // itself in Kenyan shillings.
+        locale: { locale: resolved.spec.locale, currency: resolved.spec.currency },
         params,
         ...(viewer ? { viewer } : {}),
         ...(Object.keys(flow).length > 0 ? { flow } : {}),

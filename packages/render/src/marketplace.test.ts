@@ -456,3 +456,71 @@ describe("aggregates over a written reference", () => {
     expect(source.all("property")[0]?.["reviewCount"]).toBe(0);
   });
 });
+
+/**
+ * Money is written the way the site says, not the way the renderer guesses.
+ *
+ * The renderer has always taken a locale and the engine never passed one, so a
+ * hotel in Zanzibar priced itself in Kenyan shillings and the spec had no way
+ * to disagree.
+ */
+describe("a site's own currency", () => {
+  const priced = (currency: string, locale: string) =>
+    SiteSpec.parse({
+      specVersion: 2,
+      name: "Stays",
+      locale,
+      currency,
+      theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [
+        {
+          key: "room",
+          label: "Room",
+          titleField: "name",
+          fields: [
+            { name: "name", label: "Name", type: "text", required: true },
+            { name: "price", label: "Price", type: "number", required: true },
+          ],
+        },
+      ],
+      pages: [
+        {
+          key: "rooms",
+          path: "/rooms",
+          title: "Rooms",
+          blocks: [
+            {
+              type: "list",
+              data: { from: "room", limit: 5 },
+              item: [{ type: "text", attrs: { text: "{{ item.price | currency }}" } }],
+            },
+          ],
+        },
+      ],
+    });
+
+  const source = staticSource({ room: [{ slug: "one", name: "One", price: 120 }] });
+
+  it("defaults to what every existing site already renders", () => {
+    const spec = SiteSpec.parse({
+      specVersion: 2,
+      name: "Stays",
+      theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+      content: [],
+      pages: [],
+    });
+    expect(spec.currency).toBe("KES");
+    expect(spec.locale).toBe("en-KE");
+  });
+
+  it("writes prices in the currency the spec declares", () => {
+    const spec = priced("USD", "en-US");
+    const { html } = renderPage(spec.pages[0]!, {
+      spec,
+      source,
+      locale: { locale: spec.locale, currency: spec.currency },
+    });
+    expect(html).toContain("120");
+    expect(html).not.toContain("Ksh");
+  });
+});
