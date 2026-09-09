@@ -1,0 +1,66 @@
+key: room
+label: Room
+labelPlural: Rooms
+titleField: name
+publishable: true
+fields:
+  - name: property
+    label: Property
+    type: reference
+    required: true
+    unique: false
+    filterable: true
+    to: property
+    many: false
+  - name: name
+    label: Name
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: blurb
+    label: Blurb
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: price
+    label: Price per night
+    type: number
+    required: true
+    unique: false
+    filterable: true
+  - name: sleeps
+    label: Sleeps
+    type: number
+    required: false
+    unique: false
+    filterable: true
+    min: 1
+  - name: beds
+    label: Beds
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: sizeSqm
+    label: Size (m²)
+    type: number
+    required: false
+    unique: false
+    filterable: false
+  - name: photo
+    label: Photo
+    type: asset
+    required: false
+    unique: false
+    filterable: false
+    accept: image
+  - name: amenities
+    label: In this room
+    type: reference
+    required: false
+    unique: false
+    filterable: false
+    to: amenity
+    many: true

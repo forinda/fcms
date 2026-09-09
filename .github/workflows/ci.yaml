@@ -91,8 +91,16 @@ jobs:
       # An absolute path: `--filter ... exec` runs with the package as its working
       # directory, so `examples/salon` resolved to `packages/cli/examples/salon`
       # and this job failed with "no site.yaml" on every run.
-      - name: validate the reference spec
-        run: pnpm --filter @forinda/fcms-cli exec tsx src/bin.ts validate "$GITHUB_WORKSPACE/examples/salon"
+      # Every example, not one: they exercise different halves — appointments,
+      # one guesthouse, and a marketplace with derived availability, aggregates
+      # and a flow. An example that stops validating is a promise this
+      # repository is making and breaking at the same time.
+      - name: validate every reference spec
+        run: |
+          for site in "$GITHUB_WORKSPACE"/examples/*/; do
+            echo "── $(basename "$site")"
+            pnpm --filter @forinda/fcms-cli exec tsx src/bin.ts validate "$site"
+          done
         env:
           NO_COLOR: '1'
 
@@ -103,6 +111,6 @@ jobs:
       - name: the published bundle runs
         run: |
           pnpm --filter @forinda/fcms-cli build
-          node packages/cli/dist/fcms.mjs validate "$GITHUB_WORKSPACE/examples/salon"
+          node packages/cli/dist/fcms.mjs validate "$GITHUB_WORKSPACE/examples/stays"
         env:
           NO_COLOR: '1'

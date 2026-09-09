@@ -1,0 +1,64 @@
+key: book
+path: /book
+title: Book a stay
+seo:
+  description: Pick your dates, choose a room that is actually free, and reserve it.
+# The journey, as steps rather than one long form. Each step binds what was
+# chosen into the booking the flow writes at the end, so the room a guest picked
+# is the room they are charged for — the form cannot disagree with the choice.
+flows:
+  - key: stay
+    steps:
+      - key: room
+        label: When, and which room
+        # `as` names the field this choice fills on the booking: the room a
+        # guest picked is the room they are charged for, and the form cannot
+        # disagree with the choice.
+        #
+        # The dates live in this step rather than one of their own: a step is
+        # answered by choosing a row, and dates are parameters rather than a
+        # row — so a step that only collected them could never be completed.
+        selects: { from: vacancy, as: room }
+        blocks:
+          - type: filters
+            attrs: { for: vacancy, submit: See what is free }
+          - type: results-count
+            attrs:
+              for: vacancy
+              one: "{{ results.total }} room free for those nights"
+              many: "{{ results.total }} rooms free for those nights"
+          - type: list
+            style: { cols: { base: 1, md: 2 }, gap: md }
+            data:
+              from: vacancy
+              sort: { param: sort, allow: [price, sleeps], default: price }
+              limit: 24
+            item:
+              - type: card
+                style: { padding: md, border: hairline, radius: md }
+                attrs:
+                  heading: "{{ item.name }}"
+                  body: "{{ item.beds }} · sleeps {{ item.sleeps }}"
+                  meta: "{{ item.total | currency }} for {{ item.nights }} nights"
+
+      - key: details
+        label: Your details
+        requires: [room]
+        blocks:
+          # No children: the inputs come from the booking type's declared fields,
+          # so the form cannot drift from the model.
+          - type: form
+            attrs: { for: booking, submitLabel: Reserve }
+
+    onComplete:
+      - { action: entry.transition, params: { to: confirmed } }
+
+blocks:
+  - type: section
+    style: { padding: { y: lg, x: lg } }
+    children:
+      - type: heading
+        attrs: { text: Book a stay, level: 1 }
+        style: { fontSize: xl }
+      - type: text
+        attrs: { text: "Two steps. You are not charged until the property takes payment on arrival." }

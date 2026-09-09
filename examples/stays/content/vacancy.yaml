@@ -1,0 +1,74 @@
+key: vacancy
+label: Available room
+labelPlural: Available rooms
+publishable: true
+fields:
+  - name: property
+    label: Property
+    type: reference
+    required: false
+    unique: false
+    filterable: true
+    to: property
+    many: false
+  - name: name
+    label: Name
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: blurb
+    label: Blurb
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: price
+    label: Price per night
+    type: number
+    required: false
+    unique: false
+    filterable: true
+  - name: sleeps
+    label: Sleeps
+    type: number
+    required: false
+    unique: false
+    filterable: true
+  - name: beds
+    label: Beds
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: photo
+    label: Photo
+    type: asset
+    required: false
+    unique: false
+    filterable: false
+    accept: image
+  - name: nights
+    label: Nights
+    type: number
+    required: false
+    unique: false
+    filterable: false
+  - name: total
+    label: Total
+    type: computed
+    required: false
+    unique: false
+    filterable: false
+    formula:
+      op: multiply
+      of:
+        - { field: price }
+        - { field: nights }
+    precision: 0
+derived:
+  kind: stay
+  resource: { type: room }
+  occupied: { type: booking, resource: room, from: checkIn, to: checkOut }
+  range: { from: check-in, to: check-out }
+  window: { days: 365 }

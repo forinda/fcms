@@ -23,10 +23,12 @@ if (!url) {
 const ORG = process.env["ORG_ID"] ?? "default";
 const SITE = process.env["SITE_ID"] ?? "default";
 /**
- * Which example to load. `EXAMPLE=rooms pnpm seed` for the guesthouse.
+ * Which example to load. `EXAMPLE=rooms pnpm seed` for the guesthouse,
+ * `EXAMPLE=stays` for the marketplace.
  *
- * Two examples now (ADR 0025): the salon is the appointment shape, the rooms
- * are the date-range one, and between them they cover both derived kinds.
+ * Three now: the salon is the appointment shape, the rooms are the date-range
+ * one — between them both derived kinds — and stays is the marketplace, which
+ * is the shape with search, aggregates and a journey in it.
  */
 const root = join(
   dirname(fileURLToPath(import.meta.url)),

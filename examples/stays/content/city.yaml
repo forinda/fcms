@@ -1,0 +1,48 @@
+key: city
+label: City
+labelPlural: Cities
+titleField: name
+publishable: true
+permalink: "/city/{{ entry.slug }}"
+fields:
+  - name: name
+    label: Name
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: country
+    label: Country
+    type: text
+    required: true
+    unique: false
+    filterable: true
+  - name: blurb
+    label: Blurb
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: photo
+    label: Photo
+    type: asset
+    required: false
+    unique: false
+    filterable: false
+    accept: image
+  - name: location
+    label: Where
+    type: geo
+    required: false
+    unique: false
+    filterable: false
+  - name: propertyCount
+    label: Properties
+    type: aggregate
+    required: false
+    unique: false
+    filterable: false
+    of: property
+    on: city
+    fn: count
+    precision: 1

@@ -1,0 +1,53 @@
+key: review
+label: Review
+labelPlural: Reviews
+titleField: title
+publishable: true
+fields:
+  - name: property
+    label: Property
+    type: reference
+    required: true
+    unique: false
+    filterable: true
+    to: property
+    many: false
+  - name: score
+    label: Score
+    type: number
+    required: true
+    unique: false
+    filterable: true
+    min: 1
+    max: 10
+  - name: title
+    label: Headline
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: body
+    label: What it was like
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: author
+    label: Name
+    type: text
+    required: true
+    unique: false
+    filterable: false
+  - name: country
+    label: From
+    type: text
+    required: false
+    unique: false
+    filterable: false
+  - name: stayedOn
+    label: Stayed
+    type: date
+    required: false
+    unique: false
+    filterable: false
+submissions: visitors
