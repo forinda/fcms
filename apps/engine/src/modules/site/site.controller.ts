@@ -133,6 +133,25 @@ export class SiteController {
     );
   }
 
+  /**
+   * `/llms.txt` — what this site is, for something reading rather than crawling.
+   *
+   * Not gated on `indexable`: those are different questions. A staging site
+   * kept out of search may still be one an agent has been pointed at
+   * deliberately, and the switch for this one is `seo.llms`.
+   */
+  @Get("/llms.txt")
+  async llms(ctx: Ctx): Promise<void> {
+    const body = await this.sites.llms(this.base(ctx));
+    if (body === null) {
+      ctx.res.statusCode = 404;
+      ctx.res.end();
+      return;
+    }
+    ctx.res.setHeader("content-type", "text/plain; charset=utf-8");
+    ctx.res.end(body);
+  }
+
   /** `sitemap.xml`, generated from the spec and updated by construction (doc 08). */
   @Get("/sitemap.xml")
   async sitemap(ctx: Ctx): Promise<void> {

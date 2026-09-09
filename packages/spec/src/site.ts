@@ -84,9 +84,51 @@ export const SiteSpec = z
         indexable: z.boolean().default(true),
         /** Off for a site that publishes its addresses some other way. */
         sitemap: z.boolean().default(true),
+        /**
+         * `/llms.txt` — the site, described for something reading rather than
+         * crawling.
+         *
+         * A model asked about this business fetches a page and guesses. This
+         * says what the site is and what is on it, in the one file the
+         * convention looks for, and it is generated from the spec — which is
+         * the whole point: the spec already knows.
+         */
+        llms: z.boolean().default(true),
       })
       .strict()
-      .default({ indexable: true, sitemap: true }),
+      .default({ indexable: true, sitemap: true, llms: true }),
+    /**
+     * Analytics, named rather than pasted.
+     *
+     * The obvious shape is a box to paste a `<script>` into, and it is the one
+     * shape this must not have: a spec is data that a model may propose and a
+     * form may submit, and arbitrary JavaScript in it is a cross-site scripting
+     * hole with an approval workflow in front of it.
+     *
+     * So the providers are named and the snippet is ours. Adding one is a
+     * change here, reviewed, rather than a change somebody makes in a text
+     * field on a Tuesday.
+     */
+    analytics: z
+      .object({
+        /** A Google measurement id — `G-XXXXXXXXXX`. */
+        gtag: z
+          .string()
+          .regex(/^G-[A-Z0-9]{6,16}$/, "a measurement id like G-ABC1234567")
+          .optional(),
+        /** Plausible: the domain it counts under. */
+        plausible: z
+          .string()
+          .regex(/^[a-z0-9.-]+$/, "a domain")
+          .optional(),
+        /** Umami: the site id, and where the script is hosted. */
+        umami: z
+          .object({ id: z.string().min(1), src: z.string().url() })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
     layout: SiteLayout.optional(),
     /** Site-level tier-3 CSS. Gated to the `developer` role (ADR 0004/0008). */
     css: CustomCss.optional(),

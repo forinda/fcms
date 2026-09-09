@@ -133,6 +133,92 @@ is right for a container and awkward at a terminal.
 
 `npx @forinda/fcms-core --help` prints this list from the binary itself.
 
+## Search, sharing and structured data
+
+Every page carries these without being asked. There is no SEO plugin because
+there is nothing for one to ask: the content type already declares its shape.
+
+| | |
+|---|---|
+| `<title>`, `meta description` | from the page, resolved per entry on a collection page |
+| `link rel="canonical"` | this page's own address, absolute when `PUBLIC_URL` is set |
+| `html lang`, `og:locale` | the site's `locale` |
+| Open Graph | `og:title`, `og:description`, `og:image`, `og:image:alt`, `og:url`, `og:type`, `og:site_name` |
+| Twitter/X | `twitter:card` (large image when there is one), `title`, `description`, `image` |
+| JSON-LD | when the content type has a `jsonld` mapping |
+| `noindex` | on drafts, automatically |
+
+Per page, templated so one collection page covers every entry:
+
+```yaml
+seo:
+  title: "{{ entry.name }} in {{ entry.city }}"
+  description: "{{ entry.summary }}"
+  image: "asset:hero"
+  noindex: false
+```
+
+Per content type, once:
+
+```yaml
+permalink: /stay/{{ entry.slug }}
+jsonld:
+  type: Hotel          # Article, Event, Product, Service, LocalBusiness,
+  properties:          # Person, Organization, Recipe, JobPosting, FAQPage,
+    name: name         # Review, LodgingBusiness, Place, TouristAttraction,
+    description: summary   # Restaurant
+    image: photo
+```
+
+**Changing a page's path 301s the old one automatically** — the change was
+stored with its inverse, so the platform knows where that address used to point.
+Only when the page still exists somewhere else: a deleted page has nowhere to
+send anyone, and redirecting it to the homepage claims a move that did not
+happen.
+
+## What a site publishes to machines
+
+Three files nobody writes: they are generated from the spec, so they cannot go
+stale, and `site.yaml` decides whether they exist.
+
+| | |
+|---|---|
+| `/robots.txt` | points at the sitemap |
+| `/sitemap.xml` | every public page, each with a `lastmod` from the row behind it |
+| `/llms.txt` | what this site is, for a model rather than a crawler |
+
+```yaml
+# site.yaml
+seo:
+  indexable: true   # false: every page noindex, robots.txt disallows, no sitemap
+  sitemap: true
+  llms: true
+```
+
+`indexable: false` is the switch for a staging copy or a site before launch —
+one decision at the level it is actually made, rather than `noindex` on every
+page and one forgotten. `llms.txt` is not gated on it, because they are
+different questions: a site kept out of search may still be one an agent has
+been pointed at deliberately.
+
+Draft pages and `seo.noindex` pages are in neither the sitemap nor `llms.txt`.
+
+### Analytics
+
+```yaml
+# site.yaml
+analytics:
+  gtag: G-ABC1234567          # Google Analytics 4
+  plausible: example.com      # the domain it counts under
+  umami: { id: "…", src: "https://umami.example/script.js" }
+```
+
+**There is no field for a pasted `<script>`, and there will not be.** A spec is
+data an agent may propose and a form may submit; arbitrary JavaScript in it is a
+cross-site scripting hole with an approval workflow in front of it. Providers
+are named, the snippet is ours, and adding one is a reviewed change to
+`packages/render/src/agents.ts`.
+
 ## For an agent
 
 ```json

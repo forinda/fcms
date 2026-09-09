@@ -13,6 +13,7 @@ export * from "./stay.js";
 export * from "./places.js";
 export * from "./scope.js";
 export * from "./blocks.js";
+export * from "./agents.js";
 export * from "./seo.js";
 export * from "./render.js";
 export * from "./status.js";

@@ -102,6 +102,11 @@ that takes bookings has the whole path: availability by appointment or by date
 range, distance, multi-step booking journeys, deposits, automations that confirm
 and notify, and visitors who see their own bookings and nobody else's.
 
+Being found is part of that and needs no setup: titles, canonicals, Open Graph,
+`sitemap.xml` with a `lastmod` per page, `llms.txt`, JSON-LD from the content
+type's own shape, and an automatic 301 when a page moves. Details in
+[GUIDE.md](GUIDE.md#7-be-found).
+
 Worth knowing before you rely on it:
 
 - The M-Pesa and messaging providers are written against documented APIs but

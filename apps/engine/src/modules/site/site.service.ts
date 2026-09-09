@@ -15,6 +15,7 @@
 import { Inject, Service } from "@forinda/kickjs";
 import {
   declaredStatusPage,
+  llmsTxt,
   renderPage,
   routes,
   statusPage,
@@ -129,12 +130,25 @@ export class SiteService {
    * site, it travels with the site's files, and a staging copy made by applying
    * the same spec should not silently become indexable.
    */
-  async seoSettings(): Promise<{ indexable: boolean; sitemap: boolean }> {
+  async seoSettings(): Promise<{ indexable: boolean; sitemap: boolean; llms: boolean }> {
     const resolved = await this.resolve();
     // No spec is not a site yet, and an install with nothing on it has nothing
     // worth indexing.
-    if (!resolved) return { indexable: false, sitemap: false };
+    if (!resolved) return { indexable: false, sitemap: false, llms: false };
     return resolved.spec.seo;
+  }
+
+  /**
+   * `/llms.txt`, or nothing if the site turned it off.
+   *
+   * Generated on request like the sitemap — it is derived from the spec, so
+   * caching it would only be a way to serve a stale description of a site
+   * somebody just changed.
+   */
+  async llms(base?: string): Promise<string | null> {
+    const resolved = await this.resolve();
+    if (!resolved || !resolved.spec.seo.llms) return null;
+    return llmsTxt(resolved.spec, base);
   }
 
   async publicRoutes(): Promise<{ path: string; lastmod?: string }[]> {

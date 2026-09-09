@@ -14,7 +14,7 @@ import { readFileSync, watch, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { diffSpecs, summarise, type EntryCounts } from "@forinda-cms/spec";
 import { splitFiles } from "@forinda-cms/lang";
-import { declaredStatusPage, renderPage, routes, statusPage } from "@forinda-cms/render";
+import { declaredStatusPage, llmsTxt, renderPage, routes, statusPage } from "@forinda-cms/render";
 
 import { loadProject } from "./project.js";
 import { bold, dim, green, printDiagnostics, rel, yellow } from "./report.js";
@@ -149,6 +149,20 @@ export function dev(root: string, port: number): void {
     }
 
     const { spec, source } = loaded.project;
+
+    // What the site publishes to machines. The engine served these and `dev`
+    // did not, so the one place an author can look at their site before it is
+    // live was the one place these could not be checked.
+    if (url === "/llms.txt") {
+      if (!spec.seo.llms) {
+        res.writeHead(404).end();
+        return;
+      }
+      res.writeHead(200, { "content-type": "text/plain; charset=utf-8" });
+      res.end(llmsTxt(spec));
+      return;
+    }
+
     const all = routes(spec, source);
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
     const match = all.find((r) => r.path === path);

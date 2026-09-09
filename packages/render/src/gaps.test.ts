@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { SiteSpec } from "@forinda-cms/spec";
 
+import { llmsTxt } from "./agents.js";
 import { renderPage } from "./render.js";
 import { staticSource, withDerived } from "./entries.js";
 
@@ -260,5 +261,75 @@ describe("the head of a page", () => {
     expect(html).toContain('property="og:type" content="article"');
     expect(html).toContain('name="twitter:title"');
     expect(html).toContain('name="twitter:description"');
+  });
+});
+
+describe("what a site publishes to machines", () => {
+  const base = {
+    specVersion: 2,
+    name: "Stays",
+    note: "Rooms\nby the harbour.",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        labelPlural: "Properties",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "city", label: "City", type: "text" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        blocks: [{ type: "heading", attrs: { text: "{{ entry.name }}", level: 1 } }],
+      },
+      { key: "home", path: "/", title: "Home", note: "The front page", blocks: [] },
+      { key: "wip", path: "/wip", title: "Half done", draft: true, blocks: [] },
+      { key: "thanks", path: "/thanks", title: "Thanks", seo: { noindex: true }, blocks: [] },
+    ],
+  };
+
+  it("describes the site for something reading rather than crawling", () => {
+    const text = llmsTxt(SiteSpec.parse(base), "https://stays.example/");
+
+    expect(text).toContain("# Stays");
+    // A note is prose and may wrap; a summary line may not.
+    expect(text).toContain("> Rooms by the harbour.");
+    expect(text).toContain("- [Home](https://stays.example/): The front page");
+    // A collection page's title is a template with no row to resolve against,
+    // so it is named by what it lists.
+    expect(text).toContain("- [Properties](https://stays.example/stay): every Property");
+    expect(text).toContain("- **Properties** — name, city");
+  });
+
+  it("leaves out the pages a crawler is not shown either", () => {
+    const text = llmsTxt(SiteSpec.parse(base));
+    expect(text).not.toContain("/wip");
+    expect(text).not.toContain("/thanks");
+  });
+
+  it("carries an analytics tag only when the site asked for one", () => {
+    const off = SiteSpec.parse(base);
+    const page = (spec: typeof off) =>
+      renderPage(spec.pages[1]!, { spec, source: staticSource({}) }).html;
+
+    expect(page(off)).not.toContain("googletagmanager");
+
+    const on = SiteSpec.parse({ ...base, analytics: { gtag: "G-ABC1234567" } });
+    expect(page(on)).toContain('src="https://www.googletagmanager.com/gtag/js?id=G-ABC1234567"');
+    expect(page(on)).toContain("gtag('config','G-ABC1234567')");
+  });
+
+  it("refuses a measurement id that is really a script", () => {
+    expect(() =>
+      SiteSpec.parse({ ...base, analytics: { gtag: "G-1'></script><script>alert(1)</script>" } }),
+    ).toThrow();
   });
 });

@@ -26,6 +26,7 @@ import {
   type QueryResult,
 } from "./entries.js";
 import { el, fragment, raw, render as toString, type Html } from "./html.js";
+import { analytics } from "./agents.js";
 import { buildJsonLd, head, pageSeo } from "./seo.js";
 import { DEFAULT_LOCALE, resolveAttrs, type FormatLocale, type Scope } from "./scope.js";
 
@@ -548,6 +549,9 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
         // walk so only blocks that actually rendered contribute any.
         walk.css.length ? el("style", {}, raw(walk.css.join(""))) : null,
         page.css ? el("style", {}, raw(page.css)) : null,
+        // Last in the head, after everything that decides what the page looks
+        // like — an analytics tag must never be what delays a render.
+        analytics(spec),
       ),
       el("body", {}, body),
     ),
