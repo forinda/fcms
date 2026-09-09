@@ -1347,6 +1347,28 @@
               {
                 "type": "object",
                 "properties": {
+                  "ref": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-zA-Z0-9]*$"
+                  },
+                  "field": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "pattern": "^[a-z][a-zA-Z0-9]*$"
+                  }
+                },
+                "required": [
+                  "ref",
+                  "field"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
                   "param": {
                     "type": "string",
                     "pattern": "^[a-z][a-z0-9_]*$"

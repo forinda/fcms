@@ -138,6 +138,21 @@ export const AggregateField = scalarField("aggregate").extend({
 export const Operand: z.ZodType<Operand> = z.lazy(() =>
   z.union([
     z.object({ field: FieldName }).strict(),
+    /**
+     * A number on the row this one points at — one hop, across a declared
+     * reference (`{ ref: room, field: price }`).
+     *
+     * Without it a price could only come from a field on the row itself, which
+     * on a booking means a field somebody fills in. `payment.amount` reads the
+     * row the platform wrote, so a form-writable amount is a customer choosing
+     * what to pay — and every example wrote it that way because there was no
+     * alternative.
+     *
+     * One hop and no more. Two would be a join, three would be a query
+     * language, and the point of a declared formula is that you can read it and
+     * say what it depends on without running it.
+     */
+    z.object({ ref: FieldName, field: FieldName }).strict(),
     z
       .object({ param: z.string().regex(/^[a-z][a-z0-9_]*$/), default: z.number().optional() })
       .strict(),
@@ -148,6 +163,7 @@ export const Operand: z.ZodType<Operand> = z.lazy(() =>
 
 export type Operand =
   | { field: string }
+  | { ref: string; field: string }
   | { param: string; default?: number }
   | { value: number }
   | Formula;

@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { Access } from "./access.js";
 import type { Condition } from "./condition.js";
-import { ContentType } from "./content.js";
+import { ContentType, type Operand } from "./content.js";
 import { ACTIONS, Workflow } from "./logic.js";
 import { Block, Component, Page, collectionType } from "./pages.js";
 import { Label, Note } from "./primitives.js";
@@ -257,6 +257,55 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
     }
   }
 
+  // A `{ ref, field }` operand crosses one declared reference, so both halves
+  // have to exist: the reference on this type, and the number on the type it
+  // points at. Unchecked it evaluates to nothing, and a price that is quietly
+  // nothing is the worst possible thing for it to be.
+  for (const type of spec.content) {
+    for (const field of type.fields) {
+      if (field.type !== "computed") continue;
+      const at = `/content/${type.key}/fields/${field.name}`;
+
+      for (const hop of hops(field.formula)) {
+        const reference = type.fields.find((f) => f.name === hop.ref);
+        if (!reference) {
+          issues.push({ path: at, message: `"${type.key}" has no field "${hop.ref}"` });
+          continue;
+        }
+        if (reference.type !== "reference") {
+          issues.push({
+            path: at,
+            message: `"${hop.ref}" is a ${reference.type}, not a reference to follow`,
+          });
+          continue;
+        }
+        if (reference.many) {
+          issues.push({
+            path: at,
+            message: `"${hop.ref}" holds many rows, so there is no single "${hop.field}" to read`,
+          });
+          continue;
+        }
+
+        const target = types.get(reference.to);
+        if (!target) continue; // Already reported as an unknown reference target.
+        const wanted = target.fields.find((f) => f.name === hop.field);
+        if (!wanted) {
+          issues.push({ path: at, message: `"${reference.to}" has no field "${hop.field}"` });
+        } else if (
+          wanted.type !== "number" &&
+          wanted.type !== "computed" &&
+          wanted.type !== "aggregate"
+        ) {
+          issues.push({
+            path: at,
+            message: `"${reference.to}.${hop.field}" is a ${wanted.type}, and a formula needs a number`,
+          });
+        }
+      }
+    }
+  }
+
   // Aggregates name another type and a reference field on it. Both have to
   // exist, or the value is silently always null — which reads as "no reviews
   // yet" forever (ADR 0019 §4).
@@ -306,6 +355,11 @@ export function checkReferences(spec: SiteSpec): SpecIssue[] {
 
       const walkFormula = (operand: unknown): void => {
         if (typeof operand !== "object" || operand === null) return;
+
+        // A hop names a field on *another* type, and is checked against that
+        // type below. It carries a `field` key too, so without this every valid
+        // hop is also reported as a field this type does not have.
+        if ("ref" in operand) return;
 
         if ("field" in operand) {
           const named = String((operand as { field: string }).field);
@@ -751,4 +805,11 @@ function entryConditions(blocks: readonly Block[]): Condition[] {
   };
   walk(blocks);
   return found;
+}
+
+/** Every `{ ref, field }` in a formula, however deeply nested. */
+function hops(operand: Operand): { ref: string; field: string }[] {
+  if ("ref" in operand) return [{ ref: operand.ref, field: operand.field }];
+  if ("of" in operand) return operand.of.flatMap(hops);
+  return [];
 }

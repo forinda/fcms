@@ -381,6 +381,7 @@ export function withDerived(
         declared,
         addDistance(declared, addAggregates(declared, rows, source), params),
         params,
+        source,
       );
       cache.set(type, enriched);
       return enriched;
@@ -445,6 +446,7 @@ function addComputed(
   type: ContentType,
   rows: readonly Entry[],
   params: RequestParams,
+  source?: EntrySource,
 ): readonly Entry[] {
   const computed = type.fields.filter(
     (field): field is Extract<Field, { type: "computed" }> => field.type === "computed",
@@ -453,8 +455,24 @@ function addComputed(
 
   return rows.map((row) => {
     const out: Record<string, unknown> = { ...row };
+
+    /** The number on the row a reference field points at, or nothing. */
+    const follow = (referenceField: string, wanted: string): number | null => {
+      const declared = type.fields.find((f) => f.name === referenceField);
+      if (!declared || declared.type !== "reference" || !source) return null;
+      // A `many` reference has no single row to read a number from, and
+      // summing one silently would be an aggregate wearing a formula's clothes.
+      if ("many" in declared && declared.many) return null;
+
+      const target = source
+        .all(declared.to)
+        .find((other) => referencesRow(row[referenceField], other, declared.to));
+      const value = target?.[wanted];
+      return typeof value === "number" ? value : null;
+    };
+
     for (const field of computed) {
-      const value = evaluate(field.formula, row, params);
+      const value = evaluate(field.formula, row, params, follow);
       const factor = 10 ** field.precision;
       out[field.name] = value === null ? null : Math.round(value * factor) / factor;
     }
@@ -469,8 +487,38 @@ function addComputed(
  * unknown, and a total of 0 would be a claim about it. Division by zero is null
  * for the same reason — it is not infinity, it is a question with no answer.
  */
-function evaluate(operand: Operand, row: Entry, params: RequestParams): number | null {
+/**
+ * One formula, against one row.
+ *
+ * Exported because a price is evaluated in two places and must agree in both:
+ * the renderer, which shows it, and the payment, which charges it. Two
+ * evaluators would be two prices, and the second one is the one with money
+ * attached.
+ *
+ * `follow` resolves a `{ ref, field }` hop. A caller that cannot follow
+ * references passes nothing, and a hop is then null rather than wrong.
+ */
+export function evaluateFormula(
+  operand: Operand,
+  row: Entry,
+  params: RequestParams = {},
+  follow?: (referenceField: string, wanted: string) => number | null,
+): number | null {
+  return evaluate(operand, row, params, follow);
+}
+
+function evaluate(
+  operand: Operand,
+  row: Entry,
+  params: RequestParams,
+  follow?: (referenceField: string, wanted: string) => number | null,
+): number | null {
   if ("value" in operand) return operand.value;
+
+  // One hop across a declared reference: the price of the room this booking
+  // points at. Checked at validate time, so an unresolvable hop is a spec
+  // error rather than a silent null on a live page.
+  if ("ref" in operand) return follow ? follow(operand.ref, operand.field) : null;
 
   if ("field" in operand) {
     const value = row[operand.field];
@@ -485,7 +533,7 @@ function evaluate(operand: Operand, row: Entry, params: RequestParams): number |
     return operand.default ?? null;
   }
 
-  const values = operand.of.map((child) => evaluate(child, row, params));
+  const values = operand.of.map((child) => evaluate(child, row, params, follow));
   if (values.some((value) => value === null)) return null;
 
   const numbers = values as number[];
