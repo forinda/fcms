@@ -1,6 +1,6 @@
 {
   "name": "@forinda/fcms-cli",
-  "version": "2026.6.0",
+  "version": "2026.7.0",
   "description": "fcms — the forinda-cms management CLI. Validate, format, preview and publish a site from a directory of YAML.",
   "keywords": [
     "cli",
