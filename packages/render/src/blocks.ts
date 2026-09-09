@@ -193,7 +193,7 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       name: "card",
       summary: "A titled block of content, usually one row of a list.",
       attrs: ["heading", "body", "meta", "image", "to"],
-      variants: ["plain", "elevated"],
+      variants: ["plain", "elevated", "price"],
       render: ({ className, attrs, children }) => {
         const href = safeHref(attrs["to"]);
         const inner = fragment(
@@ -237,10 +237,18 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
           const value = condition.value;
           if (typeof value !== "object" || value === null || !("param" in value)) return [];
           const field = contentType.fields.find((f) => f.name === condition.field);
-          return field ? [{ param: value.param, field }] : [];
+          return field ? [{ ...value, field }] : [];
         });
 
-        const fields = params.map(({ field, param }) => ({ ...field, name: param }));
+        // The clause's own words where it has them. A field's label answers
+        // "what is this column"; a filter's answers "what am I asking you", so
+        // a help centre searched by `title` had a search box labelled "Title".
+        const fields = params.map(({ field, param, label, placeholder }) => ({
+          ...field,
+          name: param,
+          ...(label ? { label } : {}),
+          ...(placeholder ? { placeholder } : {}),
+        }));
 
         const current = (name: string) => {
           const value = request?.params[name];
@@ -273,6 +281,9 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
                   name: field.name,
                   type: inputTypeFor(field.type),
                   value: current(field.name),
+                  ...("placeholder" in field && field.placeholder
+                    ? { placeholder: field.placeholder }
+                    : {}),
                 });
 
           return el("div", { class: "fx-field" }, fragment(label, control));

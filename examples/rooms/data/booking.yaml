@@ -1,0 +1,9 @@
+# One room already taken, so a search has something to exclude.
+- reference: RR-1041
+  room: ref:room/lakeview
+  checkIn: "2026-10-03"
+  checkOut: "2026-10-07"
+  guestName: Achieng
+  guestEmail: achieng@example.test
+  deposit: 9500
+  status: confirmed

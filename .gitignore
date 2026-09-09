@@ -14,7 +14,11 @@ coverage/
 
 # Astro's generated types and build output.
 .astro/
-data/
+
+# The server's runtime uploads. Unanchored, this read `data/` and matched the
+# examples' `data/*.yaml` — the rows of the reference marketplace — so the site
+# the README points at was published with no content in it.
+apps/engine/data/
 # Copied from install/ at build time — one source of truth.
 apps/marketing/public/install/
 
@@ -31,6 +35,11 @@ packages/server/migrations/
 #
 # The code still cites them ("ADR 0009 §3"), because a comment that says *why*
 # is worth more than a link that resolves.
-docs/
-research/
+#
+# Anchored to the root: an unanchored `docs/` matched
+# `apps/marketing/src/pages/docs/`, so the marketing site's own documentation
+# was silently untracked — including the reference page and everything added to
+# it. A published page that only exists on one laptop is worse than no page.
+/docs/
+/research/
 examples/*/FINDINGS.md

@@ -114,8 +114,14 @@ other user on the machine can read it.
 
 ## Settings for the server
 
-The server reads its configuration from the environment and nothing else, which
-is right for a container and awkward at a terminal.
+From the environment, or from a `.env` in the directory it starts in —
+`.env.<NODE_ENV>.local`, `.env.<NODE_ENV>`, `.env.local`, `.env`, in that order,
+with the real environment winning. `KICKJS_ENV_FILE=off` reads none of them;
+`KICKJS_ENV_FILE=a,b` reads those.
+
+The admin is served by this, at `/admin`. The `fcms` CLI never runs it — it
+talks to a running server over HTTP once `fcms link` and `fcms login` have been
+run.
 
 | | |
 |---|---|
@@ -132,6 +138,66 @@ is right for a container and awkward at a terminal.
 | `NODE_ENV`, `LOG_LEVEL` | as usual |
 
 `npx @forinda/fcms-core --help` prints this list from the binary itself.
+
+## Journeys
+
+A page can carry a flow: steps a visitor goes through, with the state on the
+server and no JavaScript. A step is answered in one of two ways, never both.
+
+```yaml
+flows:
+  - key: booking
+    steps:
+      # Asks. The parameters go back into the address when the step is
+      # answered, so everything after it filters by `{ param: … }` as usual.
+      - key: dates
+        label: Your dates
+        captures: [check_in, check_out]
+        blocks: [ … a filters block … ]
+      # Offers. The chosen row is looked up in what the step actually showed,
+      # never taken from the request.
+      - key: room
+        label: Your room
+        selects: { from: room, as: room }
+        blocks: [ … a list … ]
+```
+
+A capturing step shows a Continue once every parameter it names has a value,
+and the last step is whatever its blocks are — usually the form that completes
+the journey.
+
+## Styling
+
+Three tiers, in order: a theme, then structured properties, then custom CSS.
+
+```yaml
+- type: section
+  style: { background: brand, contentWidth: container }
+  children:
+    - type: card
+      style: { variant: price }
+      css: |
+        img { aspect-ratio: 1 }
+        h3 { font-size: 1.1rem }
+        &:hover { opacity: .95 }
+```
+
+`contentWidth` measures a block's **children** and leaves the block alone. A
+full-bleed band with contained content is the commonest layout on any site and
+`width` cannot express it, because constraining a section constrains its
+background too.
+
+`variant` is each block's own list — `button` takes `primary`, `secondary`,
+`outline`; `card` takes `plain`, `elevated`, `price`. A variant a block does not
+declare is ignored rather than styled by accident, and the full list per block is
+in the [reference](https://fcms.kickjs.app/docs/reference/).
+
+**In `css`, the author never writes a selector.** Declarations apply to the
+block; a nested rule is prefixed with the block's own class, and `&` is the block
+itself. One level deep, and anything that is not a declaration is dropped — so
+block CSS cannot reach an element the block does not own, whatever is typed into
+it. Site-wide `css` on `site.yaml` is the one explicit escape hatch and is gated
+to the `developer` role.
 
 ## Search, sharing and structured data
 

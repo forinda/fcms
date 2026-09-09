@@ -96,6 +96,16 @@
                               "boolean",
                               "null"
                             ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "placeholder": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
                           }
                         },
                         "required": [
@@ -264,6 +274,16 @@
                                 "boolean",
                                 "null"
                               ]
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
+                            },
+                            "placeholder": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200
                             }
                           },
                           "required": [
@@ -316,6 +336,15 @@
                     "as"
                   ],
                   "additionalProperties": false
+                },
+                "captures": {
+                  "minItems": 1,
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  }
                 },
                 "blocks": {
                   "minItems": 1,
@@ -922,6 +951,14 @@
                 }
               ]
             },
+            "contentWidth": {
+              "type": "string",
+              "enum": [
+                "full",
+                "container",
+                "narrow"
+              ]
+            },
             "align": {
               "type": "string",
               "enum": [
@@ -1190,6 +1227,16 @@
                         "boolean",
                         "null"
                       ]
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "placeholder": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
                     }
                   },
                   "required": [
@@ -1290,6 +1337,16 @@
                               "boolean",
                               "null"
                             ]
+                          },
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                          },
+                          "placeholder": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
                           }
                         },
                         "required": [

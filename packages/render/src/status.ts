@@ -11,7 +11,10 @@
  * so a site gets one without asking — and an author who wants their own writes
  * a page at `/404` and this steps aside.
  */
-import { Page, type SiteSpec } from "@forinda-cms/spec";
+import { Page, SPEC_VERSION, SiteSpec } from "@forinda-cms/spec";
+
+import { staticSource } from "./entries.js";
+import { renderPage } from "./render.js";
 
 export interface StatusPage {
   readonly status: number;
@@ -87,4 +90,33 @@ export function statusPage(
       },
     ],
   });
+}
+
+/**
+ * A status page for a server that cannot reach its own site.
+ *
+ * The 404 above is rendered in the site's clothes because the spec is right
+ * there. A 500 is the case where it may not be: the commonest cause of one is
+ * the database being unreachable, and the spec lives in the database — so an
+ * error page that reads the spec is an error page that throws while explaining
+ * that something threw.
+ *
+ * So this depends on nothing. A parsed spec with a name and the default theme,
+ * through the same renderer, with the same wording: plainer than the site, but
+ * a page rather than a stack trace, and it cannot fail for the reason the
+ * request did.
+ */
+export function statusHtml(status: number, siteName = "This site"): string {
+  const spec = SiteSpec.parse({
+    specVersion: SPEC_VERSION,
+    name: siteName,
+    theme: {
+      colors: { brand: "#1a56db", text: "#1a1a1a", background: "#ffffff", muted: "#6b7280" },
+      fonts: { body: "system-ui" },
+      typeScale: { sm: "0.9rem", md: "1rem", lg: "1.25rem", xl: "2rem" },
+    },
+    content: [],
+    pages: [],
+  });
+  return renderPage(statusPage(spec, status), { spec, source: staticSource({}) }).html;
 }

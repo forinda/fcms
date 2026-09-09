@@ -1,0 +1,137 @@
+# Twelve properties across five cities.
+#
+# Spread on purpose: the filter rail counts these, and a facet whose options all
+# read "1" teaches nobody whether facets work. Stars run 1 to 5, every property
+# kind appears, and free cancellation is true for eight of them.
+- slug: harbour-nairobi
+  name: The Harbour Nairobi
+  blurb: "Business hotel in Westlands, ten minutes from the expressway."
+  city: ref:city/nairobi
+  address: "Westlands Road, Nairobi"
+  location: { lat: -1.2649, lng: 36.8033 }
+  stars: 4
+  kind: hotel
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/restaurant, ref:amenity/gym, ref:amenity/airport-shuttle]
+  freeCancellation: true
+  breakfastIncluded: true
+- slug: kilimani-suites
+  name: Kilimani Serviced Suites
+  blurb: "Apartments with kitchens, by the week or by the night."
+  city: ref:city/nairobi
+  address: "Kilimani, Nairobi"
+  location: { lat: -1.2921, lng: 36.7833 }
+  stars: 3
+  kind: apartment
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/pool, ref:amenity/laundry]
+  freeCancellation: true
+  breakfastIncluded: false
+- slug: karen-guesthouse
+  name: Karen Guesthouse
+  blurb: "Six rooms in a garden, twenty minutes from the city when the road is kind."
+  city: ref:city/nairobi
+  address: "Karen, Nairobi"
+  location: { lat: -1.3194, lng: 36.7073 }
+  stars: 3
+  kind: guesthouse
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/breakfast, ref:amenity/step-free]
+  freeCancellation: false
+  breakfastIncluded: true
+- slug: westlands-backpackers
+  name: Westlands Backpackers
+  blurb: "Dorms and a few private rooms, above a cafe."
+  city: ref:city/nairobi
+  address: "Westlands, Nairobi"
+  location: { lat: -1.2673, lng: 36.8065 }
+  stars: 1
+  kind: hostel
+  amenities: [ref:amenity/wifi, ref:amenity/laundry, ref:amenity/front-desk-24h]
+  freeCancellation: false
+  breakfastIncluded: false
+- slug: nyali-beach
+  name: Nyali Beach Hotel
+  blurb: "On the sand, north of the old town."
+  city: ref:city/mombasa
+  address: "Nyali, Mombasa"
+  location: { lat: -4.0435, lng: 39.7011 }
+  stars: 4
+  kind: hotel
+  amenities: [ref:amenity/wifi, ref:amenity/pool, ref:amenity/beach, ref:amenity/restaurant, ref:amenity/front-desk-24h]
+  freeCancellation: true
+  breakfastIncluded: true
+- slug: diani-villa
+  name: Diani Villa
+  blurb: "A whole house on the south coast, staff included."
+  city: ref:city/mombasa
+  address: "Diani Beach Road, Mombasa"
+  location: { lat: -4.2977, lng: 39.5772 }
+  stars: 5
+  kind: villa
+  amenities: [ref:amenity/wifi, ref:amenity/pool, ref:amenity/beach, ref:amenity/parking, ref:amenity/air-conditioning]
+  freeCancellation: true
+  breakfastIncluded: true
+- slug: old-town-rooms
+  name: Old Town Rooms
+  blurb: "Three rooms in a Swahili house, off the main street."
+  city: ref:city/mombasa
+  address: "Old Town, Mombasa"
+  location: { lat: -4.0619, lng: 39.6743 }
+  stars: 2
+  kind: guesthouse
+  amenities: [ref:amenity/wifi, ref:amenity/breakfast]
+  freeCancellation: false
+  breakfastIncluded: true
+- slug: stone-town-house
+  name: Stone Town House
+  blurb: "A merchant's house with a roof terrace and a very steep stair."
+  city: ref:city/zanzibar
+  address: "Shangani, Stone Town"
+  location: { lat: -6.1627, lng: 39.1885 }
+  stars: 4
+  kind: hotel
+  amenities: [ref:amenity/wifi, ref:amenity/restaurant, ref:amenity/air-conditioning, ref:amenity/breakfast]
+  freeCancellation: true
+  breakfastIncluded: true
+- slug: paje-beach-lodge
+  name: Paje Beach Lodge
+  blurb: "Bandas on the east coast, kitesurfing next door."
+  city: ref:city/zanzibar
+  address: "Paje, Zanzibar"
+  location: { lat: -6.2661, lng: 39.5386 }
+  stars: 3
+  kind: guesthouse
+  amenities: [ref:amenity/wifi, ref:amenity/beach, ref:amenity/restaurant]
+  freeCancellation: false
+  breakfastIncluded: true
+- slug: kololo-heights
+  name: Kololo Heights
+  blurb: "Apartments on the hill, with the city below."
+  city: ref:city/kampala
+  address: "Kololo, Kampala"
+  location: { lat: 0.3345, lng: 32.5906 }
+  stars: 4
+  kind: apartment
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/gym, ref:amenity/air-conditioning, ref:amenity/laundry]
+  freeCancellation: true
+  breakfastIncluded: false
+- slug: entebbe-airport-inn
+  name: Entebbe Airport Inn
+  blurb: "Ten minutes from departures, for the early flight."
+  city: ref:city/kampala
+  address: "Entebbe Road, Kampala"
+  location: { lat: 0.0512, lng: 32.4633 }
+  stars: 3
+  kind: hotel
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/airport-shuttle, ref:amenity/front-desk-24h, ref:amenity/breakfast]
+  freeCancellation: true
+  breakfastIncluded: true
+- slug: kigali-hillside
+  name: Kigali Hillside
+  blurb: "Quiet rooms in Nyarutarama, walking distance to nothing and that is the point."
+  city: ref:city/kigali
+  address: "Nyarutarama, Kigali"
+  location: { lat: -1.9355, lng: 30.1077 }
+  stars: 4
+  kind: hotel
+  amenities: [ref:amenity/wifi, ref:amenity/parking, ref:amenity/pool, ref:amenity/restaurant, ref:amenity/step-free, ref:amenity/gym]
+  freeCancellation: true
+  breakfastIncluded: true

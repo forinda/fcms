@@ -1,0 +1,338 @@
+# Reviews. A property's `score` is the average of these and `reviewCount` is how
+# many — both computed, both sortable, neither typed by anyone.
+- slug: harbour-nairobi-r1
+  property: ref:property/harbour-nairobi
+  score: 10
+  title: "Staff made the stay"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Achieng"
+  country: Tanzania
+  stayedOn: "2026-09-13"
+- slug: harbour-nairobi-r2
+  property: ref:property/harbour-nairobi
+  score: 7
+  title: "Breakfast was the best part"
+  body: "Good value for where it is."
+  author: "Nia"
+  country: Kenya
+  stayedOn: "2026-02-23"
+- slug: harbour-nairobi-r3
+  property: ref:property/harbour-nairobi
+  score: 8
+  title: "Would come back"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Wanjiru"
+  country: India
+  stayedOn: "2026-01-28"
+- slug: harbour-nairobi-r4
+  property: ref:property/harbour-nairobi
+  score: 7
+  title: "Good bed, thin walls"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Yusuf"
+  country: Kenya
+  stayedOn: "2026-07-11"
+- slug: kilimani-suites-r1
+  property: ref:property/kilimani-suites
+  score: 9
+  title: "Exactly what the pictures showed"
+  body: "Small, but everything in it worked."
+  author: "Lena"
+  country: Uganda
+  stayedOn: "2026-09-13"
+- slug: kilimani-suites-r2
+  property: ref:property/kilimani-suites
+  score: 8
+  title: "Worth the walk up the hill"
+  body: "Good value for where it is."
+  author: "Otieno"
+  country: Tanzania
+  stayedOn: "2026-04-21"
+- slug: kilimani-suites-r3
+  property: ref:property/kilimani-suites
+  score: 6
+  title: "Good bed, thin walls"
+  body: "Good value for where it is."
+  author: "Achieng"
+  country: Rwanda
+  stayedOn: "2026-08-27"
+- slug: karen-guesthouse-r1
+  property: ref:property/karen-guesthouse
+  score: 9
+  title: "Breakfast was the best part"
+  body: "Good value for where it is."
+  author: "Samuel"
+  country: Germany
+  stayedOn: "2026-05-17"
+- slug: karen-guesthouse-r2
+  property: ref:property/karen-guesthouse
+  score: 10
+  title: "Staff made the stay"
+  body: "Arrived late and it was all still straightforward."
+  author: "Yusuf"
+  country: United Kingdom
+  stayedOn: "2026-09-25"
+- slug: karen-guesthouse-r3
+  property: ref:property/karen-guesthouse
+  score: 9
+  title: "Breakfast was the best part"
+  body: "Small, but everything in it worked."
+  author: "Yusuf"
+  country: Tanzania
+  stayedOn: "2026-02-26"
+- slug: karen-guesthouse-r4
+  property: ref:property/karen-guesthouse
+  score: 9
+  title: "Would come back"
+  body: "Small, but everything in it worked."
+  author: "Otieno"
+  country: South Africa
+  stayedOn: "2026-07-11"
+- slug: karen-guesthouse-r5
+  property: ref:property/karen-guesthouse
+  score: 6
+  title: "Slow check-in, lovely room"
+  body: "Good value for where it is."
+  author: "Yusuf"
+  country: Germany
+  stayedOn: "2026-06-21"
+- slug: westlands-backpackers-r1
+  property: ref:property/westlands-backpackers
+  score: 9
+  title: "Worth the walk up the hill"
+  body: "Arrived late and it was all still straightforward."
+  author: "Wanjiru"
+  country: United Kingdom
+  stayedOn: "2026-08-12"
+- slug: westlands-backpackers-r2
+  property: ref:property/westlands-backpackers
+  score: 9
+  title: "Exactly what the pictures showed"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Yusuf"
+  country: South Africa
+  stayedOn: "2026-05-22"
+- slug: westlands-backpackers-r3
+  property: ref:property/westlands-backpackers
+  score: 7
+  title: "Slow check-in, lovely room"
+  body: "Arrived late and it was all still straightforward."
+  author: "Samuel"
+  country: Germany
+  stayedOn: "2026-03-13"
+- slug: westlands-backpackers-r4
+  property: ref:property/westlands-backpackers
+  score: 7
+  title: "Clean, quiet, easy"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Tom"
+  country: Uganda
+  stayedOn: "2026-04-22"
+- slug: westlands-backpackers-r5
+  property: ref:property/westlands-backpackers
+  score: 10
+  title: "Would come back"
+  body: "Arrived late and it was all still straightforward."
+  author: "Otieno"
+  country: South Africa
+  stayedOn: "2026-07-27"
+- slug: nyali-beach-r1
+  property: ref:property/nyali-beach
+  score: 10
+  title: "Staff made the stay"
+  body: "Good value for where it is."
+  author: "Tom"
+  country: India
+  stayedOn: "2026-06-22"
+- slug: nyali-beach-r2
+  property: ref:property/nyali-beach
+  score: 6
+  title: "Fine for one night"
+  body: "Arrived late and it was all still straightforward."
+  author: "Otieno"
+  country: Uganda
+  stayedOn: "2026-04-17"
+- slug: nyali-beach-r3
+  property: ref:property/nyali-beach
+  score: 10
+  title: "Exactly what the pictures showed"
+  body: "Good value for where it is."
+  author: "Otieno"
+  country: United Kingdom
+  stayedOn: "2026-05-10"
+- slug: nyali-beach-r4
+  property: ref:property/nyali-beach
+  score: 10
+  title: "Staff made the stay"
+  body: "Good value for where it is."
+  author: "Priya"
+  country: Germany
+  stayedOn: "2026-03-26"
+- slug: diani-villa-r1
+  property: ref:property/diani-villa
+  score: 9
+  title: "Clean, quiet, easy"
+  body: "Ask for a room at the back if you are a light sleeper."
+  author: "Lena"
+  country: India
+  stayedOn: "2026-02-25"
+- slug: diani-villa-r2
+  property: ref:property/diani-villa
+  score: 8
+  title: "Slow check-in, lovely room"
+  body: "Arrived late and it was all still straightforward."
+  author: "Nia"
+  country: Tanzania
+  stayedOn: "2026-04-24"
+- slug: old-town-rooms-r1
+  property: ref:property/old-town-rooms
+  score: 7
+  title: "Good bed, thin walls"
+  body: "Good value for where it is."
+  author: "Achieng"
+  country: Tanzania
+  stayedOn: "2026-01-28"
+- slug: old-town-rooms-r2
+  property: ref:property/old-town-rooms
+  score: 9
+  title: "Staff made the stay"
+  body: "Small, but everything in it worked."
+  author: "Yusuf"
+  country: Kenya
+  stayedOn: "2026-02-16"
+- slug: old-town-rooms-r3
+  property: ref:property/old-town-rooms
+  score: 9
+  title: "Worth the walk up the hill"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Tom"
+  country: Germany
+  stayedOn: "2026-06-25"
+- slug: stone-town-house-r1
+  property: ref:property/stone-town-house
+  score: 8
+  title: "Good bed, thin walls"
+  body: "Ask for a room at the back if you are a light sleeper."
+  author: "Samuel"
+  country: South Africa
+  stayedOn: "2026-05-12"
+- slug: stone-town-house-r2
+  property: ref:property/stone-town-house
+  score: 9
+  title: "Staff made the stay"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Priya"
+  country: United Kingdom
+  stayedOn: "2026-08-15"
+- slug: paje-beach-lodge-r1
+  property: ref:property/paje-beach-lodge
+  score: 6
+  title: "Fine for one night"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Grace"
+  country: Kenya
+  stayedOn: "2026-09-19"
+- slug: paje-beach-lodge-r2
+  property: ref:property/paje-beach-lodge
+  score: 6
+  title: "Slow check-in, lovely room"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Tom"
+  country: Germany
+  stayedOn: "2026-03-21"
+- slug: kololo-heights-r1
+  property: ref:property/kololo-heights
+  score: 5
+  title: "The wifi struggled"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Nia"
+  country: Rwanda
+  stayedOn: "2026-04-22"
+- slug: kololo-heights-r2
+  property: ref:property/kololo-heights
+  score: 10
+  title: "No complaints at all"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Grace"
+  country: South Africa
+  stayedOn: "2026-06-10"
+- slug: kololo-heights-r3
+  property: ref:property/kololo-heights
+  score: 9
+  title: "Exactly what the pictures showed"
+  body: "Ask for a room at the back if you are a light sleeper."
+  author: "Tom"
+  country: Rwanda
+  stayedOn: "2026-06-24"
+- slug: entebbe-airport-inn-r1
+  property: ref:property/entebbe-airport-inn
+  score: 7
+  title: "Breakfast was the best part"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Wanjiru"
+  country: Rwanda
+  stayedOn: "2026-08-16"
+- slug: entebbe-airport-inn-r2
+  property: ref:property/entebbe-airport-inn
+  score: 8
+  title: "Breakfast was the best part"
+  body: "Ask for a room at the back if you are a light sleeper."
+  author: "Yusuf"
+  country: Kenya
+  stayedOn: "2026-08-21"
+- slug: entebbe-airport-inn-r3
+  property: ref:property/entebbe-airport-inn
+  score: 6
+  title: "Slow check-in, lovely room"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Wanjiru"
+  country: India
+  stayedOn: "2026-04-25"
+- slug: entebbe-airport-inn-r4
+  property: ref:property/entebbe-airport-inn
+  score: 10
+  title: "Staff made the stay"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Priya"
+  country: Tanzania
+  stayedOn: "2026-07-24"
+- slug: kigali-hillside-r1
+  property: ref:property/kigali-hillside
+  score: 9
+  title: "No complaints at all"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Otieno"
+  country: Uganda
+  stayedOn: "2026-03-10"
+- slug: kigali-hillside-r2
+  property: ref:property/kigali-hillside
+  score: 10
+  title: "Staff made the stay"
+  body: "The pictures are accurate, which is rarer than it should be."
+  author: "Otieno"
+  country: South Africa
+  stayedOn: "2026-06-14"
+- slug: kigali-hillside-r3
+  property: ref:property/kigali-hillside
+  score: 5
+  title: "The wifi struggled"
+  body: "Arrived late and it was all still straightforward."
+  author: "Achieng"
+  country: Tanzania
+  stayedOn: "2026-09-14"
+- slug: kigali-hillside-r4
+  property: ref:property/kigali-hillside
+  score: 9
+  title: "Would come back"
+  body: "The room was ready early, which nobody promised and everybody appreciated."
+  author: "Achieng"
+  country: United Kingdom
+  stayedOn: "2026-04-19"
+- slug: kigali-hillside-r5
+  property: ref:property/kigali-hillside
+  score: 5
+  title: "The wifi struggled"
+  body: "Good value for where it is."
+  author: "Priya"
+  country: United Kingdom
+  stayedOn: "2026-09-23"

@@ -1,0 +1,6 @@
+# Quoted: a flow scalar ends at the first comma, which silently truncated
+# every blurb here at "Ground floor".
+- { slug: garden, name: Garden room, blurb: "Ground floor, opens onto the herb garden.", price: 6500, sleeps: 2, view: garden, location: { lat: -0.7712, lng: 36.4302 } }
+- { slug: lakeview, name: Lakeview room, blurb: "First floor, the view the place is named for.", price: 9500, sleeps: 2, view: lake, location: { lat: -0.7698, lng: 36.4281 } }
+- { slug: courtyard, name: Courtyard twin, blurb: "Two beds, quiet side, good for friends.", price: 7500, sleeps: 2, view: courtyard, location: { lat: -0.7721, lng: 36.4315 } }
+- { slug: family, name: Family room, blurb: "A double and two singles, with the long veranda.", price: 12000, sleeps: 4, view: lake, location: { lat: -0.7698, lng: 36.4281 } }

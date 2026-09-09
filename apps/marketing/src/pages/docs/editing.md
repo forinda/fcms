@@ -97,6 +97,8 @@ Starting one takes two answers: what it ends up creating (a booking, an enquiry)
 
 A step's choice has to land on a field of the thing being created — a stylist step fills the booking's stylist. If there is no such field you are told so rather than ending up with a journey that finishes and saves blanks.
 
+Not every step offers a choice. A first screen that asks <em>when are you coming?</em> collects two dates and offers nothing, and a step like that says which answers it collects instead — a Continue button appears once it has them all, and everything after it filters by what was collected.
+
 ## Pages — the canvas
 
 Pages are edited on a canvas, not in a form. Open one and you get three panes: the structure on the left, <strong>your actual page</strong> in the middle, and the settings for whatever you have selected on the right.

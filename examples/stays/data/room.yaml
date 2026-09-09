@@ -1,0 +1,177 @@
+# The rooms. `priceFrom` on a property is the minimum of these, computed by the
+# platform — no property carries a price of its own, and none can drift.
+- slug: harbour-nairobi-standard-double
+  property: ref:property/harbour-nairobi
+  name: Standard double
+  beds: "1 double bed"
+  sleeps: 2
+  price: 95
+  sizeSqm: 22
+- slug: harbour-nairobi-executive-king
+  property: ref:property/harbour-nairobi
+  name: Executive king
+  beds: "1 king bed"
+  sleeps: 2
+  price: 140
+  sizeSqm: 30
+- slug: harbour-nairobi-twin-business
+  property: ref:property/harbour-nairobi
+  name: Twin business
+  beds: "2 single beds"
+  sleeps: 2
+  price: 110
+  sizeSqm: 26
+- slug: kilimani-suites-one-bed-apartment
+  property: ref:property/kilimani-suites
+  name: One-bedroom apartment
+  beds: "1 double, sofa bed"
+  sleeps: 3
+  price: 85
+  sizeSqm: 45
+- slug: kilimani-suites-two-bed-apartment
+  property: ref:property/kilimani-suites
+  name: Two-bedroom apartment
+  beds: "2 doubles"
+  sleeps: 4
+  price: 130
+  sizeSqm: 70
+- slug: karen-guesthouse-garden-room
+  property: ref:property/karen-guesthouse
+  name: Garden room
+  beds: "1 double bed"
+  sleeps: 2
+  price: 70
+  sizeSqm: 20
+- slug: karen-guesthouse-family-room
+  property: ref:property/karen-guesthouse
+  name: Family room
+  beds: "1 double, 2 singles"
+  sleeps: 4
+  price: 105
+  sizeSqm: 32
+- slug: westlands-backpackers-dorm-bed
+  property: ref:property/westlands-backpackers
+  name: Bed in a six-bed dorm
+  beds: "1 single bed"
+  sleeps: 1
+  price: 18
+  sizeSqm: 4
+- slug: westlands-backpackers-private-twin
+  property: ref:property/westlands-backpackers
+  name: Private twin
+  beds: "2 single beds"
+  sleeps: 2
+  price: 42
+  sizeSqm: 14
+- slug: nyali-beach-garden-view
+  property: ref:property/nyali-beach
+  name: Garden view double
+  beds: "1 double bed"
+  sleeps: 2
+  price: 120
+  sizeSqm: 28
+- slug: nyali-beach-sea-view
+  property: ref:property/nyali-beach
+  name: Sea view double
+  beds: "1 king bed"
+  sleeps: 2
+  price: 175
+  sizeSqm: 32
+- slug: nyali-beach-beach-suite
+  property: ref:property/nyali-beach
+  name: Beach suite
+  beds: "1 king, 1 sofa bed"
+  sleeps: 3
+  price: 240
+  sizeSqm: 55
+- slug: diani-villa-whole-villa
+  property: ref:property/diani-villa
+  name: The whole villa
+  beds: "4 doubles"
+  sleeps: 8
+  price: 520
+  sizeSqm: 320
+- slug: old-town-rooms-upstairs-room
+  property: ref:property/old-town-rooms
+  name: Upstairs room
+  beds: "1 double bed"
+  sleeps: 2
+  price: 55
+  sizeSqm: 18
+- slug: old-town-rooms-courtyard-room
+  property: ref:property/old-town-rooms
+  name: Courtyard room
+  beds: "2 single beds"
+  sleeps: 2
+  price: 48
+  sizeSqm: 16
+- slug: stone-town-house-terrace-room
+  property: ref:property/stone-town-house
+  name: Terrace room
+  beds: "1 double bed"
+  sleeps: 2
+  price: 130
+  sizeSqm: 24
+- slug: stone-town-house-courtyard-double
+  property: ref:property/stone-town-house
+  name: Courtyard double
+  beds: "1 double bed"
+  sleeps: 2
+  price: 105
+  sizeSqm: 22
+- slug: paje-beach-lodge-beach-banda
+  property: ref:property/paje-beach-lodge
+  name: Beach banda
+  beds: "1 double bed"
+  sleeps: 2
+  price: 90
+  sizeSqm: 26
+- slug: paje-beach-lodge-garden-banda
+  property: ref:property/paje-beach-lodge
+  name: Garden banda
+  beds: "1 double, 1 single"
+  sleeps: 3
+  price: 75
+  sizeSqm: 30
+- slug: kololo-heights-studio
+  property: ref:property/kololo-heights
+  name: Studio apartment
+  beds: "1 double bed"
+  sleeps: 2
+  price: 80
+  sizeSqm: 34
+- slug: kololo-heights-one-bed-hill
+  property: ref:property/kololo-heights
+  name: One-bedroom, hill view
+  beds: "1 king bed"
+  sleeps: 2
+  price: 115
+  sizeSqm: 48
+- slug: entebbe-airport-inn-standard-twin
+  property: ref:property/entebbe-airport-inn
+  name: Standard twin
+  beds: "2 single beds"
+  sleeps: 2
+  price: 65
+  sizeSqm: 20
+- slug: entebbe-airport-inn-quiet-double
+  property: ref:property/entebbe-airport-inn
+  name: Quiet double, back of house
+  beds: "1 double bed"
+  sleeps: 2
+  price: 72
+  sizeSqm: 22
+- slug: kigali-hillside-hillside-double
+  property: ref:property/kigali-hillside
+  name: Hillside double
+  beds: "1 double bed"
+  sleeps: 2
+  price: 98
+  sizeSqm: 26
+- slug: kigali-hillside-hillside-suite
+  property: ref:property/kigali-hillside
+  name: Hillside suite
+  beds: "1 king, sitting room"
+  sleeps: 3
+  price: 165
+  sizeSqm: 52

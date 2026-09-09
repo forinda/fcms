@@ -34,6 +34,27 @@ export class FlowController {
     if (!found) return this.back(ctx, "/");
 
     const { spec, page, flow, step } = found;
+
+    // A step that asks rather than offers. Its answer is the parameters it
+    // named, and they go back into the address as well as into the state: the
+    // next step filters by `{ param: … }` like any other page, and a refresh
+    // still shows the rooms for those dates.
+    if (step?.captures?.length) {
+      const body = (ctx.body ?? {}) as Record<string, unknown>;
+      const given: [string, string][] = step.captures.map((name) => [
+        name,
+        String(body[name] ?? "").slice(0, 200),
+      ]);
+      // Half-answered is not answered. A step recorded with an empty date is a
+      // step the visitor cannot get back to and cannot pass.
+      if (given.some(([, value]) => value === "")) return this.back(ctx, page.path);
+
+      const token = this.token(ctx) ?? FlowUseCase.mint();
+      await this.flows.choose(token, page, flow, step.key, Object.fromEntries(given));
+      this.setCookie(ctx, token);
+      return this.back(ctx, `${page.path}?${new URLSearchParams(given).toString()}`);
+    }
+
     if (!step?.selects) return this.back(ctx, page.path);
 
     const body = (ctx.body ?? {}) as Record<string, unknown>;
