@@ -550,3 +550,172 @@ describe("a site's own currency", () => {
     expect(html).not.toContain("Ksh");
   });
 });
+
+/**
+ * A filter on a reference has to agree with an aggregate on the same reference.
+ *
+ * A reference field stores `ref:<type>/<slug>`. `{ entry: slug }` resolves to
+ * the bare slug, so the only way the filter can be written matched nothing, and
+ * a property page listed none of its own reviews while the card above it
+ * counted four.
+ */
+describe("filtering on a reference", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+      {
+        key: "review",
+        label: "Review",
+        titleField: "title",
+        fields: [
+          { name: "title", label: "Title", type: "text", required: true },
+          { name: "property", label: "Property", type: "reference", to: "property" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        blocks: [
+          {
+            type: "list",
+            data: {
+              from: "review",
+              where: [{ field: "property", op: "eq", value: { entry: "slug" } }],
+              limit: 10,
+            },
+            item: [{ type: "heading", attrs: { text: "{{ item.title }}", level: 3 } }],
+          },
+        ],
+      },
+    ],
+  });
+
+  const source = staticSource({
+    property: [{ id: "p1", slug: "harbour", name: "The Harbour" }],
+    review: [
+      { id: "r1", slug: "r1", title: "Ours, written long", property: "ref:property/harbour" },
+      { id: "r2", slug: "r2", title: "Ours, written short", property: "harbour" },
+      { id: "r3", slug: "r3", title: "Somebody else's", property: "ref:property/hillside" },
+    ],
+  });
+
+  it("matches a reference however it was written", () => {
+    const { html } = renderPage(
+      spec.pages[0]!,
+      { spec, source },
+      { slug: "harbour", name: "The Harbour" },
+    );
+
+    expect(html).toContain("Ours, written long");
+    expect(html).toContain("Ours, written short");
+    expect(html).not.toContain("Somebody else's");
+  });
+});
+
+/**
+ * The second list on a page is filtered too.
+ *
+ * A page's first query runs once before anything renders and is handed the
+ * entry directly; every other query reads it off the walk. That field was
+ * declared, read in three places, and never assigned — so a detail page's
+ * *second* list showed nothing while its first looked correct. Every test had
+ * one list, so every test passed.
+ */
+describe("a page with two lists", () => {
+  const spec = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+      {
+        key: "review",
+        label: "Review",
+        titleField: "title",
+        fields: [
+          { name: "title", label: "Title", type: "text", required: true },
+          { name: "property", label: "Property", type: "reference", to: "property" },
+        ],
+      },
+      {
+        key: "room",
+        label: "Room",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "property", label: "Property", type: "reference", to: "property" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        blocks: [
+          {
+            type: "list",
+            data: {
+              from: "room",
+              where: [{ field: "property", op: "eq", value: { entry: "slug" } }],
+              limit: 10,
+            },
+            item: [{ type: "heading", attrs: { text: "{{ item.name }}", level: 3 } }],
+          },
+          {
+            type: "list",
+            data: {
+              from: "review",
+              where: [{ field: "property", op: "eq", value: { entry: "slug" } }],
+              limit: 10,
+            },
+            item: [{ type: "heading", attrs: { text: "{{ item.title }}", level: 3 } }],
+          },
+        ],
+      },
+    ],
+  });
+
+  const source = staticSource({
+    property: [{ id: "p1", slug: "harbour", name: "The Harbour" }],
+    room: [
+      { id: "m1", slug: "m1", name: "Harbour single", property: "ref:property/harbour" },
+      { id: "m2", slug: "m2", name: "Hillside suite", property: "ref:property/hillside" },
+    ],
+    review: [
+      { id: "r1", slug: "r1", title: "Ours", property: "ref:property/harbour" },
+      { id: "r2", slug: "r2", title: "Somebody else's", property: "ref:property/hillside" },
+    ],
+  });
+
+  it("filters both of them by the page's entry", () => {
+    const { html } = renderPage(
+      spec.pages[0]!,
+      { spec, source },
+      { slug: "harbour", name: "The Harbour" },
+    );
+
+    expect(html).toContain("Harbour single");
+    expect(html).toContain("Ours");
+    expect(html).not.toContain("Hillside suite");
+    expect(html).not.toContain("Somebody else's");
+  });
+});
