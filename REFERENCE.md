@@ -89,7 +89,7 @@ Nothing below needs a server except the second group.
 | `init --name <name>` | the site's name, when the directory's is not it |
 | `init --force` | scaffold into a directory that already has files |
 | `fmt --check` | change nothing, exit non-zero if any file is not canonical |
-| `dev -p, --port <number>` | beats `fcms.json`, which beats 4321 |
+| `dev -p, --port <number>` | beats `fcms.json`, which beats 4321. A taken port steps to the next free one |
 | `login --url <url>` | a server other than the linked one |
 | `login --email <email>` | skip the prompt |
 | `logout --url <url>` | a server other than the linked one |
@@ -106,6 +106,13 @@ Nothing below needs a server except the second group.
 | `2` | **`plan` found destructive changes**, or `apply` refused them |
 
 `2` is what CI gates on, without parsing anything.
+
+### `npm run` eats flags
+
+`npm run dev --port 4000` does not reach the CLI: npm reads `--port` as its own
+config, warns, and passes the bare `4000` on. Use `npm run dev -- --port 4000`.
+`pnpm`, `yarn` and `bun` need no separator. `dev` reads a bare number as a port
+anyway, and says so — but the separator is the honest form.
 
 ### `FCMS_PASSWORD`
 
