@@ -27,6 +27,24 @@
       "type": "string",
       "pattern": "^[A-Z]{3}$"
     },
+    "seo": {
+      "default": {
+        "indexable": true,
+        "sitemap": true
+      },
+      "type": "object",
+      "properties": {
+        "indexable": {
+          "default": true,
+          "type": "boolean"
+        },
+        "sitemap": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "layout": {
       "type": "object",
       "properties": {

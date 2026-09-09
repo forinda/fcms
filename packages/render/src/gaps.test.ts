@@ -187,3 +187,78 @@ describe("emptiness and plurals", () => {
     expect(html).toContain("4 stars<");
   });
 });
+
+/**
+ * What a crawler and a share preview are told.
+ *
+ * Compared against a hand-written site's own SEO helper, which emits a dozen
+ * tags this did not — and, more importantly, turned up two that were wrong
+ * rather than missing.
+ */
+describe("the head of a page", () => {
+  const collection = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    locale: "sw-TZ",
+    currency: "TZS",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        seo: { description: "A place to stay" },
+        blocks: [{ type: "heading", attrs: { text: "{{ entry.name }}", level: 1 } }],
+      },
+    ],
+  });
+
+  const rows = staticSource({
+    property: [
+      { id: "p1", slug: "harbour", name: "The Harbour" },
+      { id: "p2", slug: "hill", name: "Hill House" },
+    ],
+  });
+
+  const at = (path: string, entryRow: Record<string, unknown>) =>
+    renderPage(
+      collection.pages[0]!,
+      { spec: collection, source: rows, canonicalBase: "https://stays.example", path },
+      entryRow,
+    ).html;
+
+  it("canonicalises each entry to its own address", () => {
+    // Every entry page said its canonical version was `/stay` — the tag for
+    // "this is a duplicate of that", pointed at a page that is not this one.
+    expect(at("/stay/harbour", { slug: "harbour", name: "The Harbour" })).toContain(
+      'rel="canonical" href="https://stays.example/stay/harbour"',
+    );
+    expect(at("/stay/hill", { slug: "hill", name: "Hill House" })).toContain(
+      'href="https://stays.example/stay/hill"',
+    );
+  });
+
+  it("declares the site's own language", () => {
+    // A screen reader picks its voice from this, and it said English on a
+    // Swahili site because the attribute was written out by hand.
+    expect(at("/stay/harbour", { slug: "harbour", name: "The Harbour" })).toContain('lang="sw-TZ"');
+  });
+
+  it("tells a share preview which address it is, and in what language", () => {
+    const html = at("/stay/harbour", { slug: "harbour", name: "The Harbour" });
+    expect(html).toContain('property="og:url" content="https://stays.example/stay/harbour"');
+    expect(html).toContain('property="og:locale" content="sw_TZ"');
+    expect(html).toContain('property="og:type" content="article"');
+    expect(html).toContain('name="twitter:title"');
+    expect(html).toContain('name="twitter:description"');
+  });
+});

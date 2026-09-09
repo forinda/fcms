@@ -122,12 +122,38 @@ export class SiteService {
   }
 
   /** Public, indexable routes. Drafts and noindex pages are excluded (doc 08). */
-  async publicRoutes(): Promise<string[]> {
+  /**
+   * Whether this site wants to be found, and whether it publishes a sitemap.
+   *
+   * Read from the spec rather than the environment: it is a decision about the
+   * site, it travels with the site's files, and a staging copy made by applying
+   * the same spec should not silently become indexable.
+   */
+  async seoSettings(): Promise<{ indexable: boolean; sitemap: boolean }> {
+    const resolved = await this.resolve();
+    // No spec is not a site yet, and an install with nothing on it has nothing
+    // worth indexing.
+    if (!resolved) return { indexable: false, sitemap: false };
+    return resolved.spec.seo;
+  }
+
+  async publicRoutes(): Promise<{ path: string; lastmod?: string }[]> {
     const resolved = await this.resolve();
     if (!resolved) return [];
     return routes(resolved.spec, resolved.source)
       .filter((r) => !r.page.draft && r.page.seo?.noindex !== true)
-      .map((r) => r.path);
+      .map((r) => {
+        // When a crawler last needed to care. A collection page is as fresh as
+        // the row behind it, and a sitemap without this asks every crawler to
+        // refetch every page to find out whether anything changed — which is
+        // the question the sitemap exists to answer.
+        const updated = r.entry?.["updatedAt"] ?? r.entry?.["createdAt"];
+        const at = updated instanceof Date ? updated : updated ? new Date(String(updated)) : null;
+        return {
+          path: r.path,
+          ...(at && !Number.isNaN(at.getTime()) ? { lastmod: at.toISOString() } : {}),
+        };
+      });
   }
   /**
    * The page a visitor gets when there is no page.

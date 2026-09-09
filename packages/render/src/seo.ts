@@ -23,6 +23,8 @@ export interface HeadInput {
   readonly image?: string;
   readonly noindex: boolean;
   readonly jsonld?: unknown;
+  /** True on a page that is one row: an article rather than a section of a site. */
+  readonly entry?: boolean;
 }
 
 /**
@@ -71,8 +73,25 @@ export function head(input: HeadInput): Html {
     raw(`<meta property="og:title" content="${esc(title)}">`),
     description ? raw(`<meta property="og:description" content="${esc(description)}">`) : null,
     image ? raw(`<meta property="og:image" content="${esc(image)}">`) : null,
+    // The alt text of a shared card. A picture with no description is a picture
+    // that says nothing to anybody who cannot see it, and a share is exactly
+    // where that is read aloud.
+    image ? raw(`<meta property="og:image:alt" content="${esc(title)}">`) : null,
     raw(`<meta property="og:site_name" content="${esc(spec.name)}">`),
+    // Which address this is. Without it a share of `?utm_source=…` becomes its
+    // own object with its own counts — the canonical link tells a crawler and
+    // this tells everything else.
+    canonical ? raw(`<meta property="og:url" content="${esc(canonical)}">`) : null,
+    raw(`<meta property="og:type" content="${input.entry ? "article" : "website"}">`),
+    // `en-US` in a meta tag is `en_US`, which is the sort of detail that is
+    // wrong everywhere it is written out by hand.
+    raw(`<meta property="og:locale" content="${esc(spec.locale.replace("-", "_"))}">`),
     raw(`<meta name="twitter:card" content="${image ? "summary_large_image" : "summary"}">`),
+    // Twitter falls back to the Open Graph tags, and then does not, depending on
+    // the year. Saying it twice costs three lines.
+    raw(`<meta name="twitter:title" content="${esc(title)}">`),
+    description ? raw(`<meta name="twitter:description" content="${esc(description)}">`) : null,
+    image ? raw(`<meta name="twitter:image" content="${esc(image)}">`) : null,
     jsonld ? jsonLdScript(jsonld) : null,
   );
 }
@@ -88,6 +107,9 @@ export function pageSeo(
   scope: Record<string, unknown>,
 ): { title: string; description?: string; image?: string; noindex: boolean } {
   const seo = page.seo;
+  // A site that says it is not indexable overrules every page: the switch
+  // exists so nobody has to remember the page that matters.
+  const siteBlocks = spec.seo.indexable === false;
   // A collection page's title is a template — `{{ entry.name }}` — and it was
   // being emitted literally, so every entry page on every site shared one
   // `<title>` reading `{{ entry.name }} — Riverside Rooms`. The `<h1>` beside
@@ -108,7 +130,8 @@ export function pageSeo(
     title,
     ...(description ? { description } : {}),
     ...(image ? { image } : {}),
-    // A draft page is noindex whatever its own setting says.
-    noindex: page.draft || (seo?.noindex ?? false),
+    // A draft page is noindex whatever its own setting says, and so is every
+    // page of a site that has said it is not indexable.
+    noindex: siteBlocks || page.draft || (seo?.noindex ?? false),
   };
 }

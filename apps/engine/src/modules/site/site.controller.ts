@@ -117,20 +117,43 @@ export class SiteController {
   @Get("/robots.txt")
   async robots(ctx: Ctx): Promise<void> {
     const base = this.base(ctx);
+    const { indexable, sitemap } = await this.sites.seoSettings();
     ctx.res.setHeader("content-type", "text/plain; charset=utf-8");
     ctx.res.end(
-      ["User-agent: *", "Allow: /", ...(base ? [`Sitemap: ${base}/sitemap.xml`] : [])].join("\n") +
-        "\n",
+      (indexable
+        ? [
+            "User-agent: *",
+            "Allow: /",
+            ...(sitemap && base ? [`Sitemap: ${base}/sitemap.xml`] : []),
+          ]
+        : // A site that has said it is not indexable says so here too, in the
+          // one file every crawler reads first.
+          ["User-agent: *", "Disallow: /"]
+      ).join("\n") + "\n",
     );
   }
 
   /** `sitemap.xml`, generated from the spec and updated by construction (doc 08). */
   @Get("/sitemap.xml")
   async sitemap(ctx: Ctx): Promise<void> {
+    const { indexable, sitemap } = await this.sites.seoSettings();
+    // A sitemap for a site nobody may index is an invitation carrying the
+    // address of a place that is closed.
+    if (!indexable || !sitemap) {
+      ctx.res.statusCode = 404;
+      ctx.res.end();
+      return;
+    }
+
     const base = this.base(ctx) ?? "";
     const paths = await this.sites.publicRoutes();
 
-    const urls = paths.map((p) => `  <url><loc>${escapeXml(`${base}${p}`)}</loc></url>`).join("\n");
+    const urls = paths
+      .map(({ path, lastmod }) => {
+        const when = lastmod ? `<lastmod>${escapeXml(lastmod)}</lastmod>` : "";
+        return `  <url><loc>${escapeXml(`${base}${path}`)}</loc>${when}</url>`;
+      })
+      .join("\n");
 
     ctx.res.setHeader("content-type", "application/xml; charset=utf-8");
     ctx.res.end(

@@ -66,6 +66,27 @@ export const SiteSpec = z
       .string()
       .regex(/^[A-Z]{3}$/, "a three-letter currency code like KES, USD or TZS")
       .default("KES"),
+    /**
+     * Whether this site wants to be found.
+     *
+     * A staging copy, a client's site before launch, an internal tool — all of
+     * them are reachable and none of them should be in a search index, and
+     * `noindex` on every page one at a time is a thing somebody forgets on the
+     * page that matters. One switch, at the level the decision is actually made.
+     *
+     * `indexable: false` is the whole answer: every page says `noindex`,
+     * `robots.txt` disallows everything, and the sitemap stops existing —
+     * a sitemap for a site nobody may index is an invitation with the address
+     * of a place that is closed.
+     */
+    seo: z
+      .object({
+        indexable: z.boolean().default(true),
+        /** Off for a site that publishes its addresses some other way. */
+        sitemap: z.boolean().default(true),
+      })
+      .strict()
+      .default({ indexable: true, sitemap: true }),
     layout: SiteLayout.optional(),
     /** Site-level tier-3 CSS. Gated to the `developer` role (ADR 0004/0008). */
     css: CustomCss.optional(),
