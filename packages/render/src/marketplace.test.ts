@@ -266,3 +266,95 @@ describe("computed fields", () => {
     expect(grand!["total"]).toBe(12000);
   });
 });
+
+/**
+ * A detail page's lists are about the row the page is for.
+ *
+ * Without `{ entry: … }` there was no way to say that: a condition could name a
+ * field of the row being filtered or a request parameter, and the page's own
+ * entry was neither. Every property page therefore listed every room on the
+ * site — a bug that reads as a design decision until somebody has two
+ * properties, which is the first day of a marketplace.
+ */
+describe("a collection page filters by its own entry", () => {
+  const twoProperties = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+      {
+        key: "room",
+        label: "Room",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "property", label: "Property", type: "reference", to: "property" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        blocks: [
+          {
+            type: "list",
+            data: {
+              from: "room",
+              where: [{ field: "property", op: "eq", value: { entry: "slug" } }],
+              limit: 10,
+            },
+            item: [{ type: "heading", attrs: { text: "{{ item.name }}", level: 2 } }],
+          },
+        ],
+      },
+    ],
+  });
+
+  const source = staticSource({
+    property: [
+      { slug: "harbour", name: "Harbour Hotel" },
+      { slug: "hillside", name: "Hillside Lodge" },
+    ],
+    room: [
+      { slug: "h-single", name: "Harbour single", property: "harbour" },
+      { slug: "h-double", name: "Harbour double", property: "harbour" },
+      { slug: "l-suite", name: "Hillside suite", property: "hillside" },
+    ],
+  });
+
+  const page = twoProperties.pages[0]!;
+
+  it("lists only that property's rooms", () => {
+    const { html } = renderPage(
+      page,
+      { spec: twoProperties, source },
+      {
+        slug: "harbour",
+        name: "Harbour Hotel",
+      },
+    );
+
+    expect(html).toContain("Harbour single");
+    expect(html).toContain("Harbour double");
+    expect(html).not.toContain("Hillside suite");
+  });
+
+  it("lists nothing at all when the page has no entry", () => {
+    // Not everything. "The rooms of this property" with no property is zero
+    // rooms — the opposite failure to the one above, and the tempting one to
+    // write, since an unresolved `param` correctly drops its condition.
+    const { html } = renderPage(page, { spec: twoProperties, source });
+
+    expect(html).not.toContain("Harbour single");
+    expect(html).not.toContain("Hillside suite");
+  });
+});

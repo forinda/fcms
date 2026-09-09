@@ -118,14 +118,24 @@ export function runQueryPage(
   query: Query,
   params: RequestParams = {},
   viewer: Viewer = null,
+  entry?: Entry,
 ): QueryResult {
   // Conditions are resolved once, not per row: a parameter's value does not
   // change halfway through a list, and an absent one drops its condition
   // entirely rather than being faked into something the matcher understands.
-  const conditions = (query.where ?? []).flatMap((c) => {
-    const resolved = resolveCondition(c, params);
-    return resolved ? [resolved] : [];
-  });
+  const conditions: Condition[] = [];
+  for (const c of query.where ?? []) {
+    const resolved = resolveCondition(c, params, entry);
+    if (resolved) {
+      conditions.push(resolved);
+      continue;
+    }
+    // A `param` that resolves to nothing drops its condition, because a search
+    // page has to work before anything is typed. An `entry` that resolves to
+    // nothing must not: "the rooms of this property", with no property, is zero
+    // rooms — never every room on the site.
+    if (isEntryValue(c.value)) return { rows: [], total: 0, page: 1, pages: 1 };
+  }
 
   const filtered = visible(source.all(query.from), query, viewer).filter((row) =>
     conditions.every((c) => matches(row, c)),
@@ -160,6 +170,7 @@ export function runQueryExcluding(
   query: Query,
   params: RequestParams,
   exclude: string,
+  entry?: Entry,
 ): readonly Entry[] {
   const conditions = (query.where ?? []).flatMap((c) => {
     const value = c.value;
@@ -171,7 +182,7 @@ export function runQueryExcluding(
     ) {
       return [];
     }
-    const resolved = resolveCondition(c, params);
+    const resolved = resolveCondition(c, params, entry);
     return resolved ? [resolved] : [];
   });
 
@@ -187,11 +198,16 @@ export function runQuery(
   query: Query,
   params: RequestParams = {},
   viewer: Viewer = null,
+  entry?: Entry,
 ): readonly Entry[] {
-  return runQueryPage(source, query, params, viewer).rows;
+  return runQueryPage(source, query, params, viewer, entry).rows;
 }
 
 /** The first value, since a repeated parameter is a caller's mistake, not a list. */
+function isEntryValue(value: Condition["value"]): value is { entry: string } {
+  return typeof value === "object" && value !== null && "entry" in value;
+}
+
 function single(value: string | readonly string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : (value as string | undefined);
 }
@@ -204,9 +220,25 @@ function single(value: string | readonly string[] | undefined): string | undefin
  * match-everything condition instead would mean inventing an operator the
  * matcher does not have.
  */
-function resolveCondition(condition: Condition, params: RequestParams): Condition | null {
+function resolveCondition(
+  condition: Condition,
+  params: RequestParams,
+  entry?: Entry,
+): Condition | null {
   const value = condition.value;
-  if (typeof value !== "object" || value === null || !("param" in value)) return condition;
+  if (typeof value !== "object" || value === null) return condition;
+
+  // The page's own row. Dropping the condition when there is none would show
+  // every row on the site, which is the failure this exists to prevent — so an
+  // absent entry matches nothing instead.
+  if ("entry" in value) {
+    if (!entry) return null;
+    const supplied = entry[value.entry];
+    if (supplied === undefined || supplied === null) return null;
+    return { ...condition, value: supplied as Condition["value"] };
+  }
+
+  if (!("param" in value)) return condition;
 
   const supplied = single(params[value.param]);
   if (supplied === undefined || supplied === "") {

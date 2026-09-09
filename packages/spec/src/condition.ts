@@ -17,7 +17,7 @@
  */
 import { z } from "zod";
 
-import { Scalar } from "./primitives.js";
+import { FieldName, Scalar } from "./primitives.js";
 
 /** Fixed set. Adding one is a deliberate vocabulary decision, not a convenience. */
 export const OPERATORS = ["eq", "ne", "lt", "lte", "gt", "gte", "in", "contains"] as const;
@@ -48,17 +48,36 @@ export const ParamValue = z
 
 export type ParamValue = z.infer<typeof ParamValue>;
 
+/**
+ * A field of the entry the page is *for* (ADR 0014's collection pages).
+ *
+ * A detail page is one row and the lists on it are about that row — the rooms
+ * of this property, the reviews of this property. Without this there is no way
+ * to say so: a condition may name a field of the row being filtered or a
+ * request parameter, and the page's own entry is neither. The lists on every
+ * detail page therefore showed the whole site, which is the sort of bug that
+ * looks like a design decision until somebody has two properties.
+ *
+ * Still data, and still checked: the page must be a collection page and the
+ * field must exist on the type it collects, or the spec does not validate.
+ */
+export const EntryValue = z.object({ entry: FieldName }).strict();
+
+export type EntryValue = z.infer<typeof EntryValue>;
+
 export const Condition = z
   .object({
     field: FieldPath,
     op: Operator,
-    value: z.union([Scalar, z.array(Scalar), ParamValue]),
+    value: z.union([Scalar, z.array(Scalar), ParamValue, EntryValue]),
   })
   .strict()
   .superRefine((c, ctx) => {
-    // A parameter's arity is unknown until the request arrives, so the check
-    // below cannot apply to it.
+    // A parameter's arity is unknown until the request arrives, and an entry's
+    // is unknown until the page has one, so the check below cannot apply to
+    // either.
     if (typeof c.value === "object" && c.value !== null && "param" in c.value) return;
+    if (typeof c.value === "object" && c.value !== null && "entry" in c.value) return;
 
     // `in` takes a list; everything else takes a scalar. Catching this here beats
     // a renderer silently matching nothing.

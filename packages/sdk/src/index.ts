@@ -83,6 +83,25 @@ export interface Applied {
  * 401 means sign in, 409 means the destructive gate refused and the same call
  * with confirmation would succeed.
  */
+/**
+ * The server was never reached.
+ *
+ * Distinct from `ApiError`, which is the server answering with a refusal —
+ * this is nothing answering at all: not running, wrong port, no DNS, no route.
+ * A caller can say something useful about that ("is it running?") and can say
+ * nothing useful about a `TypeError: fetch failed`, which is what escaped
+ * before and reached the terminal as a Node stack trace.
+ */
+export class UnreachableError extends Error {
+  constructor(
+    readonly url: string,
+    override readonly cause: unknown,
+  ) {
+    super(`could not reach ${url}`);
+    this.name = "UnreachableError";
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -238,7 +257,7 @@ export class Client {
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const response = await this.http(`${this.base}${path}`, {
+    const request = {
       method,
       headers: {
         accept: "application/json",
@@ -247,7 +266,17 @@ export class Client {
         ...(this.token ? { authorization: `Bearer ${this.token}` } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    };
+
+    // `fetch` rejects with a bare `TypeError: fetch failed` whose only useful
+    // part is a `cause` several layers down. Named here, once, so every caller
+    // gets an error that says which server and why rather than a stack trace.
+    let response: Response;
+    try {
+      response = await this.http(`${this.base}${path}`, request);
+    } catch (error) {
+      throw new UnreachableError(this.base, error);
+    }
 
     const payload: unknown = await response.json().catch(() => undefined);
 
