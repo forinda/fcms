@@ -8,6 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { SiteSpec } from "@forinda-cms/spec";
 
+import { llmsTxt } from "./agents.js";
 import { renderPage } from "./render.js";
 import { staticSource, withDerived } from "./entries.js";
 
@@ -185,5 +186,150 @@ describe("emptiness and plurals", () => {
   it("says one star and four stars", () => {
     expect(html).toContain("1 star<");
     expect(html).toContain("4 stars<");
+  });
+});
+
+/**
+ * What a crawler and a share preview are told.
+ *
+ * Compared against a hand-written site's own SEO helper, which emits a dozen
+ * tags this did not — and, more importantly, turned up two that were wrong
+ * rather than missing.
+ */
+describe("the head of a page", () => {
+  const collection = SiteSpec.parse({
+    specVersion: 2,
+    name: "Stays",
+    locale: "sw-TZ",
+    currency: "TZS",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        titleField: "name",
+        fields: [{ name: "name", label: "Name", type: "text", required: true }],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        seo: { description: "A place to stay" },
+        blocks: [{ type: "heading", attrs: { text: "{{ entry.name }}", level: 1 } }],
+      },
+    ],
+  });
+
+  const rows = staticSource({
+    property: [
+      { id: "p1", slug: "harbour", name: "The Harbour" },
+      { id: "p2", slug: "hill", name: "Hill House" },
+    ],
+  });
+
+  const at = (path: string, entryRow: Record<string, unknown>) =>
+    renderPage(
+      collection.pages[0]!,
+      { spec: collection, source: rows, canonicalBase: "https://stays.example", path },
+      entryRow,
+    ).html;
+
+  it("canonicalises each entry to its own address", () => {
+    // Every entry page said its canonical version was `/stay` — the tag for
+    // "this is a duplicate of that", pointed at a page that is not this one.
+    expect(at("/stay/harbour", { slug: "harbour", name: "The Harbour" })).toContain(
+      'rel="canonical" href="https://stays.example/stay/harbour"',
+    );
+    expect(at("/stay/hill", { slug: "hill", name: "Hill House" })).toContain(
+      'href="https://stays.example/stay/hill"',
+    );
+  });
+
+  it("declares the site's own language", () => {
+    // A screen reader picks its voice from this, and it said English on a
+    // Swahili site because the attribute was written out by hand.
+    expect(at("/stay/harbour", { slug: "harbour", name: "The Harbour" })).toContain('lang="sw-TZ"');
+  });
+
+  it("tells a share preview which address it is, and in what language", () => {
+    const html = at("/stay/harbour", { slug: "harbour", name: "The Harbour" });
+    expect(html).toContain('property="og:url" content="https://stays.example/stay/harbour"');
+    expect(html).toContain('property="og:locale" content="sw_TZ"');
+    expect(html).toContain('property="og:type" content="article"');
+    expect(html).toContain('name="twitter:title"');
+    expect(html).toContain('name="twitter:description"');
+  });
+});
+
+describe("what a site publishes to machines", () => {
+  const base = {
+    specVersion: 2,
+    name: "Stays",
+    note: "Rooms\nby the harbour.",
+    theme: { colors: { brand: "#003580" }, fonts: { body: "Inter" }, typeScale: { md: "1rem" } },
+    content: [
+      {
+        key: "property",
+        label: "Property",
+        labelPlural: "Properties",
+        titleField: "name",
+        fields: [
+          { name: "name", label: "Name", type: "text", required: true },
+          { name: "city", label: "City", type: "text" },
+        ],
+      },
+    ],
+    pages: [
+      {
+        key: "property-detail",
+        path: "/stay",
+        title: "{{ entry.name }}",
+        collection: { from: "property" },
+        blocks: [{ type: "heading", attrs: { text: "{{ entry.name }}", level: 1 } }],
+      },
+      { key: "home", path: "/", title: "Home", note: "The front page", blocks: [] },
+      { key: "wip", path: "/wip", title: "Half done", draft: true, blocks: [] },
+      { key: "thanks", path: "/thanks", title: "Thanks", seo: { noindex: true }, blocks: [] },
+    ],
+  };
+
+  it("describes the site for something reading rather than crawling", () => {
+    const text = llmsTxt(SiteSpec.parse(base), "https://stays.example/");
+
+    expect(text).toContain("# Stays");
+    // A note is prose and may wrap; a summary line may not.
+    expect(text).toContain("> Rooms by the harbour.");
+    expect(text).toContain("- [Home](https://stays.example/): The front page");
+    // A collection page's title is a template with no row to resolve against,
+    // so it is named by what it lists.
+    expect(text).toContain("- [Properties](https://stays.example/stay): every Property");
+    expect(text).toContain("- **Properties** — name, city");
+  });
+
+  it("leaves out the pages a crawler is not shown either", () => {
+    const text = llmsTxt(SiteSpec.parse(base));
+    expect(text).not.toContain("/wip");
+    expect(text).not.toContain("/thanks");
+  });
+
+  it("carries an analytics tag only when the site asked for one", () => {
+    const off = SiteSpec.parse(base);
+    const page = (spec: typeof off) =>
+      renderPage(spec.pages[1]!, { spec, source: staticSource({}) }).html;
+
+    expect(page(off)).not.toContain("googletagmanager");
+
+    const on = SiteSpec.parse({ ...base, analytics: { gtag: "G-ABC1234567" } });
+    expect(page(on)).toContain('src="https://www.googletagmanager.com/gtag/js?id=G-ABC1234567"');
+    expect(page(on)).toContain("gtag('config','G-ABC1234567')");
+  });
+
+  it("refuses a measurement id that is really a script", () => {
+    expect(() =>
+      SiteSpec.parse({ ...base, analytics: { gtag: "G-1'></script><script>alert(1)</script>" } }),
+    ).toThrow();
   });
 });

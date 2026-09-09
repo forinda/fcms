@@ -81,6 +81,26 @@ It authenticates with the session <code>fcms login</code> already stored, so an 
 
 Both of the above talk to the same five endpoints — <code>login</code>, <code>status</code>, <code>spec</code>, <code>plan</code>, <code>apply</code>, plus content — over HTTP with a bearer token. If you want to drive it from something else, that is the surface, and the client library is <code>@forinda-cms/sdk</code>.
 
+## What the site publishes to machines
+
+<code>/robots.txt</code>, <code>/sitemap.xml</code> and <code>/llms.txt</code> are generated from the spec, so none of them can go stale. The sitemap carries a <code>lastmod</code> taken from the row behind each page; <code>llms.txt</code> describes the site for a model rather than a crawler, from the same content types and pages you already wrote.
+
+<pre><code>seo:
+indexable: true   # false: every page noindex, robots.txt disallows, no sitemap
+sitemap: true
+llms: true
+
+analytics:
+gtag: G-ABC1234567</code></pre>
+
+<p><code>indexable: false</code> is one switch for a staging copy or a site before launch, rather than <code>noindex</code> on every page and one forgotten.</p>
+
+<div class="note">
+
+There is <strong>no field for a pasted <code>&lt;script&gt;</code></strong>, and there will not be. A spec is data an agent may propose and a form may submit; arbitrary JavaScript in it is a cross-site scripting hole with an approval workflow in front of it. Analytics providers are named — Google, Plausible, Umami — and the snippet is ours.
+
+</div>
+
 ## Extending it
 
 Blocks, actions and availability kinds are registries, and a plugin adds to them. A plugin declares what it provides and what it needs, contributes block types, and never imports the engine, the database or a repository — what it gets is what a block gets, and the whole of its authority is the shape of that function:

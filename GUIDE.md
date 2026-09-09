@@ -224,7 +224,45 @@ npx @forinda/fcms-cli pull --content   # and the rows
 `pull` then `fmt --check` is silent, so pulling never produces a diff you did
 not write.
 
-## 7. Let an agent drive it
+## 7. Be found
+
+Nothing to turn on. Every page carries a title, a description, a canonical link,
+Open Graph and Twitter tags, and the site's own `lang`. Drafts are `noindex`
+automatically. `/robots.txt`, `/sitemap.xml` — with a `lastmod` per page taken
+from the row behind it — and `/llms.txt` are generated from the spec, so none of
+them can go stale. Change a page's path and the old one 301s to the new one,
+because the change was recorded with its inverse.
+
+Two things worth doing by hand:
+
+```yaml
+# content/property.yaml — structured data, once per type, forever
+jsonld:
+  type: Hotel
+  properties: { name: name, description: summary, image: photo }
+```
+
+```yaml
+# pages/property-detail.yaml — templated, so every entry gets its own
+seo:
+  title: "{{ entry.name }} in {{ entry.city }}"
+  description: "{{ entry.summary }}"
+```
+
+Set `PUBLIC_URL` so canonicals and the sitemap are absolute. Turn the whole lot
+off for a staging copy with one switch — and name an analytics provider rather
+than pasting a script:
+
+```yaml
+# site.yaml
+seo: { indexable: false }
+analytics: { gtag: G-ABC1234567 }
+```
+
+Full details in [REFERENCE.md](REFERENCE.md) and at
+<https://fcms.kickjs.app/docs/seo/>.
+
+## 8. Let an agent drive it
 
 ```json
 {

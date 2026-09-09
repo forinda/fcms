@@ -3,7 +3,7 @@ layout: ../../layouts/Docs.astro
 title: "Automations — forinda-cms"
 description: "Say when something should happen and what should happen. Try it before it is real, and read every run afterwards."
 section: "Documentation"
-previous: { href: "/docs/editing/", label: "Run your site" }
+previous: { href: "/docs/seo/", label: "Getting found" }
 next: { href: "/docs/developers/", label: "Build with it" }
 ---
 

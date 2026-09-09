@@ -4,7 +4,7 @@ title: "Run your site — forinda-cms"
 description: "The dashboard: content, the visual canvas, the assistant, and undo."
 section: "Documentation"
 previous: { href: "/docs/install/", label: "Install" }
-next: { href: "/docs/automations/", label: "Automations" }
+next: { href: "/docs/seo/", label: "Getting found" }
 ---
 
 <!--

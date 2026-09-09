@@ -27,6 +27,61 @@
       "type": "string",
       "pattern": "^[A-Z]{3}$"
     },
+    "seo": {
+      "default": {
+        "indexable": true,
+        "sitemap": true,
+        "llms": true
+      },
+      "type": "object",
+      "properties": {
+        "indexable": {
+          "default": true,
+          "type": "boolean"
+        },
+        "sitemap": {
+          "default": true,
+          "type": "boolean"
+        },
+        "llms": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "analytics": {
+      "type": "object",
+      "properties": {
+        "gtag": {
+          "type": "string",
+          "pattern": "^G-[A-Z0-9]{6,16}$"
+        },
+        "plausible": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]+$"
+        },
+        "umami": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "src": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "id",
+            "src"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "layout": {
       "type": "object",
       "properties": {
