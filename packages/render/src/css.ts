@@ -35,7 +35,17 @@ const RADIUS_SCALE: Record<string, string> = {
   "2xl": "9999px",
 };
 
-const WIDTHS: Record<string, string> = { full: "100%", container: "72rem", narrow: "42rem" };
+/**
+ * Named measures, read through a variable so the theme can name its own.
+ *
+ * The fallback in each `var()` is what every site got before the theme could
+ * say otherwise, so nothing changes for a site that does not.
+ */
+const WIDTHS: Record<string, string> = {
+  full: "100%",
+  container: "var(--width-container, 72rem)",
+  narrow: "var(--width-narrow, 42rem)",
+};
 const BORDERS: Record<string, string> = {
   none: "none",
   hairline: "1px solid var(--color-border, #e5e5e5)",
@@ -62,6 +72,8 @@ export function themeCss(theme: Theme): string {
     lines.push(`  --type-${name}: ${value};`);
   for (const [name, value] of Object.entries(theme.radius ?? {}))
     lines.push(`  --radius-${name}: ${value};`);
+  for (const [name, value] of Object.entries(theme.widths ?? {}))
+    lines.push(`  --width-${name}: ${value};`);
   lines.push(`  --font-body: ${theme.fonts.body};`);
   if (theme.fonts.heading) lines.push(`  --font-heading: ${theme.fonts.heading};`);
   lines.push("}");
@@ -230,39 +242,85 @@ const DECLARATION = /^[-a-zA-Z][-a-zA-Z0-9]*\s*:[^;{}]*$/;
  * write a selector that leaves their own block, whatever they type.
  */
 export function scopedCss(className: string, custom: string): string[] {
-  const source = custom.replace(/\/\*[\s\S]*?\*\//g, "");
-  const own: string[] = [];
-  const nested: string[] = [];
+  const top = parseCss(custom.replace(/\/\*[\s\S]*?\*\//g, ""));
+  const out: string[] = [];
+
+  if (top.declarations.length > 0) {
+    out.push(`.${className}{${top.declarations.join(";")}}`);
+  }
+
+  for (const block of top.rules) {
+    const condition = atRule(block.selector);
+    if (condition !== null) {
+      // A media query is exactly what a block-scoped rule wants — a card that
+      // goes horizontal on a wide screen — and it was being dropped in silence,
+      // which left one thing still forcing a site-level rule.
+      const inside = parseCss(block.body);
+      const rules = [
+        ...(inside.declarations.length > 0
+          ? [`.${className}{${inside.declarations.join(";")}}`]
+          : []),
+        ...inside.rules.map((r) => scopeRule(className, r)).filter((r) => r !== null),
+      ];
+      if (rules.length > 0) out.push(`${condition}{${rules.join("")}}`);
+      continue;
+    }
+
+    const scoped = scopeRule(className, block);
+    if (scoped !== null) out.push(scoped);
+  }
+
+  return out;
+}
+
+/** A condition this may emit, or `null` for anything else beginning with `@`. */
+function atRule(selector: string): string | null {
+  const text = selector.trim();
+  // `@import` would fetch, `@font-face` and `@keyframes` name things globally,
+  // and neither belongs to one block. These three take a block of rules and
+  // change nothing outside it.
+  return /^@(media|container|supports)\b[^{}@;]*$/.test(text) ? text : null;
+}
+
+/** One nested rule, with its selector prefixed by the block's own class. */
+function scopeRule(className: string, block: { selector: string; body: string }): string | null {
+  const declarations = parseCss(block.body).declarations;
+  if (declarations.length === 0) return null;
+
+  const scoped = block.selector
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "" && !/[{}@]/.test(part))
+    // `&` is this block; anything else is a descendant of it. Either way the
+    // emitted selector begins with the block's own class.
+    .map((part) =>
+      part.includes("&") ? part.replaceAll("&", `.${className}`) : `.${className} ${part}`,
+    );
+
+  return scoped.length > 0 ? `${scoped.join(",")}{${declarations.join(";")}}` : null;
+}
+
+/**
+ * Declarations and braced blocks, at one level.
+ *
+ * Hand-written rather than regex because the thing it must guarantee is
+ * structural: a `}` an author typed can never end a rule this emitter opened.
+ * Everything it does not understand is dropped.
+ */
+function parseCss(source: string): {
+  declarations: string[];
+  rules: { selector: string; body: string }[];
+} {
+  const declarations: string[] = [];
+  const rules: { selector: string; body: string }[] = [];
 
   let buffer = "";
   let body = "";
   let depth = 0;
 
-  const declare = (into: string[], text: string): void => {
+  const declare = (text: string): void => {
     const declaration = text.trim();
-    if (DECLARATION.test(declaration)) into.push(declaration);
-  };
-
-  const rule = (selector: string, inner: string): void => {
-    const declarations: string[] = [];
-    // One level: a `{` inside a nested rule takes the rest of it with it.
-    for (const part of inner.split(";")) {
-      if (part.includes("{") || part.includes("}")) break;
-      declare(declarations, part);
-    }
-    if (declarations.length === 0) return;
-
-    const scoped = selector
-      .split(",")
-      .map((part) => part.trim())
-      .filter((part) => part !== "" && !/[{}@]/.test(part))
-      // `&` is this block; anything else is a descendant of it. Either way the
-      // emitted selector begins with the block's own class.
-      .map((part) =>
-        part.includes("&") ? part.replaceAll("&", `.${className}`) : `.${className} ${part}`,
-      );
-
-    if (scoped.length > 0) nested.push(`${scoped.join(",")}{${declarations.join(";")}}`);
+    if (DECLARATION.test(declaration)) declarations.push(declaration);
   };
 
   for (const ch of source) {
@@ -271,7 +329,7 @@ export function scopedCss(className: string, custom: string): string[] {
       else if (ch === "}") {
         depth--;
         if (depth === 0) {
-          rule(buffer, body);
+          rules.push({ selector: buffer, body });
           buffer = "";
           body = "";
           continue;
@@ -286,7 +344,7 @@ export function scopedCss(className: string, custom: string): string[] {
       continue;
     }
     if (ch === ";") {
-      declare(own, buffer);
+      declare(buffer);
       buffer = "";
       continue;
     }
@@ -298,9 +356,9 @@ export function scopedCss(className: string, custom: string): string[] {
     }
     buffer += ch;
   }
-  declare(own, buffer);
+  declare(buffer);
 
-  return [...(own.length > 0 ? [`.${className}{${own.join(";")}}`] : []), ...nested];
+  return { declarations, rules };
 }
 
 /** A small, opinionated baseline. Mobile-first, no reset framework. */
@@ -312,6 +370,9 @@ p{margin:0 0 1em}
 img{max-width:100%;height:auto;display:block}
 a{color:var(--color-brand,#06c)}
 .fx-stack{display:flex;flex-direction:column}
+/* A flex column stretches its children, which beats inline-block — so a button
+   or a form standing alone in a stack spanned the whole page. */
+.fx-stack>.fx-button,.fx-stack>.fx-form{align-self:flex-start}
 .fx-row{display:flex;flex-direction:row;flex-wrap:wrap}
 .fx-grid{display:grid}
 .fx-section{display:block}
@@ -378,6 +439,9 @@ a{color:var(--color-brand,#06c)}
 /* A card is usually one big link. Without a border it is a paragraph, and with
    an unsized image it is a paragraph under a photograph the size of a wall. */
 .fx-card{display:block;color:inherit;text-decoration:none}
+/* The block wraps its content in an <a>, and those rules land on the <article>
+   around it — so every card rendered as a wall of underlined blue text. */
+.fx-card>a{color:inherit;text-decoration:none;display:block}
 .fx-card img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:var(--radius-md,8px)}
 .fx-card h3{margin:.5rem 0 .25rem}
 .fx-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(12rem,1fr));gap:.75rem}
@@ -392,6 +456,12 @@ a{color:var(--color-brand,#06c)}
 /* The anchor a block id emits: it must move nothing, and must not hide under
    a sticky header. */
 .fx-anchor{display:block;height:0;scroll-margin-top:5rem}
+/* A native toggle. The default marker is a triangle in a serif face on most
+   browsers and nothing at all on some, so it gets a size and a cursor and is
+   otherwise left alone — the element already knows how to be a button. */
+.fx-disclosure>summary{cursor:pointer;list-style:none;padding:.5rem 0;font-weight:600}
+.fx-disclosure>summary::-webkit-details-marker{display:none}
+.fx-disclosure>summary:focus-visible{outline:2px solid var(--color-brand,#06c);outline-offset:2px}
 `.trim();
 
 /**

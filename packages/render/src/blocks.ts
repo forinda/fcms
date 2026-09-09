@@ -111,6 +111,39 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       render: ({ className, children }) =>
         el("section", { class: `fx-section ${className}` }, children),
     }),
+    /**
+     * A toggle, without a line of JavaScript.
+     *
+     * A spec has no `<script>`, no checkbox and, until now, no element that
+     * opens — so a mobile menu was inexpressible: a phone header spent ~190px
+     * on a wordmark, two buttons and a nav wrapped onto two lines. The
+     * approximations were a `:target` link (no `aria-expanded`, no Escape, and
+     * a history entry per open) or a scrolling row of links.
+     *
+     * `<details>` is the native answer and it is better than either: keyboard
+     * operable, its open state announced, Escape closes it, and it needs
+     * nothing from us. Which is the argument for the block existing rather than
+     * for a menu block: this is a disclosure, and a menu is one thing to put in
+     * it.
+     */
+    define({
+      name: "disclosure",
+      summary: "A label that opens to reveal what is inside it.",
+      attrs: ["label", "open"],
+      layout: true,
+      render: ({ className, attrs, children }) =>
+        el(
+          "details",
+          {
+            class: `fx-disclosure ${className}`,
+            // Open on the page it belongs to — an FAQ answer somebody linked
+            // to, a filter rail that starts expanded on a wide screen.
+            ...(attrs["open"] === true ? { open: "" } : {}),
+          },
+          el("summary", {}, str(attrs["label"], "More")),
+          children,
+        ),
+    }),
     define({
       name: "stack",
       summary: "Children in a vertical column.",

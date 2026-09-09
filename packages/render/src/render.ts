@@ -9,6 +9,7 @@
 import {
   collectionType,
   type Block,
+  type ContentType,
   type Page,
   type Query,
   type SiteSpec,
@@ -96,6 +97,8 @@ function className(path: readonly number[]): string {
 
 interface Walk {
   readonly css: string[];
+  /** The content type of the enclosing `form` or `filters`, for its fields. */
+  readonly formType?: ContentType;
   /** The page's key, so a flow's steps know where to post. */
   readonly pageKey: string;
   /** Authoring preview: every step at once (see `RenderOptions`). */
@@ -157,6 +160,26 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
   const css = blockCss(cls, block.style, block.css);
   if (css) walk.css.push(css);
 
+  const type = walk.registry[block.type];
+  if (!type) return unknownBlock(block.type);
+
+  const attrs = resolveAttrs(block.attrs, scope, walk.locale);
+  // A block's own `for`, and failing that the one it is inside.
+  //
+  // `field` reads its type, label, required and options from the declared
+  // field — but only a block with its own `for` had a content type, and a
+  // `field` inside a `form` has none. So every generated input fell back to a
+  // text box labelled with the raw field name, and each one had to repeat
+  // `for: enquiry`. A form knows what it collects; its fields are part of it.
+  const forType =
+    typeof attrs["for"] === "string"
+      ? walk.spec.content.find((t) => t.key === attrs["for"])
+      : walk.formType;
+
+  // Children are rendered before this block is, so the type has to be resolved
+  // above them rather than beside the render call.
+  const inner: Walk = forType && forType !== walk.formType ? { ...walk, formType: forType } : walk;
+
   // A `data` block renders `item` once per row instead of its children. The
   // schema guarantees the two travel together, so neither branch is partial.
   let children: Html;
@@ -172,7 +195,7 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
       ...rows.map((row, i) => {
         const rendered = fragment(
           ...block.item!.map((child, j) =>
-            renderBlock(child, { ...scope, item: row }, [...path, i, j], walk),
+            renderBlock(child, { ...scope, item: row }, [...path, i, j], inner),
           ),
         );
 
@@ -194,18 +217,9 @@ function renderBlock(block: Block, scope: Scope, path: readonly number[], walk: 
     );
   } else {
     children = fragment(
-      ...(block.children ?? []).map((child, i) => renderBlock(child, scope, [...path, i], walk)),
+      ...(block.children ?? []).map((child, i) => renderBlock(child, scope, [...path, i], inner)),
     );
   }
-
-  const type = walk.registry[block.type];
-  if (!type) return unknownBlock(block.type);
-
-  const attrs = resolveAttrs(block.attrs, scope, walk.locale);
-  const forType =
-    typeof attrs["for"] === "string"
-      ? walk.spec.content.find((t) => t.key === attrs["for"])
-      : undefined;
 
   // A facet counts across the query with its own filter lifted, which only it
   // needs and only it can name.

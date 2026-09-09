@@ -154,6 +154,14 @@ one row at a time, and its lists can name that row with
 </tbody>
 </table>
 
+<p><code>disclosure</code> is how a spec expresses a toggle — a mobile menu, an
+FAQ answer, a filter rail that starts collapsed. It renders
+<code>&lt;details&gt;</code>, so it is keyboard-operable, announces its own open
+state, and closes on Escape without a line of JavaScript. A header that wants a
+menu on a phone and a row of links on a desktop is two blocks gated by
+<code>hideOn</code>, with the links themselves in a <code>components:</code>
+entry so the list is written once.</p>
+
 <h3>Styling</h3>
 
 <p>Three tiers, and the order is the point: a theme first, then structured
