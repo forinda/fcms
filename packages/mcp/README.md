@@ -1,6 +1,6 @@
 # fcms-mcp
 
-The machine door to a [forinda-cms](https://forinda-cms.netlify.app) site: ten
+The machine door to a [forinda-cms](https://fcms.kickjs.app) site: ten
 MCP tools an agent can use to read a site's spec, propose a change, apply it,
 and undo it.
 

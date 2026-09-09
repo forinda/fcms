@@ -69,7 +69,7 @@ default), `SITE_NAME`, and `MEDIA_DIR` for uploads — which lands in `.fcms`
 beside the database, so one directory is the whole of what the platform owns.
 
 There is a Docker Compose file as well, if you would rather run Postgres beside
-it: <https://forinda-cms.netlify.app/install/compose.yaml>.
+it: <https://fcms.kickjs.app/install/compose.yaml>.
 
 Use whatever manager you already have — `pnpm start`, `yarn start`, `bun start`
 all run the same script `init` wrote.

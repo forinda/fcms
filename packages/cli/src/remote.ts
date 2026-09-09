@@ -218,21 +218,23 @@ export async function apply(
 
 /** The client for this directory, or a message saying what is missing. */
 function connect(root: string): Client | null {
-  const linked = readLink(root);
-  if (!linked) {
+  // A file with a port in it and no URL is a project that has not been linked
+  // yet, which is the same situation as no file at all.
+  const url = readLink(root)?.url;
+  if (!url) {
     notLinked();
     return null;
   }
 
-  const token = readToken(linked.url);
+  const token = readToken(url);
   if (!token) {
     console.error(
-      `${yellow("not signed in")} run ${bold("fcms login")} — no live token for ${linked.url}.`,
+      `${yellow("not signed in")} run ${bold("fcms login")} — no live token for ${url}.`,
     );
     return null;
   }
 
-  return new Client({ url: linked.url, token, source: "cli" });
+  return new Client({ url, token, source: "cli" });
 }
 
 function notLinked(): number {

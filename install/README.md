@@ -9,8 +9,8 @@ Two files and one command.
 
 ```bash
 mkdir my-site && cd my-site
-curl -O https://forinda-cms.netlify.app/install/compose.yaml
-curl -o .env https://forinda-cms.netlify.app/install/env.example
+curl -O https://fcms.kickjs.app/install/compose.yaml
+curl -o .env https://fcms.kickjs.app/install/env.example
 # edit .env — set POSTGRES_PASSWORD and SITE_NAME
 docker compose up -d
 ```

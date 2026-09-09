@@ -1,6 +1,6 @@
 # fcms
 
-The management CLI for [forinda-cms](https://forinda-cms.netlify.app). A site
+The management CLI for [forinda-cms](https://fcms.kickjs.app). A site
 is a directory of YAML; this is what checks it, previews it and publishes it.
 
 ```sh
