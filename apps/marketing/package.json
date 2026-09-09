@@ -11,6 +11,8 @@
     "typecheck": "node scripts/publish-install.mjs && astro build --silent"
   },
   "dependencies": {
+    "@forinda-cms/render": "workspace:*",
+    "@forinda-cms/spec": "workspace:*",
     "astro": "catalog:"
   }
 }

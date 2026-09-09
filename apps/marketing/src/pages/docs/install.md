@@ -1,7 +1,7 @@
 ---
 layout: ../../layouts/Docs.astro
 title: "Install — forinda-cms"
-description: "Two files and one command. Migrations and the first owner are created on boot."
+description: "One command, and no database to set up. Migrations and the first owner are created on boot."
 section: "Documentation"
 previous: { href: "/docs/", label: "Overview" }
 next: { href: "/docs/editing/", label: "Run your site" }
@@ -17,18 +17,46 @@ count is low, and every prerequisite is stated before it is needed.
 
 # Install
 
-<p class="lede">Two files, one command, no setup wizard.</p>
+<p class="lede">One command, no database to set up, no setup wizard.</p>
 
 ## What you need
 
 <ul>
-<li>A machine with Docker and Docker Compose. 1–2&nbsp;GB of memory is enough.</li>
+<li>Node 22 or newer. That is the entire list.</li>
 <li>A few minutes. There is no account to create and nothing to license.</li>
 </ul>
 
-<p class="muted">No Docker? <a href="#without-docker">Node and a Postgres URL are enough</a>.</p>
+## Start a project
 
-## Install
+<div class="snippet">
+<header><span>terminal</span><button class="copy" type="button" data-copy="npx @forinda/fcms-cli init my-site
+cd my-site && npm install
+npm start">Copy</button></header>
+<pre><code>npx @forinda/fcms-cli init my-site
+cd my-site &amp;&amp; npm install
+npm start</code></pre>
+</div>
+
+That writes a site you can already run — a spec that validates, a
+<code>package.json</code>, and a <code>.gitignore</code> that keeps the database
+out of version control. Use whatever you already use: <code>pnpm dlx</code>,
+<code>yarn dlx</code> and <code>bunx</code> all work, and the next steps it
+prints come back in that manager's own commands.
+
+<strong>Postgres runs inside the process</strong> — the real thing, compiled to
+WebAssembly — and keeps its data in <code>.fcms</code>. Nothing to install,
+nothing listening but the site itself, and a backup is <code>cp -r .fcms</code>.
+
+<p class="muted">Prefer to run Postgres as a service, or already have one?
+<a href="#with-docker">Docker Compose</a> and
+<a href="#without-docker">a connection string</a> both work, and the schema is
+the same either way.</p>
+
+<h2 id="with-docker">With Docker</h2>
+
+Docker brings the database and a version to pin along with it, which is what
+you want once one process is not enough. It needs Docker Compose and about
+1–2&nbsp;GB of memory.
 
 <div class="snippet">
 <header><span>terminal</span><button class="copy" type="button" data-copy="mkdir my-site &amp;&amp; cd my-site
@@ -62,20 +90,9 @@ Open <code>http://localhost:8080</code>. There is a working site, and your dashb
 
 </div>
 
-<h2 id="without-docker">Without Docker, and without a database</h2>
+<h2 id="without-docker">Against a Postgres you already have</h2>
 
-You need Node 22 or newer. Nothing else — no database, no container, no connection string:
-
-<div class="snippet">
-<header><span>terminal</span><button class="copy" type="button" data-copy="OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-npx @forinda/fcms-core">Copy</button></header>
-<pre><code>OWNER_EMAIL=you@example.com OWNER_PASSWORD=a-long-enough-password \
-npx @forinda/fcms-core</code></pre>
-</div>
-
-<strong>Postgres runs inside the process</strong> — the real thing, compiled to WebAssembly — and keeps its data in <code>./.fcms</code>. It migrates on boot, creates the owner once, and serves on <code>PORT</code> (8080 by default). A backup is <code>cp -r .fcms</code>.
-
-The embedded database serves one query at a time. For a business taking bookings that is invisible. Under real traffic it is a ceiling, and the way past it is a Postgres server — the same schema and the same migrations, so moving is <code>pg_dump</code> and one variable:
+The same server, pointed at a database somebody else runs — a VPS, a managed one, the one your host already gave you. Same schema and same migrations as the embedded one, so moving between them is <code>pg_dump</code> and one variable:
 
 <div class="snippet">
 <header><span>terminal</span><button class="copy" type="button" data-copy="DATABASE_URL=postgres://user:pass@localhost:5432/forinda \
@@ -87,6 +104,8 @@ npx @forinda/fcms-core</code></pre>
 </div>
 
 A <code>postgres://</code> URL is a server; anything else is a directory to keep files in. <code>npx @forinda/fcms-core --help</code> lists everything it reads.
+
+This is also the way past the embedded database's ceiling: it serves one query at a time, which is invisible for a business taking bookings and a wall under real traffic.
 
 <div class="note">
 
