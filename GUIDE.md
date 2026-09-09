@@ -192,7 +192,14 @@ npm run dev
 
 Serves the directory at `localhost:4321` and reloads on save. No server, no
 database, no account — it reads the files. This is the loop you spend your time
-in.
+in. If the port is taken it steps to the next free one and says so.
+
+To choose the port, `fcms.json` can hold one — `fcms link` writes it — or:
+
+```sh
+npm run dev -- --port 4000    # the `--` is npm's: without it npm eats the flag
+pnpm dev --port 4000          # pnpm, yarn and bun need no separator
+```
 
 ## 6. Publish it
 

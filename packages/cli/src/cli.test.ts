@@ -9,10 +9,11 @@
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderPage, routes, withDerived } from "@forinda-cms/render";
 
+import { devTarget } from "./program.js";
 import { loadProject } from "./project.js";
 
 const SALON = join(import.meta.dirname, "../../../examples/salon");
@@ -213,5 +214,34 @@ describe("entries come from a source the renderer cannot see behind", () => {
     // The same interface is Postgres-backed in Phase 0b; nothing above it changes.
     expect(loaded.project.source.all("service").length).toBeGreaterThan(0);
     expect(loaded.project.source.all("nonexistent")).toEqual([]);
+  });
+});
+
+describe("which directory fcms dev serves, and on which port", () => {
+  it("reads a bare number as a port rather than a directory", () => {
+    // `npm run dev --port 4000` does not pass the flag on: npm takes it as its
+    // own config and hands the script a bare `4000`, which was read as a
+    // directory — so the error was about a missing site.yaml in ./4000.
+    const target = devTarget("4000");
+    expect(target.port).toBe(4000);
+    expect(target.root).toBe(resolve("."));
+    expect(target.note).toContain("npm run dev -- --port 4000");
+  });
+
+  it("still prefers a directory that actually has that name", () => {
+    const dir = mkdtempSync(join(tmpdir(), "fcms-dev-"));
+    temps.push(dir);
+    mkdirSync(join(dir, "4000"));
+
+    const target = devTarget(join(dir, "4000"));
+    expect(target.port).toBeUndefined();
+    expect(target.root).toBe(join(dir, "4000"));
+  });
+
+  it("leaves the port unset when nobody said one, so fcms.json can answer", () => {
+    // Defaulting here would make "not given" indistinguishable from "given as
+    // 4321", and the project's own port would never win.
+    expect(devTarget(".").port).toBeUndefined();
+    expect(devTarget(".", 4711).port).toBe(4711);
   });
 });

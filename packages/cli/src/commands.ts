@@ -17,7 +17,7 @@ import { splitFiles } from "@forinda-cms/lang";
 import { declaredStatusPage, llmsTxt, renderPage, routes, statusPage } from "@forinda-cms/render";
 
 import { loadProject } from "./project.js";
-import { bold, dim, green, printDiagnostics, rel, yellow } from "./report.js";
+import { bold, dim, green, printDiagnostics, red, rel, yellow } from "./report.js";
 
 export function validate(root: string): number {
   const loaded = loadProject(root);
@@ -121,6 +121,8 @@ export function fmt(root: string, check = false): number {
  */
 export function dev(root: string, port: number): void {
   let version = Date.now();
+  /** The last failure printed, so a reload poll does not reprint it forever. */
+  let printed = "";
 
   const server = createServer((req, res) => {
     const url = (req.url ?? "/").split("?")[0] ?? "/";
@@ -142,11 +144,21 @@ export function dev(root: string, port: number): void {
 
     const loaded = loadProject(root);
     if (!loaded.ok) {
-      printDiagnostics(root, loaded.diagnostics);
+      // Once per breakage, not once per request. A broken spec plus a browser
+      // polling for a reload reprinted the same diagnostics every second, and
+      // the error you were trying to read scrolled away as you read it.
+      const signature = loaded.diagnostics.map((d) => d.message).join("\n");
+      if (signature !== printed) {
+        printDiagnostics(root, loaded.diagnostics);
+        printed = signature;
+      }
       res.writeHead(500, { "content-type": "text/html; charset=utf-8" });
       res.end(errorPage(loaded.diagnostics));
       return;
     }
+
+    // Fixed: the next breakage is news again.
+    printed = "";
 
     const { spec, source } = loaded.project;
 
@@ -210,6 +222,21 @@ export function dev(root: string, port: number): void {
     }
   });
 
+  // A port already in use is the commonest thing that happens to a dev server,
+  // and it arrived as an unhandled exception with a stack trace. Step along
+  // rather than stop: the banner prints the port it actually got, which is the
+  // only place anybody reads it from anyway.
+  let attempt = port;
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code !== "EADDRINUSE" || attempt >= port + 10) {
+      console.error(`${red("error")} ${err.message}`);
+      process.exit(1);
+    }
+    console.log(dim(`  port ${attempt} is in use`));
+    attempt += 1;
+    server.listen(attempt);
+  });
+
   server.listen(port, () => {
     const loaded = loadProject(root);
     if (loaded.ok) summariseRoutes(loaded.project.spec, loaded.project.source);
@@ -219,7 +246,7 @@ export function dev(root: string, port: number): void {
     // pushed off by the routes — a site with two hundred rooms printed two
     // hundred lines, and the address you actually needed was above all of them.
     console.log(
-      `\n${green("dev")} ${bold(`http://localhost:${port}`)}  ${dim(rel(process.cwd(), root))}`,
+      `\n${green("dev")} ${bold(`http://localhost:${attempt}`)}  ${dim(rel(process.cwd(), root))}`,
     );
   });
 }

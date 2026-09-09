@@ -14,6 +14,7 @@
  * `@forinda-cms/sdk` — never to a database. That is ADR 0002 seam 4, and it is
  * what makes Phase 1's MCP server a second consumer instead of a rewrite.
  */
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Command, InvalidArgumentError, Option } from "commander";
 
@@ -22,7 +23,7 @@ import { init, type InitOptions } from "./init.js";
 import { STARTERS } from "@forinda-cms/spec";
 import { readLink } from "@forinda-cms/sdk";
 import { apply, link, login, logout, plan, pull, status } from "./remote.js";
-import { dim } from "./report.js";
+import { bold, dim } from "./report.js";
 
 /**
  * Replaced by the bundler with the published version.
@@ -40,6 +41,41 @@ function port(value: string): number {
     throw new InvalidArgumentError("must be a port between 1 and 65535.");
   }
   return n;
+}
+
+/**
+ * Which directory to serve, and on which port.
+ *
+ * `npm run dev --port 4000` does not pass the flag on: npm reads `--port` as
+ * its own config, warns about it, and hands the script a bare `4000`. That
+ * arrived here as the directory argument, so the error a person got was about a
+ * missing `site.yaml` in `./4000` — an accurate answer to a question nobody
+ * asked.
+ *
+ * A bare number that is not a directory is a port. Being right about the
+ * argument is worth less than being useful about the intent, and a directory
+ * genuinely called `4000` still wins.
+ *
+ * `port` is left undefined rather than defaulted, so the caller can still tell
+ * "not given" from "given as 4321" and let `fcms.json` win over the built-in.
+ */
+export function devTarget(
+  dir: string,
+  flag?: number,
+): { root: string; port?: number; note?: string } {
+  const asPort = /^\d{2,5}$/.test(dir) && !existsSync(resolve(dir));
+  const root = resolve(asPort ? "." : dir);
+
+  if (flag !== undefined) return { root, port: flag };
+  if (!asPort) return { root };
+
+  return {
+    root,
+    port: Number(dir),
+    note:
+      `${dim("note")} reading ${bold(dir)} as a port. ` +
+      `With npm the flag needs its own separator: ${bold(`npm run dev -- --port ${dir}`)}`,
+  };
 }
 
 export function buildProgram(): Command {
@@ -92,11 +128,10 @@ export function buildProgram(): Command {
     .addOption(new Option("-p, --port <number>", "port to listen on").argParser(port))
     .description("serve the site locally, reloading on save")
     .action((dir: string, options: { port?: number }) => {
-      const root = resolve(dir);
-      // Flag, then the project's own answer, then 4321.
-      const chosen = options.port ?? readLink(root)?.port ?? 4321;
+      const target = devTarget(dir, options.port);
+      if (target.note) console.error(target.note);
       // Long-running: no exit, the server holds the process open.
-      dev(root, chosen);
+      dev(target.root, target.port ?? readLink(target.root)?.port ?? 4321);
     });
 
   program
