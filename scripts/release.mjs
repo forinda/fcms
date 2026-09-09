@@ -15,6 +15,8 @@
  *   pnpm release --dry-run    # say what would happen, change nothing
  */
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 
 const args = process.argv.slice(2);
@@ -45,6 +47,27 @@ const local = git("rev-parse", "HEAD");
 const remote = git("rev-parse", "origin/main");
 if (local !== remote) {
   die("`main` and `origin/main` disagree.", "git pull --ff-only, then look at what came in.");
+}
+
+/**
+ * Every package a tag would publish, read rather than listed.
+ *
+ * This printed two names while the release workflow published three, because
+ * the list was written out by hand and a package was added to one and not the
+ * other. The preview exists to say what is about to go out, so it has to be
+ * derived from the same thing that decides: a manifest that is not private and
+ * asks for public access.
+ */
+function publishable() {
+  return readdirSync("packages", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const manifest = join("packages", entry.name, "package.json");
+      if (!existsSync(manifest)) return [];
+      const pkg = JSON.parse(readFileSync(manifest, "utf8"));
+      return pkg.private === true || pkg.publishConfig?.access !== "public" ? [] : [pkg.name];
+    })
+    .sort();
 }
 
 /**
@@ -84,8 +107,9 @@ const [year, minor] = version.split(".");
 console.log(
   `\x1b[2m  ghcr.io/forinda/fcms       ${version}, ${year}.${minor}, ${year}, latest\x1b[0m`,
 );
-console.log("\x1b[2m  @forinda/fcms-core         " + version + "\x1b[0m");
-console.log("\x1b[2m  @forinda/fcms-cli          " + version + "\x1b[0m");
+for (const name of publishable()) {
+  console.log(`\x1b[2m  ${name.padEnd(26)}${version}\x1b[0m`);
+}
 
 const previous = git("tag", "--list", "--sort=-v:refname").split("\n").filter(Boolean)[0];
 if (previous) {
