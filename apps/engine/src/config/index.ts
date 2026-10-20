@@ -87,6 +87,17 @@ const envSchema = fromZod(
     SECURE_COOKIES: z.coerce.boolean().default(false),
 
     /**
+     * Encrypts the admin's flash cookie (ADR 0051 §5) — what the next page
+     * shows after a save, and a form's validation errors. Nothing in it decides
+     * access; `fcms_session` does that.
+     *
+     * Optional so an install still needs nothing configured. Unset, each boot
+     * makes its own, which costs a message in flight across a restart — and on
+     * more than one instance, one minted on the other. Set it there.
+     */
+    SESSION_SECRET: z.string().min(32).optional(),
+
+    /**
      * Where uploaded media is written.
      *
      * Beside the database, in `.fcms`, so one directory holds everything the

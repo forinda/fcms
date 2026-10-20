@@ -15,6 +15,7 @@
  * asserted.
  */
 import { Controller, Get, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
+import { back, flash, inertia, isInertiaRequest } from "@forinda/kickjs-inertia";
 
 import { atLeast, refusal, roleOf, type Role } from "@/shared/roles";
 import type { ContentType, SiteSpec } from "@forinda-cms/spec";
@@ -121,7 +122,7 @@ export class ContentController {
    * straight into ("8 bookings not published" goes to the drafts).
    */
   @Get("/content/:type")
-  async list(ctx: Ctx): Promise<void> {
+  async list(ctx: Ctx): Promise<unknown> {
     const spec = await this.specs.execute();
     const key = String((ctx.params as Record<string, string>)["type"] ?? "");
     const type = spec?.content.find((t) => t.key === key);
@@ -155,24 +156,20 @@ export class ContentController {
       offset: (pageNumber - 1) * PER_PAGE,
     });
 
-    html(
-      ctx,
-      200,
-      page({
-        role: viewerRole(ctx),
-        title: `${type.labelPlural ?? type.label} — Admin`,
-        trail: [{ label: type.labelPlural ?? type.label }],
-        body: entryList({
-          type,
-          rows,
-          total,
-          page: pageNumber,
-          perPage: PER_PAGE,
-          search,
-          status,
-          sort,
-        }),
+    return inertia(
+      "Entries/Index",
+      entryList({
+        type,
+        rows,
+        total,
+        page: pageNumber,
+        perPage: PER_PAGE,
+        search,
+        status,
+        sort,
+        canWrite: mayWrite(ctx) === null,
       }),
+      { meta: { title: `${type.labelPlural ?? type.label} — Admin` } },
     );
   }
 
@@ -237,8 +234,9 @@ export class ContentController {
    * and the row's own timestamp is its history.
    */
   @Post("/content/:type/:id/status")
-  async setStatus(ctx: Ctx): Promise<void> {
+  async setStatus(ctx: Ctx): Promise<unknown> {
     const refused = mayWrite(ctx);
+    if (refused && isInertiaRequest(ctx)) return refuseOnList(ctx, refused);
     if (refused)
       return html(
         ctx,
@@ -255,6 +253,10 @@ export class ContentController {
     const status = body["status"] === "published" ? "published" : "draft";
 
     await this.writer.setStatus(String(params["id"]), status);
+    if (isInertiaRequest(ctx)) {
+      flash(ctx, { success: status === "published" ? "Published." : "Unpublished." });
+      return backToList(ctx);
+    }
     redirect(ctx, `/admin/content/${String(params["type"])}`);
   }
 
@@ -445,8 +447,9 @@ ${entryForm(type, data, {
   }
 
   @Post("/content/:type/:id/delete")
-  async remove(ctx: Ctx): Promise<void> {
+  async remove(ctx: Ctx): Promise<unknown> {
     const refused = mayWrite(ctx);
+    if (refused && isInertiaRequest(ctx)) return refuseOnList(ctx, refused);
     if (refused)
       return html(
         ctx,
@@ -460,6 +463,10 @@ ${entryForm(type, data, {
 
     const params = ctx.params as Record<string, string>;
     await this.writer.delete(String(params["id"]));
+    if (isInertiaRequest(ctx)) {
+      flash(ctx, { success: "Deleted." });
+      return backToList(ctx);
+    }
     redirect(ctx, `/admin/content/${params["type"]}`);
   }
 
@@ -667,6 +674,20 @@ function paymentsPanel(
 function stepsOf(detail: Record<string, unknown> | null): string {
   const steps = detail?.["steps"];
   return Array.isArray(steps) ? steps.join(" · ") : String(detail?.["note"] ?? "");
+}
+
+/**
+ * The list a button on it was pressed from, filters and page included — the
+ * adapter records every page it renders in the session. Not the referrer: the
+ * admin sends `Referrer-Policy: no-referrer`, so a browser never offers one.
+ */
+const backToList = (ctx: Ctx) =>
+  back(ctx, `/admin/content/${String((ctx.params as Record<string, string>)["type"])}`);
+
+/** A refusal on an Inertia page: said on the list, not in a modal over it. */
+function refuseOnList(ctx: Ctx, refused: string) {
+  flash(ctx, { error: refused });
+  return backToList(ctx);
 }
 
 /** The role on the session, for the chrome to hide what it cannot open. */

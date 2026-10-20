@@ -17,9 +17,11 @@ catalog:
   astro: ^6.0.0
   '@forinda/kickjs': ^10.8.0
   '@forinda/kickjs-cli': ^8.14.2
+  '@forinda/kickjs-inertia': ^0.4.0
   '@forinda/kickjs-schema': ^0.2.4
   '@forinda/kickjs-swagger': ^7.3.3
   '@forinda/kickjs-testing': ^8.3.1
+  '@inertiajs/react': ^3.9.1
   '@modelcontextprotocol/sdk': ^1.30.0
   multer: ^2.0.0
   '@types/multer': ^2.0.0
