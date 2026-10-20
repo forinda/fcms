@@ -6,12 +6,11 @@
  * rather than about SQL (ADR 0023 §4).
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, desc, eq } from "drizzle-orm";
+import type { ExpressionBuilder } from "@forinda/kickjs-db";
 
-import { payments, type NewPaymentRow, type PaymentRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import type { Kdb, KdbSchema, NewPaymentRow, PaymentRow, Scope } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,31 +18,32 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class PaymentRepository {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
-  private get scoped() {
-    return and(eq(payments.orgId, this.scope.orgId), eq(payments.siteId, this.scope.siteId));
-  }
+  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "payments">) =>
+    eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async create(row: Omit<NewPaymentRow, "siteId" | "orgId">): Promise<PaymentRow> {
-    const [created] = await this.db
-      .insert(payments)
+    return this.db
+      .insertInto("payments")
       .values({ ...row, siteId: this.scope.siteId, orgId: this.scope.orgId })
-      .returning();
-    return created!;
+      .returningAll()
+      .executeTakeFirstOrThrow();
   }
 
   async byId(id: string): Promise<PaymentRow | null> {
     // A payment id comes out of a URL a stranger controls, and a malformed one
     // reaching a uuid column is a 500 rather than a 404.
     if (!UUID.test(id)) return null;
-    const [row] = await this.db
-      .select()
-      .from(payments)
-      .where(and(this.scoped, eq(payments.id, id)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("payments")
+      .selectAll()
+      .where(this.scoped)
+      .where("id", "=", id)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -55,20 +55,23 @@ export class PaymentRepository {
    * provider's, so it identifies exactly one row.
    */
   async byReference(provider: string, reference: string): Promise<PaymentRow | null> {
-    const [row] = await this.db
-      .select()
-      .from(payments)
-      .where(and(eq(payments.provider, provider), eq(payments.reference, reference)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("payments")
+      .selectAll()
+      .where("provider", "=", provider)
+      .where("reference", "=", reference)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
   async update(id: string, patch: Partial<NewPaymentRow>): Promise<PaymentRow | null> {
-    const [row] = await this.db
-      .update(payments)
+    const row = await this.db
+      .updateTable("payments")
       .set({ ...patch, updatedAt: new Date() })
-      .where(eq(payments.id, id))
-      .returning();
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -80,20 +83,23 @@ export class PaymentRepository {
    */
   async recent(limit = 20): Promise<PaymentRow[]> {
     return this.db
-      .select()
-      .from(payments)
+      .selectFrom("payments")
+      .selectAll()
       .where(this.scoped)
-      .orderBy(desc(payments.createdAt))
-      .limit(limit);
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .execute();
   }
 
   /** Every payment for one entry, newest first — what the admin shows. */
   async forEntry(entryId: string): Promise<PaymentRow[]> {
     if (!UUID.test(entryId)) return [];
     return this.db
-      .select()
-      .from(payments)
-      .where(and(this.scoped, eq(payments.entryId, entryId)))
-      .orderBy(desc(payments.createdAt));
+      .selectFrom("payments")
+      .selectAll()
+      .where(this.scoped)
+      .where("entryId", "=", entryId)
+      .orderBy("createdAt", "desc")
+      .execute();
   }
 }
