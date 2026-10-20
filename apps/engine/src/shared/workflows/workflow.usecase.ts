@@ -7,13 +7,12 @@
  * one must not fail it.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "@forinda/kickjs-db";
 import { matches, resolve } from "@forinda-cms/render";
 import type { SiteSpec, Workflow } from "@forinda-cms/spec";
-import { entries, rowsOf, workflowRuns, type EntryRow, type WorkflowRunRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import { tables, type EntryRow, type Kdb, type Scope, type WorkflowRunRow } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 import { ACTION_REGISTRY } from "./actions";
 import { parseCron } from "./cron";
@@ -39,11 +38,12 @@ const MAX_ATTEMPTS = 5;
  */
 const MAX_DEPTH = 3;
 const BACKOFF_SECONDS = [10, 30, 120, 600];
+const runs = tables.workflowRuns;
 
 @Service({ scope: Lifetime.REQUEST })
 export class WorkflowUseCase {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
@@ -57,18 +57,21 @@ export class WorkflowUseCase {
     const due = spec.logic.filter((w) => w.enabled !== false && fires(w, event));
     if (due.length === 0) return 0;
 
-    await this.db.insert(workflowRuns).values(
-      due.map((w) => ({
-        siteId: this.scope.siteId,
-        orgId: this.scope.orgId,
-        workflowKey: w.key,
-        trigger: event.on,
-        entryId: event.entryId,
-        // How far this is from something a person did, so a chain can stop
-        // without a column of its own.
-        ...(depth > 0 ? { detail: { depth } } : {}),
-      })),
-    );
+    await this.db
+      .insertInto("workflow_runs")
+      .values(
+        due.map((w) => ({
+          siteId: this.scope.siteId,
+          orgId: this.scope.orgId,
+          workflowKey: w.key,
+          trigger: event.on,
+          entryId: event.entryId,
+          // How far this is from something a person did, so a chain can stop
+          // without a column of its own.
+          ...(depth > 0 ? { detail: { depth } } : {}),
+        })),
+      )
+      .execute();
     return due.length;
   }
 
@@ -88,14 +91,17 @@ export class WorkflowUseCase {
     if (steps.length === 0) return 0;
     void spec;
 
-    await this.db.insert(workflowRuns).values({
-      siteId: this.scope.siteId,
-      orgId: this.scope.orgId,
-      workflowKey: about.label,
-      trigger: "flow.completed",
-      entryId: about.entryId,
-      detail: { steps: steps.map((s) => s.action), inline: steps },
-    });
+    await this.db
+      .insertInto("workflow_runs")
+      .values({
+        siteId: this.scope.siteId,
+        orgId: this.scope.orgId,
+        workflowKey: about.label,
+        trigger: "flow.completed",
+        entryId: about.entryId,
+        detail: { steps: steps.map((s) => s.action), inline: steps },
+      })
+      .execute();
     return 1;
   }
 
@@ -127,7 +133,7 @@ export class WorkflowUseCase {
     if (due.length === 0) return 0;
 
     const inserted = await this.db
-      .insert(workflowRuns)
+      .insertInto("workflow_runs")
       .values(
         due.map((w) => ({
           siteId: this.scope.siteId,
@@ -137,8 +143,9 @@ export class WorkflowUseCase {
           dedupe: `${minute}`,
         })),
       )
-      .onConflictDoNothing()
-      .returning();
+      .onConflict((oc) => oc.doNothing())
+      .returningAll()
+      .execute();
 
     return inserted.length;
   }
@@ -154,8 +161,8 @@ export class WorkflowUseCase {
     const workflow = spec.logic.find((w) => w.key === workflowKey);
     if (!workflow) return null;
 
-    const [run] = await this.db
-      .insert(workflowRuns)
+    const run = await this.db
+      .insertInto("workflow_runs")
       .values({
         siteId: this.scope.siteId,
         orgId: this.scope.orgId,
@@ -165,9 +172,10 @@ export class WorkflowUseCase {
         status: "running",
         detail: { test: true },
       })
-      .returning();
+      .returningAll()
+      .executeTakeFirstOrThrow();
 
-    return this.execute(spec, run!);
+    return this.execute(spec, run);
   }
 
   /**
@@ -179,37 +187,40 @@ export class WorkflowUseCase {
   async runDue(spec: SiteSpec, limit = 10): Promise<WorkflowRunRow[]> {
     const claimed = await this.db.transaction(async (tx) => {
       const due = await tx
-        .select({ id: workflowRuns.id })
-        .from(workflowRuns)
+        .selectFrom("workflow_runs")
+        .select("id")
         .where(
           and(
-            eq(workflowRuns.siteId, this.scope.siteId),
-            eq(workflowRuns.status, "pending"),
+            eq(runs.siteId, this.scope.siteId),
+            eq(runs.status, "pending"),
             // The database's clock, not this process's. `runAt` is stamped by
             // `defaultNow()` on insert, so comparing it against a `Date` from
             // here means two clocks decide whether a run is due — and a
             // database a few milliseconds ahead makes a row that was just
             // enqueued invisible. It passed locally, where both clocks are the
             // same one, and failed in CI, where they are not.
-            lte(workflowRuns.runAt, sql`now()`),
+            lte(runs.runAt, sql<Date>`now()`),
           ),
         )
-        .orderBy(workflowRuns.runAt)
+        .orderBy("runAt")
         .limit(limit)
-        .for("update", { skipLocked: true });
+        .forUpdate()
+        .skipLocked()
+        .execute();
 
       if (due.length === 0) return [];
 
       return tx
-        .update(workflowRuns)
+        .updateTable("workflow_runs")
         .set({ status: "running", updatedAt: new Date() })
         .where(
-          sql`${workflowRuns.id} in (${sql.join(
-            due.map((row) => sql`${row.id}`),
-            sql`, `,
-          )})`,
+          inArray<typeof runs.id>(
+            runs.id,
+            due.map((row) => row.id),
+          ),
         )
-        .returning();
+        .returningAll()
+        .execute();
     });
 
     const done: WorkflowRunRow[] = [];
@@ -316,8 +327,8 @@ export class WorkflowUseCase {
       return this.finish(run, "failed", { steps }, error, attempts);
     }
 
-    const [row] = await this.db
-      .update(workflowRuns)
+    const row = await this.db
+      .updateTable("workflow_runs")
       .set({
         status: "pending",
         attempts,
@@ -326,11 +337,12 @@ export class WorkflowUseCase {
         // Also the database's clock, for the same reason the claim uses it:
         // one clock decides when a run is due, and it is the one that stamped
         // the row.
-        runAt: sql`now() + make_interval(secs => ${wait})`,
+        runAt: sql<Date>`now() + make_interval(secs => ${wait})`,
         updatedAt: new Date(),
       })
-      .where(eq(workflowRuns.id, run.id))
-      .returning();
+      .where(eq(runs.id, run.id))
+      .returningAll()
+      .executeTakeFirst();
     return row ?? run;
   }
 
@@ -341,8 +353,8 @@ export class WorkflowUseCase {
     error?: string,
     attempts = run.attempts + 1,
   ) {
-    const [row] = await this.db
-      .update(workflowRuns)
+    const row = await this.db
+      .updateTable("workflow_runs")
       .set({
         status,
         attempts,
@@ -350,8 +362,9 @@ export class WorkflowUseCase {
         lastError: error ?? null,
         updatedAt: new Date(),
       })
-      .where(eq(workflowRuns.id, run.id))
-      .returning();
+      .where(eq(runs.id, run.id))
+      .returningAll()
+      .executeTakeFirst();
     return row ?? run;
   }
 
@@ -362,17 +375,16 @@ export class WorkflowUseCase {
    * meaningful: every instance naming the same minute the same way.
    */
   private async databaseNow(): Promise<Date> {
-    const [row] = rowsOf<{ now: Date }>(await this.db.execute(sql`select now() as now`));
+    const [row] = (await sql<{ now: Date }>`select now() as now`.execute(this.db.qb)).rows;
     return row?.now ? new Date(row.now) : new Date();
   }
 
   private async entry(id: string): Promise<EntryRow | undefined> {
-    const [row] = await this.db
-      .select()
-      .from(entries)
-      .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, id)))
-      .limit(1);
-    return row;
+    return this.db
+      .selectFrom("entries")
+      .selectAll()
+      .where(and(eq(tables.entries.siteId, this.scope.siteId), eq(tables.entries.id, id)))
+      .executeTakeFirst();
   }
 
   /** The one write an action may make, and only through here. */
@@ -385,14 +397,15 @@ export class WorkflowUseCase {
     depth: number,
   ): Promise<void> {
     await this.db
-      .update(entries)
+      .updateTable("entries")
       .set({
         // The path is `text[]`, and a bound string is not one — without the cast
         // this ran, reported success and changed nothing.
-        data: sql`jsonb_set(${entries.data}, ${`{${field}}`}::text[], ${JSON.stringify(to)}::jsonb, true)`,
+        data: sql`jsonb_set(data, ${`{${field}}`}::text[], ${JSON.stringify(to)}::jsonb, true)`,
         updatedAt: new Date(),
       })
-      .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, entryId)));
+      .where(and(eq(tables.entries.siteId, this.scope.siteId), eq(tables.entries.id, entryId)))
+      .execute();
 
     // Chaining stops somewhere. Two automations that transition each other are
     // a loop an owner writes by accident, and a queue that fills forever is
@@ -404,11 +417,12 @@ export class WorkflowUseCase {
   /** The runs an owner can see, newest first. */
   async recent(limit = 50): Promise<WorkflowRunRow[]> {
     return this.db
-      .select()
-      .from(workflowRuns)
-      .where(eq(workflowRuns.siteId, this.scope.siteId))
-      .orderBy(sql`${workflowRuns.createdAt} desc`)
-      .limit(limit);
+      .selectFrom("workflow_runs")
+      .selectAll()
+      .where(eq(runs.siteId, this.scope.siteId))
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .execute();
   }
 }
 

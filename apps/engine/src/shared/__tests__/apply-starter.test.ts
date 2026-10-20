@@ -82,7 +82,7 @@ suite("applying a starter", () => {
 
     // The point of a starter is that the next thing you do works. Adding a
     // service is the next thing anyone does.
-    const written = await new EntryWriteUseCase(db, scope, kdb).create(spec, {
+    const written = await new EntryWriteUseCase(kdb, scope).create(spec, {
       typeKey: "service",
       slug: "haircut",
       status: "published",

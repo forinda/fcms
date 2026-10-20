@@ -12,11 +12,11 @@ import { validateEntry, type ContentType, type SiteSpec } from "@forinda-cms/spe
 
 import { UniqueViolationError, type ExpressionBuilder } from "@forinda/kickjs-db";
 import { uniqueIndexName, type EntryRow } from "@forinda-cms/db";
-import type { Db, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
+import type { Kdb, KdbSchema, Scope } from "@forinda-cms/db";
 import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
-import { DB, KDB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface EntryInput {
@@ -43,13 +43,11 @@ export class EntryWriteUseCase {
   private readonly workflows: WorkflowUseCase;
 
   constructor(
-    // Drizzle only for the workflow queue, until that moves too (ADR 0052).
-    @Inject(DB) db: Db,
-    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
     @Inject(KDB) private readonly kdb: Kdb,
+    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
     this.repo = new EntryRepository(kdb, scope);
-    this.workflows = new WorkflowUseCase(db, scope);
+    this.workflows = new WorkflowUseCase(kdb, scope);
   }
 
   private typeOf(spec: SiteSpec, key: string): ContentType | undefined {

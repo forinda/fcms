@@ -12,8 +12,8 @@
  * database.
  */
 import { defineAdapter, getEnv } from "@forinda/kickjs";
-import { createDb, sites } from "@forinda-cms/db";
-import { eq } from "drizzle-orm";
+import { createDb, createKdb, releaseKdb, tables } from "@forinda-cms/db";
+import { eq } from "@forinda/kickjs-db";
 
 import { SpecRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
@@ -56,20 +56,26 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
   defaults: { every: 15, enabled: true },
   build: (config) => {
     let timer: NodeJS.Timeout | undefined;
-    const stop = () => {
+    let held: string | undefined;
+    const stop = async () => {
       if (timer) clearInterval(timer);
       timer = undefined;
+      if (held) await releaseKdb(held);
+      held = undefined;
     };
 
     return {
       async afterStart() {
         // Both halves matter: this clears the timer *this* module made, and the
         // generation stops the ones an earlier module graph made.
-        stop();
+        await stop();
         const generation = claim();
         if (config.enabled === false || getEnv("NODE_ENV") === "test") return;
 
-        const db = createDb(getEnv("DATABASE_URL"));
+        const url = getEnv("DATABASE_URL");
+        const db = createDb(url);
+        const kdb = createKdb(url);
+        held = url;
         const orgId = getEnv("ORG_ID");
 
         const tick = async () => {
@@ -83,12 +89,17 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
           try {
             // Every site on this install, because a schedule belongs to a site
             // and nothing has made a request to tell us which one.
-            for (const site of await db.select().from(sites).where(eq(sites.orgId, orgId))) {
+            const all = await kdb
+              .selectFrom("sites")
+              .select("id")
+              .where(eq(tables.sites.orgId, orgId))
+              .execute();
+            for (const site of all) {
               const scope = { orgId, siteId: site.id };
               const spec = await new SpecRepository(db, scope).find();
               if (!spec) continue;
 
-              const workflows = new WorkflowUseCase(db, scope);
+              const workflows = new WorkflowUseCase(kdb, scope);
               await workflows.enqueueDue(spec);
               await workflows.runDue(spec);
             }
@@ -108,7 +119,7 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
       },
 
       async shutdown() {
-        stop();
+        await stop();
       },
     };
   },

@@ -13,3 +13,5 @@ export * from "./client.js";
 export * from "./scope.js";
 export * from "./planner.js";
 export * from "./migrate.js";
+/** kickjs-db tables, for `eq(tables.entries.id, …)`. Flattened once Drizzle goes (ADR 0052). */
+export * as tables from "./kickdb/schema.js";
