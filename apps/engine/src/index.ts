@@ -4,9 +4,11 @@ import "reflect-metadata";
 // undefined and Zod's coercion and defaults are silently skipped.
 import "./config";
 import { bootstrap, createLogger, errorHandler, expressRuntime } from "@forinda/kickjs";
+import { inertiaErrorHandler } from "@forinda/kickjs-inertia";
 import { statusHtml } from "@forinda-cms/render";
 
 import { adapters } from "./adapters";
+import { middlewares } from "./middleware";
 import { modules } from "./modules";
 
 const log = createLogger("Site");
@@ -46,6 +48,7 @@ function wantsHtml(req: { url?: string; headers?: Record<string, unknown> }): bo
  */
 export const app = await bootstrap({
   modules,
+  middlewares,
   adapters,
   runtime: expressRuntime(),
   apiPrefix: "",
@@ -61,8 +64,21 @@ export const app = await bootstrap({
    *
    * `next` is a no-op on runtimes other than Express, so this answers rather
    * than delegating.
+   *
+   * Wrapped by Inertia's handler (ADR 0051 §6), which takes one case: a form
+   * on an admin page that failed validation goes back to that form with its
+   * errors. Everything else falls through to this.
    */
-  onError: (err, req, res, _next) => {
+  onError: inertiaErrorHandler((err, req, res, _next) => {
+    // An admin page fetched by the client after the session ran out. A 401
+    // would be shown in a modal over the page; 409 with a location is what
+    // makes the client leave for the sign-in form instead.
+    if (req?.headers?.["x-inertia"] === "true" && Number(err?.status) === 401) {
+      res.writeHead(409, { "x-inertia-location": "/admin/login" });
+      res.end();
+      return;
+    }
+
     log.error(err instanceof Error ? err : new Error(String(err)), `${req?.method} ${req?.url}`);
 
     if (!wantsHtml(req ?? {})) {
@@ -75,5 +91,5 @@ export const app = await bootstrap({
       "content-type": "text/html; charset=utf-8",
     });
     res.end(statusHtml(status >= 400 && status < 600 ? status : 500, process.env["SITE_NAME"]));
-  },
+  }),
 });

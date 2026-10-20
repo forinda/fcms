@@ -18,6 +18,9 @@ catalogs:
     '@forinda/kickjs-cli':
       specifier: ^8.14.2
       version: 8.14.2
+    '@forinda/kickjs-inertia':
+      specifier: ^0.4.0
+      version: 0.4.0
     '@forinda/kickjs-schema':
       specifier: ^0.2.4
       version: 0.2.4
@@ -30,6 +33,9 @@ catalogs:
     '@forinda/kickjs-vite':
       specifier: ^8.1.1
       version: 8.1.1
+    '@inertiajs/react':
+      specifier: ^3.9.1
+      version: 3.9.1
     '@modelcontextprotocol/sdk':
       specifier: ^1.30.0
       version: 1.30.0
@@ -276,6 +282,9 @@ importers:
       '@forinda/kickjs':
         specifier: 'catalog:'
         version: 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+      '@forinda/kickjs-inertia':
+        specifier: 'catalog:'
+        version: 0.4.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))
       '@forinda/kickjs-schema':
         specifier: 'catalog:'
         version: 0.2.4(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
@@ -316,9 +325,15 @@ importers:
       '@forinda/kickjs-vite':
         specifier: 'catalog:'
         version: 8.1.1(@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+      '@inertiajs/react':
+        specifier: 'catalog:'
+        version: 3.9.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@swc/core':
         specifier: 'catalog:'
         version: 1.16.2
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.3.3(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
       '@types/express':
         specifier: 'catalog:'
         version: 5.0.6
@@ -328,12 +343,42 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.7(@types/react@19.2.18)
       '@types/supertest':
         specifier: 'catalog:'
         version: 7.2.1
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 5.2.0(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+      class-variance-authority:
+        specifier: 'catalog:'
+        version: 0.7.1
+      cn:
+        specifier: 'catalog:'
+        version: 0.2.6
+      lucide-react:
+        specifier: 'catalog:'
+        version: 0.548.0(react@19.2.8)
+      radix-ui:
+        specifier: 'catalog:'
+        version: 1.6.7(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
       supertest:
         specifier: 'catalog:'
         version: 7.2.2
+      tailwindcss:
+        specifier: 'catalog:'
+        version: 4.3.3
       tsx:
         specifier: 'catalog:'
         version: 4.23.13
@@ -1597,6 +1642,12 @@ packages:
     resolution: {integrity: sha512-skb/GMFu2mhIoGAqgoJxsMNs6EI8xMosmrjXdWmKcgN1YKMu0/bwsltdUq7XvZrnHwnJJl2cLyfoeq1YOHGPJA==}
     engines: {node: '>=20.0'}
 
+  '@forinda/kickjs-inertia@0.4.0':
+    resolution: {integrity: sha512-FTeSzG+DViB+6H8I+3R+pPQsy4xcfq+0wHguu/NzssbLIuqhf7qsySqmIPKjCvHss8XRBDtepCEaYO0M8AejnA==}
+    engines: {node: '>=20.0'}
+    peerDependencies:
+      '@forinda/kickjs': '>=10.0.0'
+
   '@forinda/kickjs-schema@0.2.4':
     resolution: {integrity: sha512-5/4xj217ymT2/PEcBPVdgXb3p4N0NW3rG39HNBVJWhkczP9mhmwQu8GyXndf0PoJt3V2nI0EqcIBxf8PTTyA4g==}
     engines: {node: '>=20.0'}
@@ -1851,6 +1902,20 @@ packages:
     engines: {node: ^18.17.0 || ^20.3.0 || >=21.0.0}
     cpu: [x64]
     os: [win32]
+
+  '@inertiajs/core@3.9.1':
+    resolution: {integrity: sha512-ScLQZ1/KXlvmqCEJMEZABSK5updJZIli1kaG/coWXpWMmpSLsazSJkR7esITYp7X5vTgrOGNIrcRmdMp/GQ0NA==}
+    peerDependencies:
+      axios: ^1.15.2
+    peerDependenciesMeta:
+      axios:
+        optional: true
+
+  '@inertiajs/react@3.9.1':
+    resolution: {integrity: sha512-fRWElF5XIm1j01ecQCEehx0KPLEYVA6fCdWvig7XUhwhmSQG6EIyNum3eG8ZEfYuY7mWhNyqae/MSRIv+bAsjw==}
+    peerDependencies:
+      react: ^19.0.0
+      react-dom: ^19.0.0
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -4467,6 +4532,9 @@ packages:
     resolution: {integrity: sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==}
     engines: {node: '>= 0.4'}
 
+  es-toolkit@1.52.0:
+    resolution: {integrity: sha512-XTNEJQh1tY1ZJVcf6ayP/2n4ZPyaHlW2FWs7xvw5ddPuhUVjLD3olQVQS7kf58JbAB48iL0uL/jerTrjtV3lDA==}
+
   esbuild@0.18.20:
     resolution: {integrity: sha512-ceqxoedUrcayh7Y7ZX6NdbbDzGROiyVBgC4PriJThBKSVPWnnFHZAkfI1lJT8QFkOwH4qOS2SJkS4wvpGl8BpA==}
     engines: {node: '>=12'}
@@ -4818,6 +4886,14 @@ packages:
   kysely@0.29.6:
     resolution: {integrity: sha512-hHaB8C/rfzDDtr/t8YZwxAuPJTT0zHyaPoVzcXwDYhYNAgH/4sIfVhi/XLLIY+bL/FqaIJnjATDbi8ObSELmxg==}
     engines: {node: '>=22.0.0'}
+
+  laravel-precognition@2.1.1:
+    resolution: {integrity: sha512-Wg05+puJ5qiNsE8rdO5JmSiqQ2xcEf7442AIZiDhZg1JyPOePv5SSCu0fO7z7LqmJcPMxNNuOIcZd6UatEmYug==}
+    peerDependencies:
+      axios: ^1.4.0
+    peerDependenciesMeta:
+      axios:
+        optional: true
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -6943,6 +7019,10 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
+  '@forinda/kickjs-inertia@0.4.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))':
+    dependencies:
+      '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+
   '@forinda/kickjs-schema@0.2.4(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
     optionalDependencies:
       valibot: 1.4.2(typescript@7.0.2)
@@ -7093,6 +7173,22 @@ snapshots:
 
   '@img/sharp-win32-x64@0.34.5':
     optional: true
+
+  '@inertiajs/core@3.9.1':
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      es-toolkit: 1.52.0
+      laravel-precognition: 2.1.1
+
+  '@inertiajs/react@3.9.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@inertiajs/core': 3.9.1
+      es-toolkit: 1.52.0
+      laravel-precognition: 2.1.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+    transitivePeerDependencies:
+      - axios
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -9256,6 +9352,8 @@ snapshots:
       has-tostringtag: 1.0.2
       hasown: 2.0.4
 
+  es-toolkit@1.52.0: {}
+
   esbuild@0.18.20:
     optionalDependencies:
       '@esbuild/android-arm': 0.18.20
@@ -9769,6 +9867,10 @@ snapshots:
   jsonc-parser@3.3.1: {}
 
   kysely@0.29.6: {}
+
+  laravel-precognition@2.1.1:
+    dependencies:
+      es-toolkit: 1.52.0
 
   lightningcss-android-arm64@1.32.0:
     optional: true

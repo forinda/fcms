@@ -141,6 +141,7 @@ run.
 | `SITE_ID`, `ORG_ID` | default `default`. One install, one site, today |
 | `SITE_TIMEZONE` | default `UTC` |
 | `SECURE_COOKIES` | `true` behind HTTPS |
+| `SESSION_SECRET` | 32+ characters; encrypts the admin's flash cookie. Unset, each boot makes its own — set it when running more than one instance |
 | `TRUST_PROXY` | `true` behind a reverse proxy |
 | `NODE_ENV`, `LOG_LEVEL` | as usual |
 

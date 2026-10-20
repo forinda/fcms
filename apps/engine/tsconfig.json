@@ -11,5 +11,7 @@
     },
     "noEmit": true
   },
-  "include": ["src", "scripts", ".kickjs/types/**/*.d.ts", ".kickjs/types/**/*.ts"]
+  "include": ["src", "scripts", ".kickjs/types/**/*.d.ts", ".kickjs/types/**/*.ts"],
+  "//": "The pages have their own program (src/client/tsconfig.json): DOM and JSX do not belong in the server's.",
+  "exclude": ["src/client"]
 }

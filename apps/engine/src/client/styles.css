@@ -1,0 +1,145 @@
+/*
+ * The application's stylesheet (ADR 0045 §2, ADR 0051).
+ *
+ * Tailwind v4 plus shadcn's variable contract — its components are written
+ * against `--primary`, `--muted-foreground` and the rest, so those are what a
+ * theme sets. The values are the server-rendered admin's palette, unchanged:
+ * the template-string screens and the Inertia ones share every address while
+ * one replaces the other, so moving between them should not show a seam.
+ *
+ * Dark follows the system rather than a toggle, which is what the old admin
+ * does. The `.dark` class is honoured too, because that is how shadcn's own
+ * components expect to be told, and a future toggle then needs no rewrite.
+ */
+/* Scanned from here only: the engine's template strings use class names of
+ * their own (`inline`, `table`) that would otherwise become utilities. */
+@import "tailwindcss" source(".");
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #fafaf9;
+  --foreground: #1c1917;
+  --card: #ffffff;
+  --card-foreground: #1c1917;
+  --popover: #ffffff;
+  --popover-foreground: #1c1917;
+
+  /* The brand green everything on the site is drawn from. */
+  --primary: #1a7f5a;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1c1917;
+  --muted: #f5f5f4;
+  --muted-foreground: #78716c;
+  --accent: #ecfdf5;
+  --accent-foreground: #14532d;
+
+  --destructive: #991b1b;
+  --destructive-foreground: #ffffff;
+
+  --border: #e7e5e4;
+  --input: #e7e5e4;
+  --ring: #1a7f5a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #1c1917;
+    --foreground: #e7e5e4;
+    --card: #292524;
+    --card-foreground: #e7e5e4;
+    --popover: #292524;
+    --popover-foreground: #e7e5e4;
+
+    --primary: #34d399;
+    --primary-foreground: #052e1a;
+
+    --secondary: #292524;
+    --secondary-foreground: #e7e5e4;
+    --muted: #292524;
+    --muted-foreground: #a8a29e;
+    --accent: #064e3b;
+    --accent-foreground: #d1fae5;
+
+    --destructive: #f87171;
+    --destructive-foreground: #1c1917;
+
+    --border: #44403c;
+    --input: #44403c;
+    --ring: #34d399;
+  }
+}
+
+.dark {
+  --background: #1c1917;
+  --foreground: #e7e5e4;
+  --card: #292524;
+  --card-foreground: #e7e5e4;
+  --popover: #292524;
+  --popover-foreground: #e7e5e4;
+  --primary: #34d399;
+  --primary-foreground: #052e1a;
+  --secondary: #292524;
+  --secondary-foreground: #e7e5e4;
+  --muted: #292524;
+  --muted-foreground: #a8a29e;
+  --accent: #064e3b;
+  --accent-foreground: #d1fae5;
+  --destructive: #f87171;
+  --destructive-foreground: #1c1917;
+  --border: #44403c;
+  --input: #44403c;
+  --ring: #34d399;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --font-sans: system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  /* Every focusable thing says where the keyboard is — the same rule the
+     server-rendered admin has, because a custom background hides the browser's
+     own ring more often than not. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}

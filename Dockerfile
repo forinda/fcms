@@ -46,7 +46,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 FROM deps AS build
 ENV NODE_ENV=production
-RUN pnpm --filter @forinda-cms/engine exec kick build \
+# The engine's `build` is the server bundle and then its pages (ADR 0051), into
+# dist/ and dist/client/ — which the deploy stage already copies whole.
+RUN pnpm --filter @forinda-cms/engine build \
  && pnpm --filter @forinda-cms/admin build
 
 FROM build AS deploy
