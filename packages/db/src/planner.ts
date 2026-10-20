@@ -26,9 +26,9 @@
  * built on — which is fine, because the query layer generates both from the same
  * field definition.
  */
-import { sql } from "drizzle-orm";
+import { sql } from "@forinda/kickjs-db";
 
-import { rowsOf, type Executor } from "./client.js";
+import type { Kdb } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
 import type { Classification } from "@forinda-cms/spec";
@@ -309,7 +309,7 @@ export function planMigration(
  * declined a deletion should still get their new index.
  */
 export async function runMigration(
-  tx: Executor,
+  tx: Kdb,
   steps: readonly MigrationStep[],
   options: { allowDestructive?: boolean } = {},
 ): Promise<{ applied: MigrationStep[]; skipped: MigrationStep[] }> {
@@ -321,7 +321,7 @@ export async function runMigration(
       skipped.push(step);
       continue;
     }
-    await tx.execute(sql.raw(step.statement));
+    await sql.raw(step.statement).execute(tx.qb);
     applied.push(step);
   }
 
@@ -347,7 +347,7 @@ export async function runMigration(
  * scoped `WHERE site_id = '…'`, so one site can never drop another's.
  */
 export async function reconcileIndexes(
-  tx: Executor,
+  tx: Kdb,
   spec: SiteSpec,
   scope: PlanScope,
 ): Promise<{ created: string[]; dropped: string[] }> {
@@ -381,9 +381,10 @@ export async function reconcileIndexes(
     }
   }
 
-  const rows = rowsOf<{ indexname: string; indexdef: string }>(
-    await tx.execute(sql`select indexname, indexdef from pg_indexes where tablename = 'entries'`),
-  );
+  const { rows } = await sql<{
+    indexname: string;
+    indexdef: string;
+  }>`select indexname, indexdef from pg_indexes where tablename = 'entries'`.execute(tx.qb);
   // The predicate is what says whose it is. Matching on the name would mean
   // trusting a hash to be ours, and a prefix is not ownership.
   const ours = rows.filter((row) => row.indexdef.includes(`site_id = '${siteId}'`));
@@ -393,14 +394,14 @@ export async function reconcileIndexes(
 
   for (const row of ours) {
     if (wanted.has(row.indexname)) continue;
-    await tx.execute(sql.raw(`DROP INDEX IF EXISTS ${row.indexname}`));
+    await sql.raw(`DROP INDEX IF EXISTS ${row.indexname}`).execute(tx.qb);
     dropped.push(row.indexname);
   }
 
   const existing = new Set(ours.map((row) => row.indexname));
   for (const [name, statement] of wanted) {
     if (existing.has(name)) continue;
-    await tx.execute(sql.raw(statement));
+    await sql.raw(statement).execute(tx.qb);
     created.push(name);
   }
 

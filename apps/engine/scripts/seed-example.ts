@@ -73,7 +73,7 @@ await db
 
 // Constructed directly rather than resolved: a script has no request, and the
 // use-case's constructor is the same one the container calls.
-const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }, kdb);
+const applySpec = new ApplySpecUseCase(kdb, { orgId: ORG, siteId: SITE });
 const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
   role: "owner",

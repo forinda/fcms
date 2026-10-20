@@ -12,9 +12,10 @@
  * database.
  */
 import { defineAdapter, getEnv } from "@forinda/kickjs";
-import { createDb, createKdb, releaseKdb, tables } from "@forinda-cms/db";
+import { tables } from "@forinda-cms/db";
 import { eq } from "@forinda/kickjs-db";
 
+import { KDB } from "@/shared/db";
 import { SpecRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
@@ -56,26 +57,26 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
   defaults: { every: 15, enabled: true },
   build: (config) => {
     let timer: NodeJS.Timeout | undefined;
-    let held: string | undefined;
-    const stop = async () => {
+    const stop = () => {
       if (timer) clearInterval(timer);
       timer = undefined;
-      if (held) await releaseKdb(held);
-      held = undefined;
     };
 
     return {
-      async afterStart() {
+      // It resolves the database adapter's `KDB`, and ticks against tables
+      // that adapter's migrations create.
+      dependsOn: ["DatabaseAdapter"],
+
+      async afterStart({ container }) {
         // Both halves matter: this clears the timer *this* module made, and the
         // generation stops the ones an earlier module graph made.
-        await stop();
+        stop();
         const generation = claim();
         if (config.enabled === false || getEnv("NODE_ENV") === "test") return;
 
-        const url = getEnv("DATABASE_URL");
-        const db = createDb(url);
-        const kdb = createKdb(url);
-        held = url;
+        // The database adapter's client, so its pool's lifetime is the one
+        // that matters.
+        const kdb = container.resolve(KDB);
         const orgId = getEnv("ORG_ID");
 
         const tick = async () => {
@@ -96,7 +97,7 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
               .execute();
             for (const site of all) {
               const scope = { orgId, siteId: site.id };
-              const spec = await new SpecRepository(db, scope).find();
+              const spec = await new SpecRepository(kdb, scope).find();
               if (!spec) continue;
 
               const workflows = new WorkflowUseCase(kdb, scope);
@@ -119,7 +120,7 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
       },
 
       async shutdown() {
-        await stop();
+        stop();
       },
     };
   },

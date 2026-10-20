@@ -18,15 +18,13 @@
  * what makes these tokens substitutable in a test.
  */
 import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
-import { sql } from "drizzle-orm";
+import { sql } from "@forinda/kickjs-db";
 import {
   createDb,
   createKdb,
-  organizations,
   releaseDb,
   releaseKdb,
   runMigrations,
-  sites,
   type Db,
   type Kdb,
 } from "@forinda-cms/db";
@@ -64,6 +62,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
      * hold with the release that matches it.
      */
     let db: Db;
+    let kdb: Kdb;
 
     return {
       /**
@@ -87,7 +86,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // workspace package is never globbed, its decorator never runs, and
         // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
-        const kdb = createKdb(getEnv("DATABASE_URL"));
+        kdb = createKdb(getEnv("DATABASE_URL"));
         container.registerInstance(KDB, kdb);
 
         container.registerFactory(
@@ -110,7 +109,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // lives in the target database, so a completed migration is a no-op and
         // an interrupted one resumes.
         await runMigrations(getEnv("DATABASE_URL"));
-        await provision(db, kdb);
+        await provision(kdb);
       },
 
       /**
@@ -120,7 +119,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
        */
       async onHealthCheck() {
         try {
-          await db.execute(sql`select 1`);
+          await sql`select 1`.execute(kdb.qb);
           return { name: "database", status: "up" as const };
         } catch {
           return { name: "database", status: "down" as const };
@@ -146,13 +145,17 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
  * makes `docker compose up` reach a working site rather than a 404 and an
  * instruction.
  */
-async function provision(db: Db, kdb: Kdb): Promise<void> {
+async function provision(kdb: Kdb): Promise<void> {
   const orgId = getEnv("ORG_ID");
   const siteId = getEnv("SITE_ID");
 
-  await db.insert(organizations).values({ id: orgId, name: "Default" }).onConflictDoNothing();
-  await db
-    .insert(sites)
+  await kdb
+    .insertInto("organizations")
+    .values({ id: orgId, name: "Default" })
+    .onConflict((oc) => oc.doNothing())
+    .execute();
+  await kdb
+    .insertInto("sites")
     .values({
       id: siteId,
       orgId,
@@ -160,7 +163,8 @@ async function provision(db: Db, kdb: Kdb): Promise<void> {
       name: getEnv("SITE_NAME") ?? "A new site",
       timezone: getEnv("SITE_TIMEZONE"),
     })
-    .onConflictDoNothing();
+    .onConflict((oc) => oc.doNothing())
+    .execute();
 
   // Once. `ProvisionOwnerUseCase` refuses if any owner exists, so a restart with
   // the env still set cannot add a second, and a leaked variable cannot mint one
@@ -176,8 +180,8 @@ async function provision(db: Db, kdb: Kdb): Promise<void> {
   // same constructors the container calls, with the scope this install is
   // configured for.
   const scope = { orgId, siteId };
-  if (!(await new SpecRepository(db, scope).find())) {
-    await new ApplySpecUseCase(db, scope, kdb).execute(
+  if (!(await new SpecRepository(kdb, scope).find())) {
+    await new ApplySpecUseCase(kdb, scope).execute(
       SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
       {
         actor: "install",

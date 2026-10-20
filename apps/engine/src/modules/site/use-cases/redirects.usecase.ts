@@ -10,10 +10,10 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { valueOf } from "@forinda-cms/spec";
 
-import type { Db, Scope } from "@forinda-cms/db";
+import type { Kdb, Scope } from "@forinda-cms/db";
 import { PatchRepository, SpecRepository } from "@/shared/repositories";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 @Service({ scope: Lifetime.REQUEST })
@@ -21,7 +21,7 @@ export class RedirectsUseCase {
   private readonly specs: SpecRepository;
   private readonly patches: PatchRepository;
 
-  constructor(@Inject(DB) db: Db, @Inject(CURRENT_SCOPE) scope: Scope) {
+  constructor(@Inject(KDB) db: Kdb, @Inject(CURRENT_SCOPE) scope: Scope) {
     this.specs = new SpecRepository(db, scope);
     this.patches = new PatchRepository(db, scope);
   }

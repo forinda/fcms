@@ -52,12 +52,12 @@ suite("applying a starter", () => {
     const starter = starterFor(key)!;
     const spec = SiteSpec.parse(starter.build("Riverside Salon"));
 
-    const result = await new ApplySpecUseCase(db, scope, kdb).execute(spec, {
+    const result = await new ApplySpecUseCase(kdb, scope).execute(spec, {
       ...ACTOR,
       source: `starter:${key}`,
     });
 
-    expect((await new SpecRepository(db, scope).find())?.name).toBe("Riverside Salon");
+    expect((await new SpecRepository(kdb, scope).find())?.name).toBe("Riverside Salon");
     // Entries share one table, so a migration step is an index rather than a
     // column: one per field somebody can filter or sort by, and one per field
     // that has to be unique. The count is a property of the starter, and zero
@@ -68,14 +68,14 @@ suite("applying a starter", () => {
         stored.filter((f) => "unique" in f && f.unique).length,
     );
 
-    const [first] = await new SiteHistoryUseCase(db, scope).execute(1);
+    const [first] = await new SiteHistoryUseCase(kdb, scope).execute(1);
     expect(first?.source).toBe(`starter:${key}`);
     expect(first?.actor).toBe("owner@example.test");
   });
 
   it("leaves a site somebody can immediately use", async () => {
     const spec = SiteSpec.parse(starterFor("bookings")!.build("Riverside Salon"));
-    await new ApplySpecUseCase(db, scope, kdb).execute(spec, {
+    await new ApplySpecUseCase(kdb, scope).execute(spec, {
       ...ACTOR,
       source: "starter:bookings",
     });

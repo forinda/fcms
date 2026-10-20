@@ -7,28 +7,34 @@
  * history, which made every one of those untestable without the others.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@forinda/kickjs-db";
 import { SiteSpec, migrateSpec, SPEC_VERSION } from "@forinda-cms/spec";
 
-import { siteSpecs, type SiteSpecRow } from "@forinda-cms/db";
-import type { Db, Executor, Scope } from "@forinda-cms/db";
+import { tables, type Kdb, type Scope } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 @Repository({ scope: Lifetime.REQUEST })
 export class SpecRepository {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {
-    return and(eq(siteSpecs.orgId, this.scope.orgId), eq(siteSpecs.siteId, this.scope.siteId));
+    return and(
+      eq(tables.siteSpecs.orgId, this.scope.orgId),
+      eq(tables.siteSpecs.siteId, this.scope.siteId),
+    );
   }
 
-  async findRow(): Promise<SiteSpecRow | null> {
-    const [row] = await this.db.select().from(siteSpecs).where(this.scoped).limit(1);
+  async findRow() {
+    const row = await this.db
+      .selectFrom("site_specs")
+      .selectAll()
+      .where(this.scoped)
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -48,19 +54,20 @@ export class SpecRepository {
     return row ? SiteSpec.parse(migrateSpec(row.document, SPEC_VERSION)) : null;
   }
 
-  async save(document: SiteSpec, tx: Executor = this.db): Promise<void> {
+  async save(document: SiteSpec, tx: Kdb = this.db): Promise<void> {
     await tx
-      .insert(siteSpecs)
+      .insertInto("site_specs")
       .values({
         siteId: this.scope.siteId,
         orgId: this.scope.orgId,
         document,
         updatedAt: new Date(),
       })
-      .onConflictDoUpdate({ target: siteSpecs.siteId, set: { document, updatedAt: new Date() } });
+      .onConflict((oc) => oc.column("siteId").doUpdateSet({ document, updatedAt: new Date() }))
+      .execute();
   }
 
-  async clear(tx: Executor = this.db): Promise<void> {
-    await tx.delete(siteSpecs).where(this.scoped);
+  async clear(tx: Kdb = this.db): Promise<void> {
+    await tx.deleteFrom("site_specs").where(this.scoped).execute();
   }
 }
