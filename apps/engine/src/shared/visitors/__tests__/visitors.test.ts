@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   organizations,
   sites,
   visitorSaves,
@@ -23,6 +24,7 @@ import { VisitorCredentialsError, VisitorUseCase } from "../visitor.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_visitors";
 const SITE = "site_visitors";
@@ -48,8 +50,8 @@ suite("visitors", () => {
       { id: OTHER, orgId: ORG, slug: "two", name: "Two" },
     ]);
 
-    here = new VisitorUseCase(db, { orgId: ORG, siteId: SITE });
-    elsewhere = new VisitorUseCase(db, { orgId: ORG, siteId: OTHER });
+    here = new VisitorUseCase(kdb, { orgId: ORG, siteId: SITE });
+    elsewhere = new VisitorUseCase(kdb, { orgId: ORG, siteId: OTHER });
   });
 
   const register = (use = here) => use.register({ email: EMAIL, password: PASSWORD });
@@ -115,6 +117,18 @@ suite("visitors", () => {
       const session = await register();
       await here.signOut(session.token);
       expect(await here.fromToken(session.token)).toBeNull();
+    });
+
+    it("stops working once expired, and is purged", async () => {
+      const session = await register();
+      await db
+        .update(visitorSessions)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(visitorSessions.visitorId, session.visitor.id));
+
+      expect(await here.fromToken(session.token)).toBeNull();
+      await here.purgeExpired();
+      expect(await db.select().from(visitorSessions)).toEqual([]);
     });
   });
 

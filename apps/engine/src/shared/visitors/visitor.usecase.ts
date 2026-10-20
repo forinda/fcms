@@ -7,12 +7,10 @@
  * its cookie.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { and, eq, gt, lt } from "drizzle-orm";
-import type { Db, Scope, VisitorRow } from "@forinda-cms/db";
-import { visitorSaves, visitorSessions, visitors } from "@forinda-cms/db";
+import type { Kdb, Scope, VisitorRow } from "@forinda-cms/db";
 
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 
@@ -38,7 +36,7 @@ export interface VisitorSession {
 @Service({ scope: Lifetime.REQUEST })
 export class VisitorUseCase {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
@@ -64,17 +62,18 @@ export class VisitorUseCase {
     // a way to ask a site which of your customers it has.
     if (existing) throw new VisitorCredentialsError();
 
-    const [row] = await this.db
-      .insert(visitors)
+    const row = await this.db
+      .insertInto("visitors")
       .values({
         siteId: this.scope.siteId,
         email,
         passwordHash: await hashPassword(input.password),
         name: input.name?.trim() || null,
       })
-      .returning();
+      .returningAll()
+      .executeTakeFirstOrThrow();
 
-    return this.open(row!);
+    return this.open(row);
   }
 
   async signIn(input: { email: string; password: string }): Promise<VisitorSession> {
@@ -89,64 +88,70 @@ export class VisitorUseCase {
   async fromToken(token: string | undefined): Promise<VisitorRow | null> {
     if (!token) return null;
 
-    const [row] = await this.db
-      .select({ visitor: visitors })
-      .from(visitorSessions)
-      .innerJoin(visitors, eq(visitors.id, visitorSessions.visitorId))
-      .where(
-        and(
-          eq(visitorSessions.tokenHash, hashToken(token)),
-          gt(visitorSessions.expiresAt, new Date()),
-          // Scoped, so a token minted on one site cannot be replayed on another
-          // served by the same install.
-          eq(visitors.siteId, this.scope.siteId),
-        ),
-      )
-      .limit(1);
+    const row = await this.db
+      .selectFrom("visitor_sessions")
+      .innerJoin("visitors", "visitors.id", "visitor_sessions.visitorId")
+      .selectAll("visitors")
+      .where("visitor_sessions.tokenHash", "=", hashToken(token))
+      .where("visitor_sessions.expiresAt", ">", new Date())
+      // Scoped, so a token minted on one site cannot be replayed on another
+      // served by the same install.
+      .where("visitors.siteId", "=", this.scope.siteId)
+      .limit(1)
+      .executeTakeFirst();
 
-    return row?.visitor ?? null;
+    return row ?? null;
   }
 
   async signOut(token: string): Promise<void> {
-    await this.db.delete(visitorSessions).where(eq(visitorSessions.tokenHash, hashToken(token)));
+    await this.db
+      .deleteFrom("visitor_sessions")
+      .where("tokenHash", "=", hashToken(token))
+      .execute();
   }
 
   // ------------------------------------------------------------------- saves
 
   async save(visitorId: string, typeKey: string, entryId: string): Promise<void> {
     await this.db
-      .insert(visitorSaves)
+      .insertInto("visitor_saves")
       .values({ visitorId, typeKey, entryId })
       // Saving twice is saving once. A unique index makes that true rather than
       // a race the second click loses.
-      .onConflictDoNothing();
+      .onConflict((oc) => oc.doNothing())
+      .execute();
   }
 
   async unsave(visitorId: string, entryId: string): Promise<void> {
     await this.db
-      .delete(visitorSaves)
-      .where(and(eq(visitorSaves.visitorId, visitorId), eq(visitorSaves.entryId, entryId)));
+      .deleteFrom("visitor_saves")
+      .where("visitorId", "=", visitorId)
+      .where("entryId", "=", entryId)
+      .execute();
   }
 
   async saved(visitorId: string): Promise<string[]> {
     const rows = await this.db
-      .select({ entryId: visitorSaves.entryId })
-      .from(visitorSaves)
-      .where(eq(visitorSaves.visitorId, visitorId));
+      .selectFrom("visitor_saves")
+      .select("entryId")
+      .where("visitorId", "=", visitorId)
+      .execute();
     return rows.map((row) => row.entryId);
   }
 
   /** Expired sessions, cleared on the same schedule owners' are. */
   async purgeExpired(): Promise<void> {
-    await this.db.delete(visitorSessions).where(lt(visitorSessions.expiresAt, new Date()));
+    await this.db.deleteFrom("visitor_sessions").where("expiresAt", "<", new Date()).execute();
   }
 
   private async byEmail(email: string): Promise<VisitorRow | null> {
-    const [row] = await this.db
-      .select()
-      .from(visitors)
-      .where(and(eq(visitors.siteId, this.scope.siteId), eq(visitors.email, email)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("visitors")
+      .selectAll()
+      .where("siteId", "=", this.scope.siteId)
+      .where("email", "=", email)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -154,11 +159,10 @@ export class VisitorUseCase {
     const token = newSessionToken();
     const expiresAt = new Date(Date.now() + VISITOR_SESSION_TTL_MS);
 
-    await this.db.insert(visitorSessions).values({
-      visitorId: visitor.id,
-      tokenHash: hashToken(token),
-      expiresAt,
-    });
+    await this.db
+      .insertInto("visitor_sessions")
+      .values({ visitorId: visitor.id, tokenHash: hashToken(token), expiresAt })
+      .execute();
 
     return { token, expiresAt, visitor };
   }
