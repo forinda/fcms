@@ -177,7 +177,7 @@ async function provision(db: Db, kdb: Kdb): Promise<void> {
   // configured for.
   const scope = { orgId, siteId };
   if (!(await new SpecRepository(db, scope).find())) {
-    await new ApplySpecUseCase(db, scope).execute(
+    await new ApplySpecUseCase(db, scope, kdb).execute(
       SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
       {
         actor: "install",

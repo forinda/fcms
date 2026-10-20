@@ -17,6 +17,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   entries,
   indexName,
   organizations,
@@ -128,11 +129,12 @@ describe("planning (no database needed)", () => {
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 suite("executing a plan (needs a database)", () => {
   const repo = () => ({
     applySpec: (spec: unknown, input: ApplySpecInput) =>
-      new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }).execute(spec as SiteSpec, input),
+      new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }, kdb).execute(spec as SiteSpec, input),
   });
 
   const reset = async () => {

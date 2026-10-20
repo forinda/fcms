@@ -7,13 +7,12 @@
  * cost of not using EAV.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, asc, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
+import { sql, type Expression, type ExpressionBuilder, type SqlBool } from "@forinda/kickjs-db";
 import { DRAFT_KEY, VISITOR_KEY, type Entry } from "@forinda-cms/render";
 
-import { entries, type EntryRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import type { EntryRow, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface EntryPageQuery {
@@ -42,9 +41,9 @@ export interface EntryPage {
  * everything. ponytail: `ilike` cannot use the GIN index, which is fine into
  * the tens of thousands of rows and is where a trigram index goes when it isn't.
  */
-function conditions(query: EntryPageQuery) {
-  const out = [];
-  if (query.status) out.push(eq(entries.status, query.status));
+function conditions(eb: ExpressionBuilder<KdbSchema, "entries">, query: EntryPageQuery) {
+  const out: Expression<SqlBool>[] = [];
+  if (query.status) out.push(eb("status", "=", query.status));
 
   const text = query.search?.trim();
   if (text) {
@@ -55,10 +54,10 @@ function conditions(query: EntryPageQuery) {
       Boolean,
     );
     out.push(
-      or(
-        ilike(sql`coalesce(${entries.slug}, '')`, pattern),
-        ...fields.map((name) => ilike(sql`coalesce(${entries.data} ->> ${name}, '')`, pattern)),
-      ),
+      eb.or([
+        eb(sql<string>`coalesce(slug, '')`, "ilike", pattern),
+        ...fields.map((name) => eb(sql<string>`coalesce(data ->> ${name}, '')`, "ilike", pattern)),
+      ]),
     );
   }
   return out;
@@ -74,13 +73,13 @@ function conditions(query: EntryPageQuery) {
 function ordering(query: EntryPageQuery) {
   switch (query.sort) {
     case "oldest":
-      return [asc(entries.createdAt), asc(entries.id)];
+      return [sql`created_at asc`, sql`id asc`];
     case "updated":
-      return [desc(entries.updatedAt), desc(entries.id)];
+      return [sql`updated_at desc`, sql`id desc`];
     case "title":
-      return [asc(sql`lower(coalesce(${entries.data} ->> ${query.titleField ?? "title"}, ''))`)];
+      return [sql`lower(coalesce(data ->> ${query.titleField ?? "title"}, '')) asc`];
     default:
-      return [desc(entries.createdAt), desc(entries.id)];
+      return [sql`created_at desc`, sql`id desc`];
   }
 }
 
@@ -90,21 +89,22 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class EntryRepository {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
-  private get scoped() {
-    return and(eq(entries.orgId, this.scope.orgId), eq(entries.siteId, this.scope.siteId));
-  }
+  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+    eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async byId(id: string): Promise<EntryRow | null> {
     if (!UUID.test(id)) return null;
-    const [row] = await this.db
-      .select()
-      .from(entries)
-      .where(and(this.scoped, eq(entries.id, id)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("entries")
+      .selectAll()
+      .where(this.scoped)
+      .where("id", "=", id)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -118,20 +118,23 @@ export class EntryRepository {
    * actually wants — a page of rows, a total, and a way to find one.
    */
   async pageOfType(typeKey: string, query: EntryPageQuery): Promise<EntryPage> {
-    const where = and(this.scoped, eq(entries.typeKey, typeKey), ...conditions(query));
+    const where = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+      eb.and([this.scoped(eb), eb("typeKey", "=", typeKey), ...conditions(eb, query)]);
 
-    const [rows, [counted]] = await Promise.all([
-      this.db
-        .select()
-        .from(entries)
-        .where(where)
-        .orderBy(...ordering(query))
+    const [rows, counted] = await Promise.all([
+      ordering(query)
+        .reduce(
+          (q, order) => q.orderBy(order),
+          this.db.selectFrom("entries").selectAll().where(where),
+        )
         .limit(query.limit)
-        .offset(query.offset),
+        .offset(query.offset)
+        .execute(),
       this.db
-        .select({ total: sql<number>`count(*)::int` })
-        .from(entries)
-        .where(where),
+        .selectFrom("entries")
+        .select(sql<number>`count(*)::int`.as("total"))
+        .where(where)
+        .executeTakeFirst(),
     ]);
 
     return { rows, total: counted?.total ?? 0 };
@@ -140,9 +143,11 @@ export class EntryRepository {
   /** Every row of a type, drafts included — the admin's view. */
   async rowsOfType(typeKey: string): Promise<EntryRow[]> {
     return this.db
-      .select()
-      .from(entries)
-      .where(and(this.scoped, eq(entries.typeKey, typeKey)));
+      .selectFrom("entries")
+      .selectAll()
+      .where(this.scoped)
+      .where("typeKey", "=", typeKey)
+      .execute();
   }
 
   /**
@@ -154,18 +159,23 @@ export class EntryRepository {
    */
   async publishedOfType(typeKey: string): Promise<EntryRow[]> {
     return this.db
-      .select()
-      .from(entries)
-      .where(and(this.scoped, eq(entries.typeKey, typeKey), eq(entries.status, "published")));
+      .selectFrom("entries")
+      .selectAll()
+      .where(this.scoped)
+      .where("typeKey", "=", typeKey)
+      .where("status", "=", "published")
+      .execute();
   }
 
   /** Publish or unpublish one row, scoped so an id alone cannot reach another site. */
   async setStatus(id: string, status: "draft" | "published"): Promise<boolean> {
     const rows = await this.db
-      .update(entries)
+      .updateTable("entries")
       .set({ status, updatedAt: new Date() })
-      .where(and(this.scoped, eq(entries.id, id)))
-      .returning({ id: entries.id });
+      .where(this.scoped)
+      .where("id", "=", id)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
@@ -190,16 +200,13 @@ export class EntryRepository {
     const own =
       viewer && UUID.test(viewer)
         ? await this.db
-            .select()
-            .from(entries)
-            .where(
-              and(
-                this.scoped,
-                eq(entries.typeKey, typeKey),
-                eq(entries.visitorId, viewer),
-                ne(entries.status, "published"),
-              ),
-            )
+            .selectFrom("entries")
+            .selectAll()
+            .where(this.scoped)
+            .where("typeKey", "=", typeKey)
+            .where("visitorId", "=", viewer)
+            .where("status", "!=", "published")
+            .execute()
         : [];
 
     return [...published, ...own].map((row) => ({
@@ -231,20 +238,23 @@ export class EntryRepository {
 
   /** One row by its slug — how a `ref:type/slug` is followed. */
   async bySlug(slug: string): Promise<EntryRow | null> {
-    const [row] = await this.db
-      .select()
-      .from(entries)
-      .where(and(this.scoped, eq(entries.slug, slug)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("entries")
+      .selectAll()
+      .where(this.scoped)
+      .where("slug", "=", slug)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
   async countsByType(): Promise<Record<string, number>> {
     const rows = await this.db
-      .select({ typeKey: entries.typeKey, count: sql<number>`count(*)::int` })
-      .from(entries)
+      .selectFrom("entries")
+      .select(["typeKey", sql<number>`count(*)::int`.as("count")])
       .where(this.scoped)
-      .groupBy(entries.typeKey);
+      .groupBy("typeKey")
+      .execute();
 
     return Object.fromEntries(rows.map((r) => [r.typeKey, r.count]));
   }
@@ -258,10 +268,12 @@ export class EntryRepository {
    */
   async draftCountsByType(): Promise<Record<string, number>> {
     const rows = await this.db
-      .select({ typeKey: entries.typeKey, count: sql<number>`count(*)::int` })
-      .from(entries)
-      .where(and(this.scoped, eq(entries.status, "draft")))
-      .groupBy(entries.typeKey);
+      .selectFrom("entries")
+      .select(["typeKey", sql<number>`count(*)::int`.as("count")])
+      .where(this.scoped)
+      .where("status", "=", "draft")
+      .groupBy("typeKey")
+      .execute();
 
     return Object.fromEntries(rows.map((r) => [r.typeKey, r.count]));
   }

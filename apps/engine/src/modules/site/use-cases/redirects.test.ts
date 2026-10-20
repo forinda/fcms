@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { createDb, organizations, siteSpecs, sites, specPatches } from "@forinda-cms/db";
+import { createDb, createKdb, organizations, siteSpecs, sites, specPatches } from "@forinda-cms/db";
 import { SpecRepository } from "@/shared/repositories";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 import { RedirectsUseCase } from "./redirects.usecase";
@@ -26,6 +26,7 @@ import { RedirectsUseCase } from "./redirects.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_redirect";
 const SITE = "site_redirect";
@@ -45,7 +46,7 @@ suite("redirects from the patch spine", () => {
   const of = () => {
     const scope = { orgId: ORG, siteId: SITE };
     return {
-      apply: new ApplySpecUseCase(db, scope),
+      apply: new ApplySpecUseCase(db, scope, kdb),
       redirects: new RedirectsUseCase(db, scope),
       specs: new SpecRepository(db, scope),
     };

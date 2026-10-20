@@ -19,6 +19,7 @@ import { renderPage, routes } from "@forinda-cms/render";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   entries,
   organizations,
   siteSpecs,
@@ -39,6 +40,7 @@ const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_test";
 const SITE = "site_test";
@@ -93,13 +95,13 @@ suite("the persistence layer", () => {
   const of = (siteId = SITE, orgId = ORG) => {
     const scope = { orgId, siteId };
     return {
-      apply: new ApplySpecUseCase(db, scope),
+      apply: new ApplySpecUseCase(db, scope, kdb),
       undo: new UndoSpecUseCase(db, scope),
       history: new SiteHistoryUseCase(db, scope),
       specs: new SpecRepository(db, scope),
-      entries: new EntryRepository(db, scope),
-      read: new EntryReadUseCase(new EntryRepository(db, scope)),
-      writer: new EntryWriteUseCase(db, scope),
+      entries: new EntryRepository(kdb, scope),
+      read: new EntryReadUseCase(new EntryRepository(kdb, scope)),
+      writer: new EntryWriteUseCase(db, scope, kdb),
     };
   };
   const repo = of;
@@ -332,6 +334,30 @@ suite("the persistence layer", () => {
 
       expect(clash?.ok).toBe(false);
       expect(clash && clash.ok === false && clash.errors["slug"]).toMatch(/already uses/);
+    });
+
+    it("names the field a unique value collided on, not the slug", async () => {
+      // The index Postgres refuses on is the planner's hashed one, so the field
+      // is found from the constraint name the database error carries.
+      const unique = SiteSpec.parse({
+        ...spec,
+        content: [
+          {
+            ...spec.content[0]!,
+            fields: spec.content[0]!.fields.map((f) =>
+              f.name === "name" ? { ...f, filterable: true, unique: true } : f,
+            ),
+          },
+        ],
+      });
+      await repo().apply.execute(unique, { actor: "a", role: "owner" as const, source: "cli" });
+      const writer = repo().writer;
+
+      expect((await writer.create(unique, entry("cut"))).ok).toBe(true);
+      const second = await writer.create(unique, entry("trim"));
+
+      expect(second.ok).toBe(false);
+      expect(second.ok === false && second.errors["name"]).toMatch(/already uses "Cut" for Name/);
     });
   });
 
