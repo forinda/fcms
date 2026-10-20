@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   entries,
   isEmbedded,
   organizations,
@@ -37,6 +38,7 @@ const suite = url ? describe : describe.skip;
  */
 const embedded = url ? isEmbedded(url) : false;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_workflows";
 const SITE = "site_workflows";
@@ -93,7 +95,7 @@ suite("workflows", () => {
       .returning();
     entryId = entry!.id;
 
-    use = new WorkflowUseCase(db, scope);
+    use = new WorkflowUseCase(kdb, scope);
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -179,6 +181,25 @@ suite("workflows", () => {
       expect(run!.status).toBe("done");
       expect(posted).toEqual(["https://crm.example/hook"]);
       expect(run!.detail).toMatchObject({ steps: ["webhook.post: posted to crm (200)"] });
+    });
+
+    it("runs a run once: the next tick does not take a finished one again", async () => {
+      // The claim reads only pending rows. Without that, every tick re-posts
+      // every webhook that ever succeeded.
+      const posted: string[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (to: string) => {
+          posted.push(to);
+          return { ok: true, status: 200 };
+        }),
+      );
+      const crm = spec([{ action: "webhook.post", params: { to: "crm" } }]);
+
+      await use.enqueue(crm, event());
+      await use.runDue(crm);
+      expect(await use.runDue(crm)).toEqual([]);
+      expect(posted).toHaveLength(1);
     });
 
     it("moves an entry along a declared transition", async () => {

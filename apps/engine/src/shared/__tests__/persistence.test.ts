@@ -101,7 +101,7 @@ suite("the persistence layer", () => {
       specs: new SpecRepository(db, scope),
       entries: new EntryRepository(kdb, scope),
       read: new EntryReadUseCase(new EntryRepository(kdb, scope)),
-      writer: new EntryWriteUseCase(db, scope, kdb),
+      writer: new EntryWriteUseCase(kdb, scope),
     };
   };
   const repo = of;
