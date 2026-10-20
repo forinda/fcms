@@ -97,7 +97,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // not run one (doc 09 target B). Safe every time because the ledger
         // lives in the target database, so a completed migration is a no-op and
         // an interrupted one resumes.
-        await runMigrations(db);
+        await runMigrations(getEnv("DATABASE_URL"));
         await provision(db);
       },
 

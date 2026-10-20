@@ -58,6 +58,9 @@ FROM build AS deploy
 RUN pnpm --filter=@forinda-cms/engine deploy --legacy --prod /out \
  && cp -r apps/engine/dist /out/dist \
  && cp -r packages/db/migrations /out/migrations \
+ # kickjs-db's, found beside the folder above (ADR 0052); that one stays for
+ # installs that boot from a release before the switch.
+ && mkdir -p /out/kickdb && cp -r packages/db/kickdb/migrations /out/kickdb/migrations \
  # Beside the engine's own bundle, at the path `AppController` resolves from
  # its own location rather than from the working directory.
  && mkdir -p /out/apps/admin \

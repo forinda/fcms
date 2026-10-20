@@ -120,6 +120,21 @@ function alive(pid: number): boolean {
   }
 }
 
+/** The one PGlite instance for a directory, opened on first use. */
+export function embeddedFor(url: string): PGlite {
+  let client = embedded.get(url);
+  if (!client) {
+    // PGlite creates its own directory but not the ones above it, and the
+    // default is nested — so a first boot in an empty directory failed with
+    // `ENOENT: mkdir`, which is the one boot that has to work.
+    mkdirSync(dirname(resolve(url)), { recursive: true });
+    claim(url);
+    client = new PGlite(url);
+    embedded.set(url, client);
+  }
+  return client;
+}
+
 /** A server, or a directory. Anything that is not a URL is a place to put files. */
 export function isEmbedded(url: string): boolean {
   return !/^postgres(ql)?:\/\//.test(url);
@@ -140,19 +155,10 @@ export function isEmbedded(url: string): boolean {
  */
 export function createDb(url: string) {
   if (isEmbedded(url)) {
-    let client = embedded.get(url);
-    if (!client) {
-      // PGlite creates its own directory but not the ones above it, and the
-      // default is nested — so a first boot in an empty directory failed with
-      // `ENOENT: mkdir`, which is the one boot that has to work.
-      mkdirSync(dirname(resolve(url)), { recursive: true });
-      claim(url);
-      client = new PGlite(url);
-      embedded.set(url, client);
-    }
-    return drizzlePglite(client, { schema, casing: "snake_case" }) as unknown as ReturnType<
-      typeof drizzle<typeof schema>
-    >;
+    return drizzlePglite(embeddedFor(url), {
+      schema,
+      casing: "snake_case",
+    }) as unknown as ReturnType<typeof drizzle<typeof schema>>;
   }
   return drizzle(poolFor(url), { schema, casing: "snake_case" });
 }

@@ -1,23 +1,23 @@
 /**
  * Running migrations.
  *
- * Drizzle's migrator keeps its ledger inside the target database, which makes
- * this **idempotent and resumable** — the property provisioning relies on
+ * kickjs-db's runner keeps its ledger inside the target database, which makes
+ * this **idempotent and resumable**: the property provisioning relies on
  * (doc 09 §6), and the reason the install artifact can migrate on boot rather
- * than asking a self-hoster to run a command.
+ * than asking a self-hoster to run a command. An install Drizzle migrated is
+ * adopted on its first boot (ADR 0052, `kickdb/migrate.ts`).
  *
  * Exposed as a function rather than only a script so the app can call it from a
- * lifecycle hook without taking a direct dependency on Drizzle.
+ * lifecycle hook without taking a direct dependency on the runner.
  */
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import pg from "pg";
+import { pglitePool } from "@forinda/kickjs-db/pglite";
 
-import { PGlite } from "@electric-sql/pglite";
-
-import { createDb, type Db } from "./client.js";
+import { embeddedFor, isEmbedded } from "./client.js";
+import { migrate } from "./kickdb/migrate.js";
 
 /**
  * Where the SQL lives at runtime.
@@ -41,7 +41,7 @@ export function migrationsFolder(): string {
   throw new Error(
     `no migrations directory found. Looked upward from:\n${anchors
       .map((a) => `  ${a}`)
-      .join("\n")}\n` + "Set MIGRATIONS_DIR to point at it.",
+      .join("\n")}\nSet MIGRATIONS_DIR to point at it.`,
   );
 }
 
@@ -58,21 +58,37 @@ function upward(from: string): string[] {
   }
 }
 
-export async function runMigrations(db: Db): Promise<void> {
-  // Two migrators, one set of migrations: they differ in which driver they
-  // speak to and not in the SQL they run, because the dialect is the same
-  // either way (ADR 0050). Picked from the connection rather than from
-  // configuration, so nothing has to be told twice.
-  const run =
-    "$client" in db && (db as { $client: object }).$client instanceof PGlite
-      ? migratePglite
-      : migrate;
-  await (run as typeof migrate)(db, { migrationsFolder: migrationsFolder() });
+/**
+ * Drizzle's folder, and kickjs-db's beside it.
+ *
+ * Kept as a pair so that wherever the legacy folder is found — the repository,
+ * the image's `/app/migrations`, a packed install — the new one is found with
+ * it, and nothing has to be configured twice.
+ */
+export function migrationDirs(): { legacyDir: string; migrationsDir: string } {
+  const legacyDir = migrationsFolder();
+  return { legacyDir, migrationsDir: join(dirname(legacyDir), "kickdb/migrations") };
+}
+
+export async function runMigrations(url: string): Promise<void> {
+  // The embedded database is the instance the app already holds: a second
+  // PGlite on the same directory is a second process on its files. A server
+  // gets a pool of its own for the duration, closed before boot goes on.
+  if (isEmbedded(url)) {
+    await migrate(pglitePool(embeddedFor(url)), migrationDirs());
+    return;
+  }
+  const pool = new pg.Pool({ connectionString: url, max: 2 });
+  try {
+    await migrate(pool, migrationDirs());
+  } finally {
+    await pool.end();
+  }
 }
 
 /** Entry point for `pnpm db:migrate`. */
 export async function migrateFromEnv(): Promise<void> {
   const url = process.env["DATABASE_URL"];
   if (!url) throw new Error("DATABASE_URL is not set");
-  await runMigrations(createDb(url));
+  await runMigrations(url);
 }

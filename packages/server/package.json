@@ -21,6 +21,7 @@
     "bin",
     "dist",
     "migrations",
+    "kickdb",
     "app",
     "README.md",
     "LICENSE"
@@ -38,12 +39,14 @@
   "dependencies": {
     "@electric-sql/pglite": "catalog:",
     "@forinda/kickjs": "catalog:",
+    "@forinda/kickjs-db": "catalog:",
     "@forinda/kickjs-schema": "catalog:",
     "@node-rs/argon2": "catalog:",
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "express": "catalog:",
     "multer": "catalog:",
+    "pg": "catalog:",
     "postgres": "catalog:",
     "reflect-metadata": "catalog:",
     "yaml": "catalog:",
