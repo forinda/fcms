@@ -11,8 +11,18 @@ import { PGlite } from "@electric-sql/pglite";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import postgres from "postgres";
+import pg from "pg";
+import {
+  createDbClient,
+  safeNullComparison,
+  type KickDbClient,
+  type SchemaToTypes,
+} from "@forinda/kickjs-db";
+import { pgDialect, type PgPoolLike } from "@forinda/kickjs-db/pg";
+import { pglitePool } from "@forinda/kickjs-db/pglite";
 
 import * as schema from "./schema/index.js";
+import * as kschema from "./kickdb/schema.js";
 
 /**
  * The pool, and how many holders it has.
@@ -184,6 +194,49 @@ export async function releaseDb(url: string): Promise<void> {
 export type Db = ReturnType<typeof createDb>;
 
 /**
+ * kickjs-db clients (ADR 0052), one per URL, shared and counted like the pools
+ * above and for the same reason.
+ *
+ * An embedded database gets exactly one `pglitePool` per instance: the pool is
+ * what hands PGlite's single connection to one caller at a time, and two pools
+ * would each think they had it.
+ */
+const kdbs = new Map<string, { client: Kdb; pool: PgPoolLike; holders: number }>();
+
+/** The tables as kickjs-db types them, for `ExpressionBuilder<KdbSchema, "…">`. */
+export type KdbSchema = SchemaToTypes<typeof kschema>;
+export type Kdb = KickDbClient<KdbSchema>;
+
+export function createKdb(url: string): Kdb {
+  let held = kdbs.get(url);
+  if (!held) {
+    const pool = isEmbedded(url)
+      ? pglitePool(embeddedFor(url))
+      : new pg.Pool({ connectionString: url, max: 10 });
+    const client = createDbClient({
+      schema: kschema,
+      dialect: pgDialect({ pool }),
+      casing: "snake_case",
+      plugins: [safeNullComparison()],
+    }) as Kdb;
+    held = { client, pool, holders: 0 };
+    kdbs.set(url, held);
+  }
+  held.holders += 1;
+  return held.client;
+}
+
+/** `releaseDb` for the kickjs-db client. The embedded instance outlives it. */
+export async function releaseKdb(url: string): Promise<void> {
+  const held = kdbs.get(url);
+  if (!held) return;
+  held.holders -= 1;
+  if (held.holders > 0) return;
+  kdbs.delete(url);
+  if (!isEmbedded(url)) await held.pool.end?.();
+}
+
+/**
  * A database *or* a transaction.
  *
  * Drizzle's transaction callback receives a `PgTransaction`, which is not a
@@ -201,6 +254,9 @@ export async function closeAllPools(): Promise<void> {
   const open = [...pools.values()];
   pools.clear();
   await Promise.all(open.map((pool) => pool.sql.end({ timeout: 5 })));
+  const kopen = [...kdbs.entries()];
+  kdbs.clear();
+  await Promise.all(kopen.map(([url, held]) => (isEmbedded(url) ? undefined : held.pool.end?.())));
 }
 
 /**

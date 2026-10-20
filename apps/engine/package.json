@@ -23,6 +23,7 @@
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
     "@forinda/kickjs": "catalog:",
+    "@forinda/kickjs-db": "catalog:",
     "@forinda/kickjs-inertia": "catalog:",
     "@forinda/kickjs-schema": "catalog:",
     "@forinda/kickjs-swagger": "catalog:",

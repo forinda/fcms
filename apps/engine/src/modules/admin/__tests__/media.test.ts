@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { assets, closeAllPools, createDb, organizations, sites } from "@forinda-cms/db";
+import { assets, closeAllPools, createDb, createKdb, organizations, sites } from "@forinda-cms/db";
 
 import { AssetRepository } from "@/shared/repositories/asset.repository";
 import { MediaUseCase } from "../use-cases/media.usecase";
@@ -20,6 +20,7 @@ import { defaultMediaDir } from "@/config";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_media";
 const SITE = "site_media";
@@ -41,7 +42,7 @@ suite("media", () => {
     await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "media", name: "Media" });
 
     process.env["MEDIA_DIR"] = mkdtempSync(join(tmpdir(), "fcms-media-"));
-    uploads = new MediaUseCase(new AssetRepository(db, { orgId: ORG, siteId: SITE }));
+    uploads = new MediaUseCase(new AssetRepository(kdb, { orgId: ORG, siteId: SITE }));
   });
 
   const upload = (over: Partial<{ buffer: Buffer; originalname: string; mimetype: string }> = {}) =>
@@ -106,6 +107,23 @@ suite("media", () => {
   it("treats a filename as a label, never a path", async () => {
     const result = await upload({ originalname: "../../etc/passwd" });
     expect(result.ok && result.asset.filename).not.toContain("/");
+  });
+
+  it("sees the org's shared assets and not another org's (ADR 0010)", async () => {
+    const row = { blobHash: "0".repeat(64), contentType: "image/png", bytes: 1 };
+    await db.insert(assets).values([
+      { ...row, orgId: ORG, siteId: null, filename: "shared.png" },
+      { ...row, orgId: "org_elsewhere", siteId: null, filename: "theirs.png" },
+    ]);
+    try {
+      const names = (await new AssetRepository(kdb, { orgId: ORG, siteId: SITE }).list()).map(
+        (a) => a.filename,
+      );
+      expect(names).toContain("shared.png");
+      expect(names).not.toContain("theirs.png");
+    } finally {
+      await db.delete(assets).where(eq(assets.orgId, "org_elsewhere"));
+    }
   });
 });
 
