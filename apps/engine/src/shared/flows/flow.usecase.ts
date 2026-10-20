@@ -8,12 +8,10 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { and, eq, lt } from "drizzle-orm";
-import { flowSessions, type FlowSessionRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import type { FlowSessionRow, Kdb, Scope } from "@forinda-cms/db";
 import type { Page, SiteSpec } from "@forinda-cms/spec";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export const FLOW_COOKIE = "fcms_flow";
@@ -26,7 +24,7 @@ export type Flow = NonNullable<Page["flows"]>[number];
 @Service({ scope: Lifetime.REQUEST })
 export class FlowUseCase {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
@@ -88,18 +86,15 @@ export class FlowUseCase {
     flowKey: string,
   ): Promise<FlowSessionRow | null> {
     if (!token) return null;
-    const [row] = await this.db
-      .select()
-      .from(flowSessions)
-      .where(
-        and(
-          eq(flowSessions.siteId, this.scope.siteId),
-          eq(flowSessions.tokenHash, this.hash(token)),
-          eq(flowSessions.pageKey, pageKey),
-          eq(flowSessions.flowKey, flowKey),
-        ),
-      )
-      .limit(1);
+    const row = await this.db
+      .selectFrom("flow_sessions")
+      .selectAll()
+      .where("siteId", "=", this.scope.siteId)
+      .where("tokenHash", "=", this.hash(token))
+      .where("pageKey", "=", pageKey)
+      .where("flowKey", "=", flowKey)
+      .limit(1)
+      .executeTakeFirst();
 
     // Expired is the same as absent, and it is swept on the next write rather
     // than by a job nobody runs.
@@ -129,16 +124,16 @@ export class FlowUseCase {
     const answers = { ...existing?.answers, [stepKey]: chosen };
 
     if (existing) {
-      const [row] = await this.db
-        .update(flowSessions)
+      return this.db
+        .updateTable("flow_sessions")
         .set({ answers, updatedAt: new Date(), expiresAt: this.expiry() })
-        .where(eq(flowSessions.id, existing.id))
-        .returning();
-      return row!;
+        .where("id", "=", existing.id)
+        .returningAll()
+        .executeTakeFirstOrThrow();
     }
 
-    const [row] = await this.db
-      .insert(flowSessions)
+    return this.db
+      .insertInto("flow_sessions")
       .values({
         siteId: this.scope.siteId,
         orgId: this.scope.orgId,
@@ -148,8 +143,8 @@ export class FlowUseCase {
         answers,
         expiresAt: this.expiry(),
       })
-      .returning();
-    return row!;
+      .returningAll()
+      .executeTakeFirstOrThrow();
   }
 
   /**
@@ -179,28 +174,26 @@ export class FlowUseCase {
       Object.entries(existing.answers).filter(([key]) => !dropped.has(key)),
     );
     await this.db
-      .update(flowSessions)
+      .updateTable("flow_sessions")
       .set({ answers, updatedAt: new Date() })
-      .where(eq(flowSessions.id, existing.id));
+      .where("id", "=", existing.id)
+      .execute();
   }
 
   /** A completed journey deletes its own state. */
   async finish(token: string | undefined, pageKey: string, flowKey: string): Promise<void> {
     if (!token) return;
     await this.db
-      .delete(flowSessions)
-      .where(
-        and(
-          eq(flowSessions.siteId, this.scope.siteId),
-          eq(flowSessions.tokenHash, this.hash(token)),
-          eq(flowSessions.pageKey, pageKey),
-          eq(flowSessions.flowKey, flowKey),
-        ),
-      );
+      .deleteFrom("flow_sessions")
+      .where("siteId", "=", this.scope.siteId)
+      .where("tokenHash", "=", this.hash(token))
+      .where("pageKey", "=", pageKey)
+      .where("flowKey", "=", flowKey)
+      .execute();
   }
 
   /** Rows nobody will use, removed when somebody starts a journey. */
   private async sweep(): Promise<void> {
-    await this.db.delete(flowSessions).where(lt(flowSessions.expiresAt, new Date()));
+    await this.db.deleteFrom("flow_sessions").where("expiresAt", "<", new Date()).execute();
   }
 }

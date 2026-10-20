@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   entries,
   organizations,
   payments,
@@ -26,6 +27,7 @@ import { PaymentUseCase } from "../payment.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_payments";
 const SITE = "site_payments";
@@ -81,7 +83,7 @@ suite("payments", () => {
       .returning();
     entryId = entry!.id;
 
-    repository = new PaymentRepository(db, scope);
+    repository = new PaymentRepository(kdb, scope);
     use = new PaymentUseCase(
       repository,
       new WorkflowUseCase(db, scope),
@@ -176,7 +178,7 @@ suite("payments", () => {
   describe("scope", () => {
     it("does not hand one site's payment to another", async () => {
       const started = await record();
-      const elsewhere = new PaymentRepository(db, { orgId: ORG, siteId: "site_someone_else" });
+      const elsewhere = new PaymentRepository(kdb, { orgId: ORG, siteId: "site_someone_else" });
 
       expect(await elsewhere.byId((started as { payment: PaymentRow }).payment.id)).toBeNull();
     });
