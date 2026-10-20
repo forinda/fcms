@@ -8,10 +8,10 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { SiteSpec, valueOf } from "@forinda-cms/spec";
 
-import type { Db, Scope } from "@forinda-cms/db";
+import type { Kdb, Scope } from "@forinda-cms/db";
 import { PatchRepository, SpecRepository } from "@/shared/repositories";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface UndoResult {
@@ -25,7 +25,7 @@ export class UndoSpecUseCase {
   private readonly patches: PatchRepository;
 
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
     this.specs = new SpecRepository(db, scope);

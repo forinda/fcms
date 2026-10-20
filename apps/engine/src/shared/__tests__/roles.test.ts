@@ -77,7 +77,7 @@ suite("applying a spec", () => {
   });
 
   const apply = (role: string, next = spec) =>
-    new ApplySpecUseCase(db, scope, kdb).execute(next, {
+    new ApplySpecUseCase(kdb, scope).execute(next, {
       actor: "someone@example.test",
       role: role as never,
       source: "admin",

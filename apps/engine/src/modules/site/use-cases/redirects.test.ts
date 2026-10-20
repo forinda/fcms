@@ -46,9 +46,9 @@ suite("redirects from the patch spine", () => {
   const of = () => {
     const scope = { orgId: ORG, siteId: SITE };
     return {
-      apply: new ApplySpecUseCase(db, scope, kdb),
-      redirects: new RedirectsUseCase(db, scope),
-      specs: new SpecRepository(db, scope),
+      apply: new ApplySpecUseCase(kdb, scope),
+      redirects: new RedirectsUseCase(kdb, scope),
+      specs: new SpecRepository(kdb, scope),
     };
   };
   const repo = of;

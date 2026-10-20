@@ -95,10 +95,10 @@ suite("the persistence layer", () => {
   const of = (siteId = SITE, orgId = ORG) => {
     const scope = { orgId, siteId };
     return {
-      apply: new ApplySpecUseCase(db, scope, kdb),
-      undo: new UndoSpecUseCase(db, scope),
-      history: new SiteHistoryUseCase(db, scope),
-      specs: new SpecRepository(db, scope),
+      apply: new ApplySpecUseCase(kdb, scope),
+      undo: new UndoSpecUseCase(kdb, scope),
+      history: new SiteHistoryUseCase(kdb, scope),
+      specs: new SpecRepository(kdb, scope),
       entries: new EntryRepository(kdb, scope),
       read: new EntryReadUseCase(new EntryRepository(kdb, scope)),
       writer: new EntryWriteUseCase(kdb, scope),

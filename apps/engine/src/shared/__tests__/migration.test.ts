@@ -134,7 +134,7 @@ const kdb = url ? createKdb(url) : (undefined as never);
 suite("executing a plan (needs a database)", () => {
   const repo = () => ({
     applySpec: (spec: unknown, input: ApplySpecInput) =>
-      new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }, kdb).execute(spec as SiteSpec, input),
+      new ApplySpecUseCase(kdb, { orgId: ORG, siteId: SITE }).execute(spec as SiteSpec, input),
   });
 
   const reset = async () => {
@@ -170,7 +170,7 @@ suite("executing a plan (needs a database)", () => {
     // Re-running the same plan must be safe — the property that lets the
     // install artifact migrate on boot without reasoning about prior state.
     const again = planMigration(plain, indexed, { siteId: SITE });
-    await runMigration(db, again);
+    await runMigration(kdb, again);
     expect(await indexExists(indexName(SITE, "service", "price"))).toBe(true);
   });
 
@@ -293,22 +293,22 @@ suite("reconciling indexes (needs a database)", () => {
     // diff sees nothing to do, and the index never exists.
     const declared = spec([name, { ...price, filterable: true, unique: true }]);
 
-    const first = await reconcileIndexes(db, declared, scope);
+    const first = await reconcileIndexes(kdb, declared, scope);
     expect(first.created).toContain(indexName(SITE, "service", "price"));
     expect(first.created).toContain(uniqueIndexName(SITE, "service", "price"));
     expect(await exists(uniqueIndexName(SITE, "service", "price"))).toBe(true);
 
     // And again changes nothing, because it is a reconciliation rather than a
     // change — it runs on every apply, so it has to be silent when it agrees.
-    const second = await reconcileIndexes(db, declared, scope);
+    const second = await reconcileIndexes(kdb, declared, scope);
     expect(second).toEqual({ created: [], dropped: [] });
   });
 
   it("drops what the spec no longer asks for", async () => {
     await clean();
-    await reconcileIndexes(db, spec([name, { ...price, filterable: true, unique: true }]), scope);
+    await reconcileIndexes(kdb, spec([name, { ...price, filterable: true, unique: true }]), scope);
 
-    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
+    const { dropped } = await reconcileIndexes(kdb, spec([name, price]), scope);
     expect(dropped).toContain(indexName(SITE, "service", "price"));
     expect(dropped).toContain(uniqueIndexName(SITE, "service", "price"));
     expect(await exists(indexName(SITE, "service", "price"))).toBe(false);
@@ -317,11 +317,11 @@ suite("reconciling indexes (needs a database)", () => {
   it("leaves another site's indexes alone", async () => {
     await clean();
     const other = { siteId: "site_other_planner", orgId: ORG };
-    await reconcileIndexes(db, spec([name, { ...price, filterable: true }]), other);
+    await reconcileIndexes(kdb, spec([name, { ...price, filterable: true }]), other);
 
     // This site's spec asks for nothing, and the other site's index is not this
     // site's to drop — ownership is the partial predicate, not the name.
-    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
+    const { dropped } = await reconcileIndexes(kdb, spec([name, price]), scope);
     expect(dropped).not.toContain(indexName("site_other_planner", "service", "price"));
     expect(await exists(indexName("site_other_planner", "service", "price"))).toBe(true);
 

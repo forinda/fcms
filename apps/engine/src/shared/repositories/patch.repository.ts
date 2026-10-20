@@ -6,13 +6,12 @@
  * `patch.inverse[0]?.value` with the compiler checking it rather than casting.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "@forinda/kickjs-db";
 import type { Classification, PatchOp } from "@forinda-cms/spec";
 
-import { specPatches, type SpecPatchRow } from "@forinda-cms/db";
-import type { Db, Executor, Scope } from "@forinda-cms/db";
+import { tables, type Kdb, type Scope } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface RecordPatch {
@@ -25,15 +24,24 @@ export interface RecordPatch {
   readonly harness?: string | undefined;
 }
 
+const patches = tables.specPatches;
+
+/**
+ * An array for a `jsonb` column. node-postgres binds a JS array as a Postgres
+ * array literal (`{…}`), which jsonb rejects; objects it stringifies. So the
+ * ops — always an array — go across as JSON text and are cast.
+ */
+const jsonb = <T>(value: T) => sql<T>`${JSON.stringify(value)}::jsonb`;
+
 @Repository({ scope: Lifetime.REQUEST })
 export class PatchRepository {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {
-    return and(eq(specPatches.orgId, this.scope.orgId), eq(specPatches.siteId, this.scope.siteId));
+    return and(eq(patches.orgId, this.scope.orgId), eq(patches.siteId, this.scope.siteId));
   }
 
   /**
@@ -43,51 +51,61 @@ export class PatchRepository {
    * the same value — the unique index on (site_id, seq) then rejects the second,
    * which is the behaviour we want rather than a silent interleave.
    */
-  async nextSeq(tx: Executor = this.db): Promise<number> {
-    const [row] = await tx
-      .select({ next: sql<number>`coalesce(max(${specPatches.seq}), 0) + 1` })
-      .from(specPatches)
-      .where(this.scoped);
+  async nextSeq(tx: Kdb = this.db): Promise<number> {
+    const row = await tx
+      .selectFrom("spec_patches")
+      .select(sql<number>`coalesce(max(seq), 0)::int + 1`.as("next"))
+      .where(this.scoped)
+      .executeTakeFirst();
     return row?.next ?? 1;
   }
 
-  async record(seq: number, patch: RecordPatch, tx: Executor = this.db): Promise<void> {
-    await tx.insert(specPatches).values({
-      siteId: this.scope.siteId,
-      orgId: this.scope.orgId,
-      seq,
-      actor: patch.actor,
-      source: patch.source,
-      harness: patch.harness ?? null,
-      ops: patch.ops,
-      inverse: patch.inverse,
-      classification: patch.classification,
-      summary: patch.summary,
-    });
+  async record(seq: number, patch: RecordPatch, tx: Kdb = this.db): Promise<void> {
+    await tx
+      .insertInto("spec_patches")
+      .values({
+        siteId: this.scope.siteId,
+        orgId: this.scope.orgId,
+        seq,
+        actor: patch.actor,
+        source: patch.source,
+        harness: patch.harness ?? null,
+        ops: jsonb(patch.ops),
+        inverse: jsonb(patch.inverse),
+        classification: patch.classification,
+        summary: patch.summary,
+      })
+      .execute();
   }
 
   /** The most recent patch that has not been undone. */
-  async latestApplied(tx: Executor = this.db): Promise<SpecPatchRow | null> {
-    const [row] = await tx
-      .select()
-      .from(specPatches)
-      .where(and(this.scoped, isNull(specPatches.revertedAt)))
-      .orderBy(desc(specPatches.seq))
-      .limit(1);
+  async latestApplied(tx: Kdb = this.db) {
+    const row = await tx
+      .selectFrom("spec_patches")
+      .selectAll()
+      .where(and(this.scoped, isNull(patches.revertedAt)))
+      .orderBy("seq", "desc")
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
   /** Marks rather than deletes: history stays append-only across an undo. */
-  async markReverted(id: number, tx: Executor = this.db): Promise<void> {
-    await tx.update(specPatches).set({ revertedAt: new Date() }).where(eq(specPatches.id, id));
+  async markReverted(id: bigint, tx: Kdb = this.db): Promise<void> {
+    await tx
+      .updateTable("spec_patches")
+      .set({ revertedAt: new Date() })
+      .where(eq(patches.id, id))
+      .execute();
   }
 
-  async list(limit = 20): Promise<SpecPatchRow[]> {
+  async list(limit = 20) {
     return this.db
-      .select()
-      .from(specPatches)
+      .selectFrom("spec_patches")
+      .selectAll()
       .where(this.scoped)
-      .orderBy(desc(specPatches.seq))
-      .limit(limit);
+      .orderBy("seq", "desc")
+      .limit(limit)
+      .execute();
   }
 }
