@@ -110,7 +110,7 @@ suite("visitors", () => {
       // resolve to an actor, or "saved a hotel" and "edited the site" are one
       // permissions bug apart.
       const session = await register();
-      expect(await new AuthenticateUseCase(db).execute(session.token)).toBeNull();
+      expect(await new AuthenticateUseCase(kdb).execute(session.token)).toBeNull();
     });
 
     it("stops working when signed out", async () => {

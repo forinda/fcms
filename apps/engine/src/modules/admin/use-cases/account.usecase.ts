@@ -12,9 +12,9 @@
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 
-import type { Db, OwnerRow } from "@forinda-cms/db";
+import type { Kdb, OwnerRow } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 import { OwnerRepository } from "@/shared/repositories";
 
@@ -27,7 +27,7 @@ const MIN_PASSWORD = 12;
 export class AccountUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(@Inject(DB) db: Db) {
+  constructor(@Inject(KDB) db: Kdb) {
     this.owners = new OwnerRepository(db);
   }
 

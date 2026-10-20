@@ -1,35 +1,37 @@
 /**
  * Owners and their sessions. Rows in, rows out.
  */
-import { and, asc, desc, eq, gt, lt, ne, or, sql } from "drizzle-orm";
+import { sql, type ExpressionBuilder } from "@forinda/kickjs-db";
 
-import {
-  loginAttempts,
-  ownerSessions,
-  owners,
-  type OwnerRow,
-  type OwnerSessionRow,
-} from "@forinda-cms/db";
-import type { Db } from "@forinda-cms/db";
+import type { Kdb, KdbSchema, OwnerRow, OwnerSessionRow } from "@forinda-cms/db";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 
 /** An id out of a URL must not reach a uuid column raw. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Failures for this email, or from this address when there is one. */
+const byEmailOrAddress =
+  (email: string, ipAddress: string | null) =>
+  (eb: ExpressionBuilder<KdbSchema, "login_attempts">) =>
+    ipAddress
+      ? eb.or([eb("email", "=", email.toLowerCase()), eb("ipAddress", "=", ipAddress)])
+      : eb("email", "=", email.toLowerCase());
+
 export class OwnerRepository {
-  constructor(private readonly db: Db) {}
+  constructor(private readonly db: Kdb) {}
 
   async findByEmail(email: string): Promise<OwnerRow | null> {
-    const [row] = await this.db
-      .select()
-      .from(owners)
-      .where(eq(owners.email, email.toLowerCase()))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("owners")
+      .selectAll()
+      .where("email", "=", email.toLowerCase())
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
   async count(): Promise<number> {
-    const rows = await this.db.select({ id: owners.id }).from(owners).limit(1);
+    const rows = await this.db.selectFrom("owners").select("id").limit(1).execute();
     return rows.length;
   }
 
@@ -40,8 +42,8 @@ export class OwnerRepository {
     name?: string;
     role?: string;
   }): Promise<OwnerRow> {
-    const [row] = await this.db
-      .insert(owners)
+    return this.db
+      .insertInto("owners")
       .values({
         orgId: values.orgId,
         email: values.email.toLowerCase(),
@@ -49,8 +51,8 @@ export class OwnerRepository {
         name: values.name ?? null,
         ...(values.role ? { role: values.role } : {}),
       })
-      .returning();
-    return row!;
+      .returningAll()
+      .executeTakeFirstOrThrow();
   }
 
   /**
@@ -63,30 +65,35 @@ export class OwnerRepository {
   async setPassword(orgId: string, id: string, passwordHash: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
     const rows = await this.db
-      .update(owners)
+      .updateTable("owners")
       .set({ passwordHash })
-      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
-      .returning({ id: owners.id });
+      .where("id", "=", id)
+      .where("orgId", "=", orgId)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
   async setName(orgId: string, id: string, name: string | null): Promise<boolean> {
     if (!UUID.test(id)) return false;
     const rows = await this.db
-      .update(owners)
+      .updateTable("owners")
       .set({ name })
-      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
-      .returning({ id: owners.id });
+      .where("id", "=", id)
+      .where("orgId", "=", orgId)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
   /** Everyone who can sign in, oldest first — the order they were added. */
   async list(orgId: string): Promise<OwnerRow[]> {
     return this.db
-      .select()
-      .from(owners)
-      .where(eq(owners.orgId, orgId))
-      .orderBy(asc(owners.createdAt));
+      .selectFrom("owners")
+      .selectAll()
+      .where("orgId", "=", orgId)
+      .orderBy("createdAt", "asc")
+      .execute();
   }
 
   /**
@@ -100,21 +107,25 @@ export class OwnerRepository {
    */
   async findById(orgId: string, id: string): Promise<OwnerRow | null> {
     if (!UUID.test(id)) return null;
-    const [row] = await this.db
-      .select()
-      .from(owners)
-      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
-      .limit(1);
+    const row = await this.db
+      .selectFrom("owners")
+      .selectAll()
+      .where("id", "=", id)
+      .where("orgId", "=", orgId)
+      .limit(1)
+      .executeTakeFirst();
     return row ?? null;
   }
 
   async setRole(orgId: string, id: string, role: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
     const rows = await this.db
-      .update(owners)
+      .updateTable("owners")
       .set({ role })
-      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
-      .returning({ id: owners.id });
+      .where("id", "=", id)
+      .where("orgId", "=", orgId)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
@@ -127,18 +138,22 @@ export class OwnerRepository {
   async remove(orgId: string, id: string): Promise<boolean> {
     if (!UUID.test(id)) return false;
     const rows = await this.db
-      .delete(owners)
-      .where(and(eq(owners.id, id), eq(owners.orgId, orgId)))
-      .returning({ id: owners.id });
+      .deleteFrom("owners")
+      .where("id", "=", id)
+      .where("orgId", "=", orgId)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
   /** How many accounts hold this role — asked before removing the last owner. */
   async countWithRole(orgId: string, role: string): Promise<number> {
     const rows = await this.db
-      .select({ id: owners.id })
-      .from(owners)
-      .where(and(eq(owners.orgId, orgId), eq(owners.role, role)));
+      .selectFrom("owners")
+      .select("id")
+      .where("orgId", "=", orgId)
+      .where("role", "=", role)
+      .execute();
     return rows.length;
   }
 
@@ -153,13 +168,16 @@ export class OwnerRepository {
     const token = newSessionToken();
     const expiresAt = new Date(Date.now() + ttlMs);
 
-    await this.db.insert(ownerSessions).values({
-      ownerId,
-      tokenHash: hashToken(token),
-      expiresAt,
-      userAgent: meta.userAgent ?? null,
-      ipAddress: meta.ipAddress ?? null,
-    });
+    await this.db
+      .insertInto("owner_sessions")
+      .values({
+        ownerId,
+        tokenHash: hashToken(token),
+        expiresAt,
+        userAgent: meta.userAgent ?? null,
+        ipAddress: meta.ipAddress ?? null,
+      })
+      .execute();
 
     return { token, expiresAt };
   }
@@ -172,38 +190,46 @@ export class OwnerRepository {
    */
   async findBySessionToken(
     token: string,
-  ): Promise<{ owner: OwnerRow; session: OwnerSessionRow } | null> {
-    const [row] = await this.db
-      .select({ owner: owners, session: ownerSessions })
-      .from(ownerSessions)
-      .innerJoin(owners, eq(owners.id, ownerSessions.ownerId))
-      .where(
-        and(eq(ownerSessions.tokenHash, hashToken(token)), gt(ownerSessions.expiresAt, new Date())),
-      )
-      .limit(1);
-    return row ?? null;
+  ): Promise<{ owner: OwnerRow; session: Pick<OwnerSessionRow, "id" | "lastUsedAt"> } | null> {
+    // One query on every authenticated request, so the two session columns
+    // anyone reads are aliased beside the owner's rather than fetched apart.
+    const row = await this.db
+      .selectFrom("owner_sessions as s")
+      .innerJoin("owners", "owners.id", "s.ownerId")
+      .selectAll("owners")
+      .select(["s.id as sessionId", "s.lastUsedAt as sessionLastUsedAt"])
+      .where("s.tokenHash", "=", hashToken(token))
+      .where("s.expiresAt", ">", new Date())
+      .limit(1)
+      .executeTakeFirst();
+    if (!row) return null;
+
+    const { sessionId, sessionLastUsedAt, ...owner } = row;
+    return { owner, session: { id: sessionId, lastUsedAt: sessionLastUsedAt } };
   }
 
   async closeSession(token: string): Promise<void> {
-    await this.db.delete(ownerSessions).where(eq(ownerSessions.tokenHash, hashToken(token)));
+    await this.db.deleteFrom("owner_sessions").where("tokenHash", "=", hashToken(token)).execute();
   }
 
   async closeAllSessions(ownerId: string): Promise<void> {
-    await this.db.delete(ownerSessions).where(eq(ownerSessions.ownerId, ownerId));
+    await this.db.deleteFrom("owner_sessions").where("ownerId", "=", ownerId).execute();
   }
 
   /** Housekeeping. Expired rows are dead weight and a needless liability. */
   async purgeExpired(): Promise<void> {
-    await this.db.delete(ownerSessions).where(lt(ownerSessions.expiresAt, new Date()));
+    await this.db.deleteFrom("owner_sessions").where("expiresAt", "<", new Date()).execute();
   }
 
   /** Every live session for one owner, newest use first. */
   async sessions(ownerId: string): Promise<OwnerSessionRow[]> {
     return this.db
-      .select()
-      .from(ownerSessions)
-      .where(and(eq(ownerSessions.ownerId, ownerId), gt(ownerSessions.expiresAt, new Date())))
-      .orderBy(desc(sql`coalesce(${ownerSessions.lastUsedAt}, ${ownerSessions.createdAt})`));
+      .selectFrom("owner_sessions")
+      .selectAll()
+      .where("ownerId", "=", ownerId)
+      .where("expiresAt", ">", new Date())
+      .orderBy(sql`coalesce(last_used_at, created_at)`, "desc")
+      .execute();
   }
 
   /**
@@ -214,20 +240,22 @@ export class OwnerRepository {
    */
   async revokeSession(ownerId: string, id: string): Promise<boolean> {
     const rows = await this.db
-      .delete(ownerSessions)
-      .where(and(eq(ownerSessions.ownerId, ownerId), eq(ownerSessions.id, id)))
-      .returning({ id: ownerSessions.id });
+      .deleteFrom("owner_sessions")
+      .where("ownerId", "=", ownerId)
+      .where("id", "=", id)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
   /** Everything except the one in the caller's hand — "sign out everywhere else". */
   async revokeOtherSessions(ownerId: string, keepToken: string): Promise<number> {
     const rows = await this.db
-      .delete(ownerSessions)
-      .where(
-        and(eq(ownerSessions.ownerId, ownerId), ne(ownerSessions.tokenHash, hashToken(keepToken))),
-      )
-      .returning({ id: ownerSessions.id });
+      .deleteFrom("owner_sessions")
+      .where("ownerId", "=", ownerId)
+      .where("tokenHash", "!=", hashToken(keepToken))
+      .returning("id")
+      .execute();
     return rows.length;
   }
 
@@ -243,11 +271,19 @@ export class OwnerRepository {
     if (lastUsedAt && Date.now() - lastUsedAt.getTime() < 60_000) return;
 
     const now = new Date();
-    await this.db.update(ownerSessions).set({ lastUsedAt: now }).where(eq(ownerSessions.id, id));
+    await this.db
+      .updateTable("owner_sessions")
+      .set({ lastUsedAt: now })
+      .where("id", "=", id)
+      .execute();
     // The account's own clock, not only the session's. "Last seen" on the
     // people screen is the question an owner asks about somebody else, and
     // asking it of a session they cannot see is not an answer.
-    await this.db.update(owners).set({ lastSeenAt: now }).where(eq(owners.id, ownerId));
+    await this.db
+      .updateTable("owners")
+      .set({ lastSeenAt: now })
+      .where("id", "=", ownerId)
+      .execute();
   }
 
   // ----------------------------------------------------------- login attempts
@@ -262,45 +298,30 @@ export class OwnerRepository {
   async recentFailures(email: string, ipAddress: string | null, windowMs: number): Promise<number> {
     const since = new Date(Date.now() - windowMs);
     const rows = await this.db
-      .select({ id: loginAttempts.id })
-      .from(loginAttempts)
-      .where(
-        and(
-          // Sign-in attempts only. Public form submissions share this table and
-          // must not count here, or filling a contact form locks the owner out.
-          eq(loginAttempts.kind, "login"),
-          gt(loginAttempts.at, since),
-          ipAddress
-            ? or(
-                eq(loginAttempts.email, email.toLowerCase()),
-                eq(loginAttempts.ipAddress, ipAddress),
-              )
-            : eq(loginAttempts.email, email.toLowerCase()),
-        ),
-      );
+      .selectFrom("login_attempts")
+      .select("id")
+      // Sign-in attempts only. Public form submissions share this table and
+      // must not count here, or filling a contact form locks the owner out.
+      .where("kind", "=", "login")
+      .where("at", ">", since)
+      .where(byEmailOrAddress(email, ipAddress))
+      .execute();
     return rows.length;
   }
 
   async recordFailure(email: string, ipAddress: string | null): Promise<void> {
     await this.db
-      .insert(loginAttempts)
-      .values({ kind: "login", email: email.toLowerCase(), ipAddress });
+      .insertInto("login_attempts")
+      .values({ kind: "login", email: email.toLowerCase(), ipAddress })
+      .execute();
   }
 
   /** Cleared on success, so a legitimate owner is never punished for typos. */
   async clearFailures(email: string, ipAddress: string | null): Promise<void> {
     await this.db
-      .delete(loginAttempts)
-      .where(
-        and(
-          eq(loginAttempts.kind, "login"),
-          ipAddress
-            ? or(
-                eq(loginAttempts.email, email.toLowerCase()),
-                eq(loginAttempts.ipAddress, ipAddress),
-              )
-            : eq(loginAttempts.email, email.toLowerCase()),
-        ),
-      );
+      .deleteFrom("login_attempts")
+      .where("kind", "=", "login")
+      .where(byEmailOrAddress(email, ipAddress))
+      .execute();
   }
 }

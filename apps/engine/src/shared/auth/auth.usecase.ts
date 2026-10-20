@@ -6,11 +6,11 @@
  * caller.
  */
 import { Inject, Service } from "@forinda/kickjs";
-import type { Db, OwnerRow } from "@forinda-cms/db";
+import type { Kdb, OwnerRow } from "@forinda-cms/db";
 import { OwnerRepository } from "@/shared/repositories/owner.repository";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 
 /**
  * A hash of a value nobody will supply.
@@ -80,7 +80,7 @@ export class InvalidCredentialsError extends Error {
 export class LoginUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(@Inject(DB) db: Db) {
+  constructor(@Inject(KDB) db: Kdb) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -120,7 +120,7 @@ export class LoginUseCase {
 export class LogoutUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(@Inject(DB) db: Db) {
+  constructor(@Inject(KDB) db: Kdb) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -134,7 +134,7 @@ export class LogoutUseCase {
 export class AuthenticateUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(@Inject(DB) db: Db) {
+  constructor(@Inject(KDB) db: Kdb) {
     this.owners = new OwnerRepository(db);
   }
 
@@ -162,7 +162,7 @@ export class AuthenticateUseCase {
 export class ProvisionOwnerUseCase {
   private readonly owners: OwnerRepository;
 
-  constructor(@Inject(DB) db: Db) {
+  constructor(@Inject(KDB) db: Kdb) {
     this.owners = new OwnerRepository(db);
   }
 

@@ -10,11 +10,9 @@
  * owner.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { and, eq, gt, or } from "drizzle-orm";
-import { loginAttempts } from "@forinda-cms/db";
-import type { Db } from "@forinda-cms/db";
+import type { Kdb } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 
 /** Ten in ten minutes: generous for a person, useless for a script. */
 export const SUBMISSIONS_ALLOWED = 10;
@@ -22,33 +20,31 @@ export const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
 
 @Service({ scope: Lifetime.REQUEST })
 export class SubmissionLimitUseCase {
-  constructor(@Inject(DB) private readonly db: Db) {}
+  constructor(@Inject(KDB) private readonly db: Kdb) {}
 
   async allow(typeKey: string, visitorId: string | null, ip: string | null): Promise<boolean> {
     const since = new Date(Date.now() - SUBMISSION_WINDOW_MS);
     const key = this.key(typeKey, visitorId);
 
     const rows = await this.db
-      .select({ id: loginAttempts.id })
-      .from(loginAttempts)
-      .where(
-        and(
-          // Submissions only — see the note on `kind` in the schema.
-          eq(loginAttempts.kind, "submit"),
-          gt(loginAttempts.at, since),
-          ip
-            ? or(eq(loginAttempts.email, key), eq(loginAttempts.ipAddress, ip))
-            : eq(loginAttempts.email, key),
-        ),
-      );
+      .selectFrom("login_attempts")
+      .select("id")
+      // Submissions only — see the note on `kind` in the schema.
+      .where("kind", "=", "submit")
+      .where("at", ">", since)
+      .where((eb) =>
+        ip ? eb.or([eb("email", "=", key), eb("ipAddress", "=", ip)]) : eb("email", "=", key),
+      )
+      .execute();
 
     return rows.length < SUBMISSIONS_ALLOWED;
   }
 
   async record(typeKey: string, visitorId: string | null, ip: string | null): Promise<void> {
     await this.db
-      .insert(loginAttempts)
-      .values({ kind: "submit", email: this.key(typeKey, visitorId), ipAddress: ip });
+      .insertInto("login_attempts")
+      .values({ kind: "submit", email: this.key(typeKey, visitorId), ipAddress: ip })
+      .execute();
   }
 
   /** Namespaced so it can never collide with a real email address. */
