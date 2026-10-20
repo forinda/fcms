@@ -19,8 +19,8 @@ import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
 import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 import pg from "pg";
-import { introspectPg } from "@forinda/kickjs-db";
-import type { PgPoolLike } from "@forinda/kickjs-db/pg";
+import { introspectPg, migrateRollback } from "@forinda/kickjs-db";
+import { pgAdapter, type PgPoolLike } from "@forinda/kickjs-db/pg";
 import { pglitePool } from "@forinda/kickjs-db/pglite";
 
 import { migrate } from "./migrate.js";
@@ -126,7 +126,34 @@ describe.each([
       const db = await fresh();
       const { applied } = await migrate(db.pool, dirs);
       expect(applied).toHaveLength(1);
+
+      // And back: `down.sql` drops children before the tables they reference.
+      await migrateRollback({
+        adapter: pgAdapter({ pool: db.pool }),
+        migrationsDir: dirs.migrationsDir,
+      });
+      expect((await schemaOf(db)).tables).toEqual({});
     });
+
+    it.runIf(enabled)(
+      "waits for another replica's migration instead of failing the boot",
+      async () => {
+        const db = await fresh();
+        await migrate(db.pool, dirs);
+        await db.pool.query(
+          "update kick_migrations_lock set locked_at = now(), locked_by = 'replica-2'",
+        );
+        setTimeout(
+          () =>
+            void db.pool.query(
+              "update kick_migrations_lock set locked_at = null, locked_by = null",
+            ),
+          1500,
+        );
+
+        await expect(migrate(db.pool, dirs)).resolves.toMatchObject({ applied: [] });
+      },
+    );
 
     it.runIf(enabled)(
       "adopts a finished Drizzle install without running anything, and the schemas match",

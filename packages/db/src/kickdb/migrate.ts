@@ -18,6 +18,7 @@ import { join } from "node:path";
 import {
   computeMigrationHash,
   migrateLatest,
+  MigrationLockError,
   migrationsTableDdl,
   readJournal,
   type AppliedSummary,
@@ -41,11 +42,25 @@ export async function migrate(pool: PgPoolLike, opts: MigrateOptions): Promise<A
   const adapter = pgAdapter({ pool });
   await adapter.ensureMigrationTables();
   await adoptDrizzle(pool, opts);
-  return migrateLatest({
-    adapter,
-    migrationsDir: opts.migrationsDir,
-    driftIgnore: { indexes: RUNTIME_INDEXES },
-  });
+
+  // Another replica booting at the same moment holds the lock while it
+  // migrates, and the runner refuses rather than waits. Waiting is right: once
+  // it finishes there is nothing left to apply. A holder that died is taken
+  // over by the runner after `lockStaleAfter` (600s), so this ends either way.
+  // Not one session lock around all of it: on PGlite that would hold the only
+  // connection the runner needs.
+  for (const deadline = Date.now() + 15 * 60_000; ;) {
+    try {
+      return await migrateLatest({
+        adapter,
+        migrationsDir: opts.migrationsDir,
+        driftIgnore: { indexes: RUNTIME_INDEXES },
+      });
+    } catch (err) {
+      if (!(err instanceof MigrationLockError) || Date.now() > deadline) throw err;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
 }
 
 export async function adoptDrizzle(pool: PgPoolLike, opts: MigrateOptions): Promise<void> {

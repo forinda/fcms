@@ -3,5 +3,8 @@
   "indentWidth": 2,
   "quoteStyle": "single",
   "semicolons": "asNeeded",
-  "trailingComma": "all"
+  "trailingComma": "all",
+  "ignorePatterns": [
+    "packages/db/kickdb/migrations/**"
+  ]
 }
