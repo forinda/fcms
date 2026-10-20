@@ -17,6 +17,9 @@ import { FLOW_COOKIE } from "@/shared/flows/flow.usecase";
 import { MediaUseCase } from "@/modules/admin/use-cases/media.usecase";
 import { SiteService } from "./site.service";
 
+/** The framework's liveness and readiness probes (`bootstrap({ health })`). */
+const PROBES = new Set(["/health/live", "/health/ready"]);
+
 @Controller()
 @PublicSite
 export class SiteController {
@@ -202,6 +205,11 @@ export class SiteController {
   @Get("/*path")
   async page(ctx: Ctx): Promise<void> {
     const url = (ctx.req.url ?? "/").split("?")[0] ?? "/";
+    // The framework mounts its probes after every module, so without this the
+    // catch-all answered them with the 404 page and an orchestrator saw a site
+    // that was never ready. Exactly these two: a clinic's `/health/services` is
+    // still a page.
+    if (PROBES.has(url)) return ctx.next();
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
 
     // The query string is what a visitor's filters, sort and page arrive in

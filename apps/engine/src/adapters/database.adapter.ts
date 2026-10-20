@@ -18,6 +18,7 @@
  * what makes these tokens substitutable in a test.
  */
 import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
+import { sql } from "drizzle-orm";
 import { createDb, organizations, releaseDb, runMigrations, sites, type Db } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
@@ -98,6 +99,20 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // an interrupted one resumes.
         await runMigrations(db);
         await provision(db);
+      },
+
+      /**
+       * What `/health/ready` asks. Every page reads the spec from the
+       * database, so a site whose database does not answer is not ready,
+       * whatever else is up.
+       */
+      async onHealthCheck() {
+        try {
+          await db.execute(sql`select 1`);
+          return { name: "database", status: "up" as const };
+        } catch {
+          return { name: "database", status: "down" as const };
+        }
       },
 
       async shutdown() {
