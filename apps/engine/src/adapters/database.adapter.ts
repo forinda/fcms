@@ -19,11 +19,20 @@
  */
 import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
 import { sql } from "drizzle-orm";
-import { createDb, organizations, releaseDb, runMigrations, sites, type Db } from "@forinda-cms/db";
+import {
+  createDb,
+  createKdb,
+  organizations,
+  releaseDb,
+  releaseKdb,
+  runMigrations,
+  sites,
+  type Db,
+} from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { Actor, CURRENT_SCOPE, ResolveSite } from "@/contributors";
-import { DB } from "@/shared/db";
+import { DB, KDB } from "@/shared/db";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 
 // Side-effect import: `src/shared` sits outside every module, so no module glob
@@ -77,6 +86,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // workspace package is never globbed, its decorator never runs, and
         // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
+        container.registerInstance(KDB, createKdb(getEnv("DATABASE_URL")));
 
         container.registerFactory(
           CURRENT_SCOPE,
@@ -121,6 +131,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // `releaseDb`), and closing it here ended the new one's connection on
         // every file save.
         await releaseDb(getEnv("DATABASE_URL"));
+        await releaseKdb(getEnv("DATABASE_URL"));
       },
     };
   },

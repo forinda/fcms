@@ -6,12 +6,11 @@
  * sites, so a query has to match either.
  */
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import { sql, type ExpressionBuilder } from "@forinda/kickjs-db";
 
-import { assets, type AssetRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import type { AssetRow, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
+import { KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 /** What a uuid looks like, so a URL cannot ask Postgres to parse one. */
@@ -20,25 +19,25 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class AssetRepository {
   constructor(
-    @Inject(DB) private readonly db: Db,
+    @Inject(KDB) private readonly db: Kdb,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   /** This site's assets and the org's shared ones (ADR 0010). */
-  private get visible() {
-    return and(
-      eq(assets.orgId, this.scope.orgId),
-      or(eq(assets.siteId, this.scope.siteId), isNull(assets.siteId)),
-    );
-  }
+  private readonly visible = (eb: ExpressionBuilder<KdbSchema, "assets">) =>
+    eb.and([
+      eb("orgId", "=", this.scope.orgId),
+      eb.or([eb("siteId", "=", this.scope.siteId), eb("siteId", "is", null)]),
+    ]);
 
   list(limit = 200): Promise<AssetRow[]> {
     return this.db
-      .select()
-      .from(assets)
+      .selectFrom("assets")
+      .selectAll()
       .where(this.visible)
-      .orderBy(desc(assets.createdAt))
-      .limit(limit);
+      .orderBy("createdAt", "desc")
+      .limit(limit)
+      .execute();
   }
 
   async byId(id: string): Promise<AssetRow | null> {
@@ -48,22 +47,24 @@ export class AssetRepository {
     // attempted path in the logs as an error.
     if (!UUID.test(id)) return null;
 
-    const [row] = await this.db
-      .select()
-      .from(assets)
-      .where(and(this.visible, eq(assets.id, id)));
+    const row = await this.db
+      .selectFrom("assets")
+      .selectAll()
+      .where(this.visible)
+      .where("id", "=", id)
+      .executeTakeFirst();
     return row ?? null;
   }
 
-  async create(values: {
+  create(values: {
     blobHash: string;
     filename: string;
     contentType: string;
     bytes: number;
     alt?: string | null;
   }): Promise<AssetRow> {
-    const [row] = await this.db
-      .insert(assets)
+    return this.db
+      .insertInto("assets")
       .values({
         orgId: this.scope.orgId,
         siteId: this.scope.siteId,
@@ -73,24 +74,28 @@ export class AssetRepository {
         bytes: values.bytes,
         alt: values.alt ?? null,
       })
-      .returning();
-    return row!;
+      .returningAll()
+      .executeTakeFirstOrThrow();
   }
 
   async setAlt(id: string, alt: string): Promise<boolean> {
     const rows = await this.db
-      .update(assets)
+      .updateTable("assets")
       .set({ alt })
-      .where(and(this.visible, eq(assets.id, id)))
-      .returning({ id: assets.id });
+      .where(this.visible)
+      .where("id", "=", id)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
   async remove(id: string): Promise<AssetRow | null> {
-    const [row] = await this.db
-      .delete(assets)
-      .where(and(this.visible, eq(assets.id, id)))
-      .returning();
+    const row = await this.db
+      .deleteFrom("assets")
+      .where(this.visible)
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirst();
     return row ?? null;
   }
 
@@ -101,10 +106,11 @@ export class AssetRepository {
    * deleting one row must not delete the file the other one uses.
    */
   async blobUses(blobHash: string): Promise<number> {
-    const [row] = await this.db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(assets)
-      .where(eq(assets.blobHash, blobHash));
+    const row = await this.db
+      .selectFrom("assets")
+      .select(sql<number>`count(*)::int`.as("count"))
+      .where("blobHash", "=", blobHash)
+      .executeTakeFirst();
     return row?.count ?? 0;
   }
 }

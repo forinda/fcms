@@ -13,7 +13,10 @@
  * `No provider for Object`, naming neither the class nor the token. Tokens
  * therefore live in modules that import nothing.
  */
-import { createToken, type InjectionToken } from "@forinda/kickjs";
-import type { Db } from "@forinda-cms/db";
+import { createToken } from "@forinda/kickjs";
+import type { Db, Kdb } from "@forinda-cms/db";
 
-export const DB: InjectionToken<Db> = createToken("app/Db/connection");
+export const DB = createToken<Db>("app/Db/connection");
+
+/** The kickjs-db client (ADR 0052), while repositories move to it one at a time. */
+export const KDB = createToken<Kdb>("app/Db/kickdb");
