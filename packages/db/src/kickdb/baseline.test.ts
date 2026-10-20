@@ -101,7 +101,15 @@ function legacyFolder(count?: number): string {
   return folder;
 }
 
-const schemaOf = (db: Opened) => introspectPg(db.pool);
+// `defaultRaw` is the default as Postgres spells it: Drizzle wrote `now()`, the
+// baseline `CURRENT_TIMESTAMP`. Same value, and the drift check reads them as
+// one; comparing the spelling here would fail every adopted install.
+const schemaOf = async (db: Opened) =>
+  JSON.parse(
+    JSON.stringify(await introspectPg(db.pool), (key, value) =>
+      key === "defaultRaw" ? undefined : value,
+    ),
+  );
 const ledgerOf = async (db: Opened) =>
   (await db.pool.query("select id, name, hash, batch from kick_migrations order by id")).rows;
 
