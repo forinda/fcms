@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "dialect": "postgres",
+  "entries": [
+    {
+      "id": "20261020_193444_baseline",
+      "tag": "baseline",
+      "hash": "sha256:e86301955394f88eaa5a18e0b1dd4be807565d15716f5a6bc887c246206d3d60",
+      "createdAt": "2026-10-20T19:34:44.867Z"
+    }
+  ]
+}

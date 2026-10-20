@@ -18,6 +18,9 @@ catalogs:
     '@forinda/kickjs-cli':
       specifier: ^8.14.2
       version: 8.14.2
+    '@forinda/kickjs-db':
+      specifier: ^8.10.0
+      version: 8.10.0
     '@forinda/kickjs-inertia':
       specifier: ^0.4.0
       version: 0.4.0
@@ -72,6 +75,9 @@ catalogs:
     '@types/node':
       specifier: ^25.0.0
       version: 25.9.5
+    '@types/pg':
+      specifier: ^8.15.0
+      version: 8.23.1
     '@types/react':
       specifier: ^19.2.0
       version: 19.2.18
@@ -123,6 +129,9 @@ catalogs:
     oxlint:
       specifier: ^1.80.0
       version: 1.81.0
+    pg:
+      specifier: ^8.16.0
+      version: 8.23.1
     postgres:
       specifier: ^3.4.9
       version: 3.4.9
@@ -299,7 +308,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.6)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1)(postgres@3.4.9)
       express:
         specifier: 'catalog:'
         version: 5.3.0
@@ -318,13 +327,13 @@ importers:
     devDependencies:
       '@forinda/kickjs-cli':
         specifier: 'catalog:'
-        version: 8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+        version: 8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(pg@8.23.1)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
       '@forinda/kickjs-testing':
         specifier: 'catalog:'
         version: 8.3.1(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(express@5.3.0)(supertest@7.2.2)(vitest@4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)))
       '@forinda/kickjs-vite':
         specifier: 'catalog:'
-        version: 8.1.1(@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
+        version: 8.1.1(@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(pg@8.23.1)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
       '@inertiajs/react':
         specifier: 'catalog:'
         version: 3.9.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -477,12 +486,18 @@ importers:
       '@forinda-cms/spec':
         specifier: workspace:*
         version: link:../spec
+      '@forinda/kickjs-db':
+        specifier: 'catalog:'
+        version: 8.10.0(@electric-sql/pglite@0.5.8)(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(pg@8.23.1)
       '@node-rs/argon2':
         specifier: 'catalog:'
         version: 2.2.0
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.6)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1)(postgres@3.4.9)
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.1
       postgres:
         specifier: 'catalog:'
         version: 3.4.9
@@ -493,6 +508,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.5
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.23.1
       drizzle-kit:
         specifier: 'catalog:'
         version: 0.31.10
@@ -660,7 +678,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.6)(postgres@3.4.9)
+        version: 0.45.2(@electric-sql/pglite@0.5.8)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1)(postgres@3.4.9)
       express:
         specifier: 'catalog:'
         version: 5.3.0
@@ -1616,6 +1634,29 @@ packages:
       '@typescript/typescript6':
         optional: true
       typescript:
+        optional: true
+
+  '@forinda/kickjs-db@8.10.0':
+    resolution: {integrity: sha512-qdy1YZQS9D7GH5OgS//qK3VvdWmmQugmjkdbXRZd7F1+yzu8scQUW4V6adw2MkmipOZX3CDYxg75thgBgaTQog==}
+    engines: {node: '>=20.0'}
+    hasBin: true
+    peerDependencies:
+      '@electric-sql/pglite': '>=0.5.5'
+      '@forinda/kickjs': '>=8.8.0'
+      '@forinda/kickjs-devtools-kit': '>=7.0.0'
+      better-sqlite3: '>=12.0.0'
+      mysql2: '>=3.0.0'
+      pg: '>=8.11.0'
+    peerDependenciesMeta:
+      '@electric-sql/pglite':
+        optional: true
+      '@forinda/kickjs-devtools-kit':
+        optional: true
+      better-sqlite3:
+        optional: true
+      mysql2:
+        optional: true
+      pg:
         optional: true
 
   '@forinda/kickjs-db@8.9.0':
@@ -3864,6 +3905,9 @@ packages:
   '@types/node@25.9.5':
     resolution: {integrity: sha512-OScDchr2fwuUmWdf4kZ9h7PcJiYDVInhJizG/biAq3cAvqwYktuy/TYGGdZNMtNTFUP7rnb0NU4TUdm82kt4Rg==}
 
+  '@types/pg@8.23.1':
+    resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
+
   '@types/qs@6.15.1':
     resolution: {integrity: sha512-GZHUBZR9hckSUhrxmp1nG6NwdpM9fCunJwyThLW1X3AyHgd9IlHb6VANpQQqDr2o/qQp6McZ3y/IA2rVzKzSbw==}
 
@@ -5420,6 +5464,40 @@ packages:
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
+  pg-cloudflare@1.4.1:
+    resolution: {integrity: sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ==}
+
+  pg-connection-string@2.14.1:
+    resolution: {integrity: sha512-qR3kGNPBLpCNtz0evbKA0Y/MRFXwSSdT+pTJvYp/bXTcReZbvX1kzF0IyTc1QnxqF7AZbOeBhNL8R5mYQZV/MA==}
+
+  pg-int8@1.0.1:
+    resolution: {integrity: sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==}
+    engines: {node: '>=4.0.0'}
+
+  pg-pool@3.14.0:
+    resolution: {integrity: sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw==}
+    peerDependencies:
+      pg: '>=8.0'
+
+  pg-protocol@1.16.1:
+    resolution: {integrity: sha512-p9VOFMiHB/ZbJATetbg+99PxssTVSQRnyuPSQ67mN1+1KBOjZaZ83ZQzltnxPhJwSsC3nwVjJ10DVJlerbFzLg==}
+
+  pg-types@2.2.0:
+    resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
+    engines: {node: '>=4'}
+
+  pg@8.23.1:
+    resolution: {integrity: sha512-aL96AHANtWjPLDOLqnhx+ngp9+UK7ETEU8VJrDCGvsSSi/mGLcWYsS6Herg7lmaBJe4uwrfqsa7gTEFaSizDoQ==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      pg-native: '>=3.0.1'
+    peerDependenciesMeta:
+      pg-native:
+        optional: true
+
+  pgpass@1.0.5:
+    resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
+
   piccolore@0.1.3:
     resolution: {integrity: sha512-o8bTeDWjE086iwKrROaDf31K0qC/BENdm15/uH9usSC/uZjJOKb2YGiVHfLY4GhwsERiPI1jmwI2XrA7ACOxVw==}
 
@@ -5448,6 +5526,22 @@ packages:
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
     engines: {node: ^10 || ^12 || >=14}
+
+  postgres-array@2.0.0:
+    resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
+    engines: {node: '>=4'}
+
+  postgres-bytea@1.0.1:
+    resolution: {integrity: sha512-5+5HqXnsZPE65IJZSMkZtURARZelel2oXUEO8rH83VS/hxH5vv1uHquPg5wZs8yMAfdv971IU+kcPUczi7NVBQ==}
+    engines: {node: '>=0.10.0'}
+
+  postgres-date@1.0.7:
+    resolution: {integrity: sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q==}
+    engines: {node: '>=0.10.0'}
+
+  postgres-interval@1.2.0:
+    resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
+    engines: {node: '>=0.10.0'}
 
   postgres@3.4.9:
     resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
@@ -5734,6 +5828,10 @@ packages:
 
   space-separated-tokens@2.0.2:
     resolution: {integrity: sha512-PEGlAwrG8yXGXRjW32fGbg66JAlOAwbObuqVoJpv/mRgoWDQfgH1wDPvtzWyUSNAXBGSk8h755YDbbcEy3SH2Q==}
+
+  split2@4.2.0:
+    resolution: {integrity: sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==}
+    engines: {node: '>= 10.x'}
 
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
@@ -6220,6 +6318,10 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  xtend@4.0.2:
+    resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
+    engines: {node: '>=0.4'}
 
   xxhash-wasm@1.1.0:
     resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
@@ -6971,12 +7073,12 @@ snapshots:
     dependencies:
       commander: 15.0.0
 
-  '@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
+  '@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(pg@8.23.1)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
     dependencies:
       '@clack/prompts': 1.8.1
       '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
       '@forinda/kickjs-cli-kit': 0.1.3(commander@15.0.0)
-      '@forinda/kickjs-db': 8.9.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))
+      '@forinda/kickjs-db': 8.9.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(pg@8.23.1)
       commander: 15.0.0
       glob: 13.0.6
       jiti: 2.7.0
@@ -7007,13 +7109,26 @@ snapshots:
       - yup
       - zod
 
-  '@forinda/kickjs-db@8.9.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))':
+  '@forinda/kickjs-db@8.10.0(@electric-sql/pglite@0.5.8)(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(pg@8.23.1)':
     dependencies:
       '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
       '@forinda/kickjs-cli-kit': 0.1.3(commander@15.0.0)
       commander: 15.0.0
       jiti: 2.7.0
       kysely: 0.29.6
+    optionalDependencies:
+      '@electric-sql/pglite': 0.5.8
+      pg: 8.23.1
+
+  '@forinda/kickjs-db@8.9.0(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(pg@8.23.1)':
+    dependencies:
+      '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+      '@forinda/kickjs-cli-kit': 0.1.3(commander@15.0.0)
+      commander: 15.0.0
+      jiti: 2.7.0
+      kysely: 0.29.6
+    optionalDependencies:
+      pg: 8.23.1
 
   '@forinda/kickjs-di@0.3.0':
     dependencies:
@@ -7049,13 +7164,13 @@ snapshots:
       supertest: 7.2.2
       vitest: 4.1.11(@types/node@25.9.5)(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))
 
-  '@forinda/kickjs-vite@8.1.1(@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))':
+  '@forinda/kickjs-vite@8.1.1(@forinda/kickjs-cli@8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(pg@8.23.1)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(vite@8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 8.0.7
       vite: 8.2.2(@types/node@25.9.5)(esbuild@0.27.7)(jiti@2.7.0)(tsx@4.23.13)(yaml@2.9.0)
     optionalDependencies:
       '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
-      '@forinda/kickjs-cli': 8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+      '@forinda/kickjs-cli': 8.14.2(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(pg@8.23.1)(serve-static@2.2.1)(typescript@7.0.2)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
 
   '@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
     dependencies:
@@ -8775,6 +8890,12 @@ snapshots:
     dependencies:
       undici-types: 7.24.6
 
+  '@types/pg@8.23.1':
+    dependencies:
+      '@types/node': 25.9.5
+      pg-protocol: 1.16.1
+      pg-types: 2.2.0
+
   '@types/qs@6.15.1': {}
 
   '@types/range-parser@1.2.7': {}
@@ -9302,10 +9423,12 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.23.13
 
-  drizzle-orm@0.45.2(@electric-sql/pglite@0.5.8)(kysely@0.29.6)(postgres@3.4.9):
+  drizzle-orm@0.45.2(@electric-sql/pglite@0.5.8)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1)(postgres@3.4.9):
     optionalDependencies:
       '@electric-sql/pglite': 0.5.8
+      '@types/pg': 8.23.1
       kysely: 0.29.6
+      pg: 8.23.1
       postgres: 3.4.9
 
   dset@3.1.4: {}
@@ -10547,6 +10670,41 @@ snapshots:
 
   pathe@2.0.3: {}
 
+  pg-cloudflare@1.4.1:
+    optional: true
+
+  pg-connection-string@2.14.1: {}
+
+  pg-int8@1.0.1: {}
+
+  pg-pool@3.14.0(pg@8.23.1):
+    dependencies:
+      pg: 8.23.1
+
+  pg-protocol@1.16.1: {}
+
+  pg-types@2.2.0:
+    dependencies:
+      pg-int8: 1.0.1
+      postgres-array: 2.0.0
+      postgres-bytea: 1.0.1
+      postgres-date: 1.0.7
+      postgres-interval: 1.2.0
+
+  pg@8.23.1:
+    dependencies:
+      pg-connection-string: 2.14.1
+      pg-pool: 3.14.0(pg@8.23.1)
+      pg-protocol: 1.16.1
+      pg-types: 2.2.0
+      pgpass: 1.0.5
+    optionalDependencies:
+      pg-cloudflare: 1.4.1
+
+  pgpass@1.0.5:
+    dependencies:
+      split2: 4.2.0
+
   piccolore@0.1.3: {}
 
   picocolors@1.1.1: {}
@@ -10570,6 +10728,16 @@ snapshots:
       nanoid: 3.3.18
       picocolors: 1.1.1
       source-map-js: 1.2.1
+
+  postgres-array@2.0.0: {}
+
+  postgres-bytea@1.0.1: {}
+
+  postgres-date@1.0.7: {}
+
+  postgres-interval@1.2.0:
+    dependencies:
+      xtend: 4.0.2
 
   postgres@3.4.9: {}
 
@@ -11029,6 +11197,8 @@ snapshots:
 
   space-separated-tokens@2.0.2: {}
 
+  split2@4.2.0: {}
+
   stackback@0.0.2: {}
 
   statuses@2.0.2: {}
@@ -11417,6 +11587,8 @@ snapshots:
       stackback: 0.0.2
 
   wrappy@1.0.2: {}
+
+  xtend@4.0.2: {}
 
   xxhash-wasm@1.1.0: {}
 

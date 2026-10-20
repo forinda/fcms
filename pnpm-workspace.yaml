@@ -17,6 +17,7 @@ catalog:
   astro: ^6.0.0
   '@forinda/kickjs': ^10.8.0
   '@forinda/kickjs-cli': ^8.14.2
+  '@forinda/kickjs-db': ^8.10.0
   '@forinda/kickjs-inertia': ^0.4.0
   '@forinda/kickjs-schema': ^0.2.4
   '@forinda/kickjs-swagger': ^7.3.3
@@ -40,6 +41,8 @@ catalog:
   oxfmt: ^0.65.0
   oxlint: ^1.80.0
   postgres: ^3.4.9
+  pg: ^8.16.0
+  '@types/pg': ^8.15.0
   '@tailwindcss/vite': ^4.1.0
   '@tanstack/react-form': ^1.23.0
   '@tanstack/react-query': ^5.90.0
@@ -87,3 +90,6 @@ allowBuilds:
   # a feature nobody uses is install weight and supply-chain surface for free.
   # Flip to true — and say so here — the day a page needs `<Image>`.
   sharp: false
+
+minimumReleaseAgeExclude:
+  - '@forinda/kickjs-db@8.10.0'

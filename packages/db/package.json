@@ -20,13 +20,16 @@
     "@electric-sql/pglite": "catalog:",
     "@forinda-cms/render": "workspace:*",
     "@forinda-cms/spec": "workspace:*",
+    "@forinda/kickjs-db": "catalog:",
     "@node-rs/argon2": "catalog:",
     "drizzle-orm": "catalog:",
+    "pg": "catalog:",
     "postgres": "catalog:",
     "uuidv7": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
