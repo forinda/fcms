@@ -28,6 +28,7 @@ import {
   runMigrations,
   sites,
   type Db,
+  type Kdb,
 } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
@@ -86,7 +87,8 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // workspace package is never globbed, its decorator never runs, and
         // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
-        container.registerInstance(KDB, createKdb(getEnv("DATABASE_URL")));
+        const kdb = createKdb(getEnv("DATABASE_URL"));
+        container.registerInstance(KDB, kdb);
 
         container.registerFactory(
           CURRENT_SCOPE,
@@ -108,7 +110,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // lives in the target database, so a completed migration is a no-op and
         // an interrupted one resumes.
         await runMigrations(getEnv("DATABASE_URL"));
-        await provision(db);
+        await provision(db, kdb);
       },
 
       /**
@@ -144,7 +146,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
  * makes `docker compose up` reach a working site rather than a 404 and an
  * instruction.
  */
-async function provision(db: Db): Promise<void> {
+async function provision(db: Db, kdb: Kdb): Promise<void> {
   const orgId = getEnv("ORG_ID");
   const siteId = getEnv("SITE_ID");
 
@@ -166,7 +168,7 @@ async function provision(db: Db): Promise<void> {
   const email = getEnv("OWNER_EMAIL");
   const password = getEnv("OWNER_PASSWORD");
   if (email && password) {
-    const created = await new ProvisionOwnerUseCase(db).execute({ orgId, email, password });
+    const created = await new ProvisionOwnerUseCase(kdb).execute({ orgId, email, password });
     if (created) console.log(`[install] created the first owner: ${created.email}`);
   }
 

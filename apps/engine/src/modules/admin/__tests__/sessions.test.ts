@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   loginAttempts,
   organizations,
   ownerSessions,
@@ -24,6 +25,7 @@ import { SessionsUseCase } from "../use-cases/sessions.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_sessions";
 const EMAIL = "owner@example.test";
@@ -39,7 +41,7 @@ suite("sessions", () => {
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "Sessions org" });
 
-    const owner = await new ProvisionOwnerUseCase(db).execute({
+    const owner = await new ProvisionOwnerUseCase(kdb).execute({
       orgId: ORG,
       email: EMAIL,
       password: PASSWORD,
@@ -48,13 +50,18 @@ suite("sessions", () => {
   });
 
   const signIn = (userAgent: string) =>
-    new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD, userAgent, ipAddress: "::1" });
+    new LoginUseCase(kdb).execute({
+      email: EMAIL,
+      password: PASSWORD,
+      userAgent,
+      ipAddress: "::1",
+    });
 
   it("names a terminal a terminal, so it can be told from a browser", async () => {
     await signIn("fcms");
     await signIn("Mozilla/5.0 (Macintosh) Chrome/140.0");
 
-    const rows = await new SessionsUseCase(db).list(ownerId, undefined);
+    const rows = await new SessionsUseCase(kdb).list(ownerId, undefined);
     expect(rows.map((r) => r.what).sort()).toEqual(["Chrome", "Command line (fcms)"]);
   });
 
@@ -62,7 +69,7 @@ suite("sessions", () => {
     const mine = await signIn("Chrome/140");
     await signIn("fcms");
 
-    const rows = await new SessionsUseCase(db).list(ownerId, mine.token);
+    const rows = await new SessionsUseCase(kdb).list(ownerId, mine.token);
     expect(rows.filter((r) => r.current)).toHaveLength(1);
     expect(rows.find((r) => r.current)!.what).toBe("Chrome");
   });
@@ -71,12 +78,12 @@ suite("sessions", () => {
     const browser = await signIn("Chrome/140");
     const cli = await signIn("fcms");
 
-    const sessions = new SessionsUseCase(db);
+    const sessions = new SessionsUseCase(kdb);
     const target = (await sessions.list(ownerId, browser.token)).find((r) => !r.current)!;
 
     expect(await sessions.revoke(ownerId, target.id, browser.token)).toBe(true);
 
-    const auth = new AuthenticateUseCase(db);
+    const auth = new AuthenticateUseCase(kdb);
     expect(await auth.execute(cli.token)).toBeNull();
     // And the one doing the revoking is untouched.
     expect(await auth.execute(browser.token)).not.toBeNull();
@@ -86,11 +93,11 @@ suite("sessions", () => {
     // The button for that is Sign out; a revoke that logs you out mid-list
     // reads as a bug.
     const mine = await signIn("Chrome/140");
-    const sessions = new SessionsUseCase(db);
+    const sessions = new SessionsUseCase(kdb);
     const current = (await sessions.list(ownerId, mine.token)).find((r) => r.current)!;
 
     expect(await sessions.revoke(ownerId, current.id, mine.token)).toBe(false);
-    expect(await new AuthenticateUseCase(db).execute(mine.token)).not.toBeNull();
+    expect(await new AuthenticateUseCase(kdb).execute(mine.token)).not.toBeNull();
   });
 
   it("signs out everywhere else, keeping this one", async () => {
@@ -98,9 +105,9 @@ suite("sessions", () => {
     const cli = await signIn("fcms");
     const other = await signIn("Firefox/130");
 
-    expect(await new SessionsUseCase(db).revokeOthers(ownerId, mine.token)).toBe(2);
+    expect(await new SessionsUseCase(kdb).revokeOthers(ownerId, mine.token)).toBe(2);
 
-    const auth = new AuthenticateUseCase(db);
+    const auth = new AuthenticateUseCase(kdb);
     expect(await auth.execute(cli.token)).toBeNull();
     expect(await auth.execute(other.token)).toBeNull();
     expect(await auth.execute(mine.token)).not.toBeNull();
@@ -108,12 +115,23 @@ suite("sessions", () => {
 
   it("records that a session was used, so the list can say when", async () => {
     const mine = await signIn("Chrome/140");
-    expect((await new SessionsUseCase(db).list(ownerId, mine.token))[0]!.lastUsed).toBeNull();
+    expect((await new SessionsUseCase(kdb).list(ownerId, mine.token))[0]!.lastUsed).toBeNull();
 
-    await new AuthenticateUseCase(db).execute(mine.token);
+    await new AuthenticateUseCase(kdb).execute(mine.token);
 
-    const [row] = await new SessionsUseCase(db).list(ownerId, mine.token);
+    const [row] = await new SessionsUseCase(kdb).list(ownerId, mine.token);
     expect(row!.lastUsed).toBeInstanceOf(Date);
+  });
+
+  it("writes that at most once a minute, not on every request", async () => {
+    const mine = await signIn("Chrome/140");
+    const recently = new Date(Date.now() - 10_000);
+    await kdb.updateTable("owner_sessions").set({ lastUsedAt: recently }).execute();
+
+    await new AuthenticateUseCase(kdb).execute(mine.token);
+
+    const [row] = await new SessionsUseCase(kdb).list(ownerId, mine.token);
+    expect(row!.lastUsed).toEqual(recently);
   });
 });
 

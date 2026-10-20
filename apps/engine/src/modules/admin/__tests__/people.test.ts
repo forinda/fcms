@@ -7,7 +7,7 @@
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { closeAllPools, createDb, organizations, type OwnerRow } from "@forinda-cms/db";
+import { closeAllPools, createDb, createKdb, organizations, type OwnerRow } from "@forinda-cms/db";
 
 import { PeopleUseCase } from "../use-cases/people.usecase";
 import { OwnerRepository } from "@/shared/repositories";
@@ -15,6 +15,7 @@ import { OwnerRepository } from "@/shared/repositories";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_people";
 const OTHER_ORG = "org_people_other";
@@ -41,7 +42,7 @@ suite("people", () => {
   const asOwner = () => ({ actor: owner });
 
   beforeEach(async () => {
-    owners = new OwnerRepository(db);
+    owners = new OwnerRepository(kdb);
     // `owners_email` is unique across the whole install, not per organization,
     // so this suite keeps to its own domain and clears anything of its own a
     // previous run left behind.
@@ -57,7 +58,7 @@ suite("people", () => {
       passwordHash: "not-a-real-hash",
       role: "owner",
     });
-    staff = new PeopleUseCase(db);
+    staff = new PeopleUseCase(kdb);
   });
 
   it("adds somebody with the role they were given", async () => {

@@ -6,7 +6,14 @@
  * service against the person who has to clean it up.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { closeAllPools, createDb, loginAttempts, organizations, owners } from "@forinda-cms/db";
+import {
+  closeAllPools,
+  createDb,
+  createKdb,
+  loginAttempts,
+  organizations,
+  owners,
+} from "@forinda-cms/db";
 import { eq } from "drizzle-orm";
 
 import { LoginUseCase, ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
@@ -15,6 +22,7 @@ import { SUBMISSIONS_ALLOWED, SubmissionLimitUseCase } from "../submission-limit
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_submit";
 const IP = "203.0.113.9";
@@ -28,7 +36,7 @@ suite("submission limits", () => {
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "Submit org" });
 
-    limit = new SubmissionLimitUseCase(db);
+    limit = new SubmissionLimitUseCase(kdb);
   });
 
   it("allows a person and stops a script", async () => {
@@ -44,7 +52,7 @@ suite("submission limits", () => {
     // The reason the key is namespaced. Without it, filling a contact form
     // enough times would rate-limit sign-in — turning spam into a denial of
     // service against the one person who can clear it.
-    await new ProvisionOwnerUseCase(db).execute({
+    await new ProvisionOwnerUseCase(kdb).execute({
       orgId: ORG,
       email: "owner@example.test",
       password: "a-long-enough-password",
@@ -52,7 +60,7 @@ suite("submission limits", () => {
 
     for (let i = 0; i < SUBMISSIONS_ALLOWED * 2; i++) await limit.record("enquiry", null, IP);
 
-    const session = await new LoginUseCase(db).execute({
+    const session = await new LoginUseCase(kdb).execute({
       email: "owner@example.test",
       password: "a-long-enough-password",
       ipAddress: IP,

@@ -8,7 +8,7 @@
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { closeAllPools, createDb, organizations, type OwnerRow } from "@forinda-cms/db";
+import { closeAllPools, createDb, createKdb, organizations, type OwnerRow } from "@forinda-cms/db";
 
 import { AccountUseCase } from "../use-cases/account.usecase";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
@@ -17,6 +17,7 @@ import { OwnerRepository } from "@/shared/repositories";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_account";
 
@@ -31,7 +32,7 @@ suite("your own account", () => {
   let token: string;
 
   beforeEach(async () => {
-    owners = new OwnerRepository(db);
+    owners = new OwnerRepository(kdb);
     for (const row of await owners.list(ORG)) await owners.remove(ORG, row.id);
     await db.delete(organizations).where(eq(organizations.id, ORG));
     await db.insert(organizations).values({ id: ORG, name: "Account org" });
@@ -42,7 +43,7 @@ suite("your own account", () => {
       passwordHash: await hashPassword(CURRENT),
     });
     token = (await owners.openSession(actor.id, 60_000, {})).token;
-    accounts = new AccountUseCase(db);
+    accounts = new AccountUseCase(kdb);
   });
 
   const change = (over: Partial<{ current: string; next: string; confirm: string }> = {}) =>
