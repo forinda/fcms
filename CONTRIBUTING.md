@@ -63,7 +63,10 @@ Two rules with teeth:
   account"*, not *"login works"*.
 - **Database suites skip without `DATABASE_URL`** so the repo runs on a laptop
   with no Postgres. Credentials come from `.env.test` at the repo root; an
-  exported variable wins over the file.
+  exported variable wins over the file. The engine also reads
+  `apps/engine/.env.test.local`, which is gitignored: a Postgres on another
+  port belongs there, and a fresh clone or worktree does not have it — every
+  database suite then fails with `ECONNREFUSED` on 5432 rather than skipping.
 - **Never point a suite at your development database.** They truncate tables.
 - Fixtures must exercise the thing under test. A round-trip test whose fixture
   omits the section the code drops passes while the bug ships — that has
