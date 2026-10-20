@@ -108,64 +108,68 @@ const ledgerOf = async (db: Opened) =>
 describe.each([
   ["PGlite", embedded, true],
   ["server Postgres", onServer, reachable],
-] as const)("kickjs-db baseline on %s", (_, open, enabled) => {
-  const fresh = async () => {
-    const db = await open();
-    opened.push(db);
-    return db;
-  };
-  const legacy = async (count?: number) => {
-    const db = await fresh();
-    await db.drizzleMigrate(legacyFolder(count));
-    return db;
-  };
+] as const)(
+  "kickjs-db baseline on %s",
+  (_, open, enabled) => {
+    const fresh = async () => {
+      const db = await open();
+      opened.push(db);
+      return db;
+    };
+    const legacy = async (count?: number) => {
+      const db = await fresh();
+      await db.drizzleMigrate(legacyFolder(count));
+      return db;
+    };
 
-  it.runIf(enabled)("builds a fresh install", async () => {
-    const db = await fresh();
-    const { applied } = await migrate(db.pool, dirs);
-    expect(applied).toHaveLength(1);
-  });
-
-  it.runIf(enabled)(
-    "adopts a finished Drizzle install without running anything, and the schemas match",
-    async () => {
-      const reference = await fresh();
-      await migrate(reference.pool, dirs);
-
-      const db = await legacy();
+    it.runIf(enabled)("builds a fresh install", async () => {
+      const db = await fresh();
       const { applied } = await migrate(db.pool, dirs);
+      expect(applied).toHaveLength(1);
+    });
 
-      expect(applied).toEqual([]);
-      expect(await ledgerOf(db)).toEqual(await ledgerOf(reference));
-      expect(await schemaOf(db)).toEqual(await schemaOf(reference));
-    },
-  );
+    it.runIf(enabled)(
+      "adopts a finished Drizzle install without running anything, and the schemas match",
+      async () => {
+        const reference = await fresh();
+        await migrate(reference.pool, dirs);
 
-  it.runIf(enabled)(
-    "finishes Drizzle history an install had not reached, then adopts",
-    async () => {
-      const reference = await fresh();
-      await migrate(reference.pool, dirs);
+        const db = await legacy();
+        const { applied } = await migrate(db.pool, dirs);
 
-      const db = await legacy(5);
-      await migrate(db.pool, dirs);
+        expect(applied).toEqual([]);
+        expect(await ledgerOf(db)).toEqual(await ledgerOf(reference));
+        expect(await schemaOf(db)).toEqual(await schemaOf(reference));
+      },
+    );
 
-      expect(await schemaOf(db)).toEqual(await schemaOf(reference));
-    },
-  );
+    it.runIf(enabled)(
+      "finishes Drizzle history an install had not reached, then adopts",
+      async () => {
+        const reference = await fresh();
+        await migrate(reference.pool, dirs);
 
-  it.runIf(enabled)(
-    "is a no-op on the next boot, and leaves the planner's indexes alone",
-    async () => {
-      const db = await legacy();
-      await migrate(db.pool, dirs);
-      await db.pool.query(
-        `create index ix_e_test on entries ((data->>'price')) where site_id = 's' and type_key = 't'`,
-      );
+        const db = await legacy(5);
+        await migrate(db.pool, dirs);
 
-      await expect(migrate(db.pool, dirs)).resolves.toMatchObject({ applied: [] });
-      expect(await ledgerOf(db)).toHaveLength(1);
-    },
-  );
-  // Each case builds two or three real databases, and PGlite starts in seconds.
-}, 30_000);
+        expect(await schemaOf(db)).toEqual(await schemaOf(reference));
+      },
+    );
+
+    it.runIf(enabled)(
+      "is a no-op on the next boot, and leaves the planner's indexes alone",
+      async () => {
+        const db = await legacy();
+        await migrate(db.pool, dirs);
+        await db.pool.query(
+          `create index ix_e_test on entries ((data->>'price')) where site_id = 's' and type_key = 't'`,
+        );
+
+        await expect(migrate(db.pool, dirs)).resolves.toMatchObject({ applied: [] });
+        expect(await ledgerOf(db)).toHaveLength(1);
+      },
+    );
+    // Each case builds two or three real databases, and PGlite starts in seconds.
+  },
+  30_000,
+);
