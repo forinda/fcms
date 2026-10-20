@@ -5,7 +5,7 @@
  * "Change" posts the step to forget. The page itself renders whichever step the
  * state says is next, so a refresh, a back button and a second tab all agree.
  */
-import { Controller, Inject, Post, type Ctx } from "@forinda/kickjs";
+import { Controller, getEnv, Inject, Post, type Ctx } from "@forinda/kickjs";
 import { runQuery, withDerived } from "@forinda-cms/render";
 import type { Page } from "@forinda-cms/spec";
 
@@ -121,7 +121,9 @@ export class FlowController {
   }
 
   private setCookie(ctx: Ctx, token: string): void {
-    const secure = process.env["SECURE_COOKIES"] === "true" ? " Secure;" : "";
+    // Through the schema like every other reader, so `1` and `yes` mean what
+    // they mean everywhere else.
+    const secure = getEnv("SECURE_COOKIES") === true ? " Secure;" : "";
     ctx.res.setHeader(
       "set-cookie",
       `${FLOW_COOKIE}=${token}; Path=/; HttpOnly;${secure} SameSite=Lax; Max-Age=86400`,

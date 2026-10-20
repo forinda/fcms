@@ -66,7 +66,7 @@ const envSchema = fromZod(
      * Trust `X-Forwarded-Host`. Off by default because trusting it unconditionally
      * lets a caller pick which site they get once multi-site exists.
      */
-    TRUST_PROXY: z.coerce.boolean().default(false),
+    TRUST_PROXY: z.stringbool().default(false),
 
     /** Absolute base for canonicals and the sitemap (doc 08). */
     PUBLIC_URL: z.string().optional(),
@@ -84,7 +84,7 @@ const envSchema = fromZod(
      * Set for a site served over HTTPS. The session cookie is marked `Secure`
      * when true, which is what stops it travelling over plain HTTP.
      */
-    SECURE_COOKIES: z.coerce.boolean().default(false),
+    SECURE_COOKIES: z.stringbool().default(false),
 
     /**
      * Encrypts the admin's flash cookie (ADR 0051 §5) — what the next page
