@@ -36,6 +36,13 @@ const parts = [
     what: "the migrations",
   },
   {
+    // Found beside the folder above (ADR 0052), which stays for installs that
+    // boot from a release before the switch.
+    from: join(root, "packages/db/kickdb/migrations"),
+    to: join(out, "kickdb/migrations"),
+    what: "the kickjs-db migrations",
+  },
+  {
     from: join(root, "apps/admin/dist/client"),
     to: join(out, "app"),
     what: "the admin application",
