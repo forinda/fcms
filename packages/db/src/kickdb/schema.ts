@@ -1,0 +1,371 @@
+/**
+ * The schema in kickjs-db's DSL — the spike for moving off Drizzle.
+ *
+ * A column-for-column port of `../schema/*`, which stays authoritative until the
+ * switch: the rationale for every table lives there and is not repeated here.
+ * What this file has to get right is that a database built from it and one built
+ * by the ten Drizzle migrations are the same database — `baseline.test.ts`
+ * compares them, because a baseline that differs is a drift error on the first
+ * boot of every existing install.
+ *
+ * One thing Drizzle did that this does not: `$type<…>()` on text columns.
+ * Those are narrowed where the row is read instead.
+ */
+import {
+  bigSerial,
+  bigint,
+  index,
+  integer,
+  jsonb,
+  table,
+  text,
+  timestamptz,
+  unique,
+  uuid,
+} from "@forinda/kickjs-db";
+import type { PatchOp, SiteSpec } from "@forinda-cms/spec";
+import { uuidv7 } from "uuidv7";
+
+/** Generated twice over, as `../schema/_shared.ts` explains: in JS, and by Postgres. */
+const pk = () =>
+  uuid()
+    .primaryKey()
+    .defaultSql("uuidv7()")
+    .$defaultFn(() => uuidv7());
+const createdAt = () => timestamptz().notNull().defaultNow();
+
+export const organizations = table("organizations", {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  createdAt: createdAt(),
+});
+
+export const sites = table(
+  "sites",
+  {
+    id: text().primaryKey(),
+    orgId: text()
+      .notNull()
+      .references(() => organizations.id, {
+        onDelete: "restrict",
+        name: "sites_org_id_organizations_id_fk",
+      }),
+    slug: text().notNull(),
+    name: text().notNull(),
+    domain: text(),
+    specVersion: integer().notNull().default(1),
+    timezone: text().notNull().default("UTC"),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    sites_org_slug: unique("sites_org_slug").on(t.orgId, t.slug),
+    sites_domain: index("sites_domain").on(t.domain),
+  }),
+);
+
+export const siteSpecs = table("site_specs", {
+  siteId: text()
+    .primaryKey()
+    .references(() => sites.id, {
+      onDelete: "cascade",
+      name: "site_specs_site_id_sites_id_fk",
+    }),
+  orgId: text().notNull(),
+  document: jsonb<SiteSpec>().notNull(),
+  updatedAt: timestamptz().notNull().defaultNow(),
+});
+
+export const specPatches = table(
+  "spec_patches",
+  {
+    id: bigSerial().primaryKey(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "spec_patches_site_id_sites_id_fk",
+      }),
+    orgId: text().notNull(),
+    seq: integer().notNull(),
+    actor: text().notNull(),
+    source: text().notNull(),
+    harness: text(),
+    ops: jsonb<PatchOp[]>().notNull(),
+    inverse: jsonb<PatchOp[]>().notNull(),
+    classification: text().notNull(),
+    summary: text().notNull(),
+    appliedAt: createdAt(),
+    revertedAt: timestamptz(),
+  },
+  (t) => ({
+    spec_patches_site_seq: unique("spec_patches_site_seq").on(t.siteId, t.seq),
+    spec_patches_site_applied: index("spec_patches_site_applied").on(t.siteId, t.appliedAt),
+  }),
+);
+
+export const visitors = table(
+  "visitors",
+  {
+    id: pk(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "visitors_site_id_sites_id_fk",
+      }),
+    email: text().notNull(),
+    passwordHash: text().notNull(),
+    name: text(),
+    createdAt: createdAt(),
+    lastSeenAt: timestamptz(),
+  },
+  (t) => ({ visitors_site_email: unique("visitors_site_email").on(t.siteId, t.email) }),
+);
+
+export const entries = table(
+  "entries",
+  {
+    id: pk(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "entries_site_id_sites_id_fk",
+      }),
+    orgId: text().notNull(),
+    typeKey: text().notNull(),
+    slug: text(),
+    data: jsonb<Record<string, unknown>>().notNull(),
+    status: text().notNull().default("draft"),
+    visitorId: uuid().references(() => visitors.id, {
+      onDelete: "set_null",
+      name: "entries_visitor_id_visitors_id_fk",
+    }),
+    createdAt: createdAt(),
+    updatedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => ({
+    entries_site_type_slug: unique("entries_site_type_slug").on(t.siteId, t.typeKey, t.slug),
+    entries_site_type: index("entries_site_type").on(t.siteId, t.typeKey),
+    entries_data_gin: index("entries_data_gin").on(t.data).using("gin"),
+    entries_site_type_status: index("entries_site_type_status").on(t.siteId, t.typeKey, t.status),
+    entries_visitor: index("entries_visitor").on(t.siteId, t.visitorId),
+  }),
+);
+
+export const assets = table(
+  "assets",
+  {
+    id: pk(),
+    orgId: text().notNull(),
+    siteId: text().references(() => sites.id, {
+      onDelete: "cascade",
+      name: "assets_site_id_sites_id_fk",
+    }),
+    blobHash: text().notNull(),
+    filename: text().notNull(),
+    contentType: text().notNull(),
+    bytes: integer().notNull(),
+    alt: text(),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    assets_org: index("assets_org").on(t.orgId),
+    assets_blob: index("assets_blob").on(t.blobHash),
+  }),
+);
+
+export const owners = table(
+  "owners",
+  {
+    id: pk(),
+    orgId: text()
+      .notNull()
+      .references(() => organizations.id, {
+        onDelete: "cascade",
+        name: "owners_org_id_organizations_id_fk",
+      }),
+    email: text().notNull(),
+    passwordHash: text().notNull(),
+    name: text(),
+    role: text().notNull().default("owner"),
+    createdAt: createdAt(),
+    lastSeenAt: timestamptz(),
+  },
+  (t) => ({ owners_email: unique("owners_email").on(t.email) }),
+);
+
+export const ownerSessions = table(
+  "owner_sessions",
+  {
+    id: pk(),
+    ownerId: uuid()
+      .notNull()
+      .references(() => owners.id, {
+        onDelete: "cascade",
+        name: "owner_sessions_owner_id_owners_id_fk",
+      }),
+    tokenHash: text().notNull(),
+    expiresAt: timestamptz().notNull(),
+    createdAt: createdAt(),
+    userAgent: text(),
+    ipAddress: text(),
+    lastUsedAt: timestamptz(),
+  },
+  (t) => ({
+    owner_sessions_token: unique("owner_sessions_token").on(t.tokenHash),
+    owner_sessions_owner: index("owner_sessions_owner").on(t.ownerId),
+  }),
+);
+
+export const loginAttempts = table(
+  "login_attempts",
+  {
+    id: pk(),
+    kind: text().notNull().default("login"),
+    email: text().notNull(),
+    ipAddress: text(),
+    at: createdAt(),
+  },
+  (t) => ({
+    login_attempts_kind_email_at: index("login_attempts_kind_email_at").on(t.kind, t.email, t.at),
+    login_attempts_at: index("login_attempts_at").on(t.at),
+  }),
+);
+
+export const visitorSessions = table(
+  "visitor_sessions",
+  {
+    id: pk(),
+    visitorId: uuid()
+      .notNull()
+      .references(() => visitors.id, {
+        onDelete: "cascade",
+        name: "visitor_sessions_visitor_id_visitors_id_fk",
+      }),
+    tokenHash: text().notNull(),
+    expiresAt: timestamptz().notNull(),
+    createdAt: createdAt(),
+    ipAddress: text(),
+  },
+  (t) => ({
+    visitor_sessions_token: unique("visitor_sessions_token").on(t.tokenHash),
+    visitor_sessions_visitor: index("visitor_sessions_visitor").on(t.visitorId),
+  }),
+);
+
+export const visitorSaves = table(
+  "visitor_saves",
+  {
+    id: pk(),
+    visitorId: uuid()
+      .notNull()
+      .references(() => visitors.id, {
+        onDelete: "cascade",
+        name: "visitor_saves_visitor_id_visitors_id_fk",
+      }),
+    typeKey: text().notNull(),
+    entryId: uuid().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    visitor_saves_unique: unique("visitor_saves_unique").on(t.visitorId, t.entryId),
+    visitor_saves_visitor: index("visitor_saves_visitor").on(t.visitorId),
+  }),
+);
+
+export const payments = table(
+  "payments",
+  {
+    id: pk(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "payments_site_id_sites_id_fk",
+      }),
+    orgId: text().notNull(),
+    entryId: uuid()
+      .notNull()
+      .references(() => entries.id, {
+        onDelete: "cascade",
+        name: "payments_entry_id_entries_id_fk",
+      }),
+    typeKey: text().notNull(),
+    via: text().notNull(),
+    provider: text().notNull(),
+    amount: bigint({ mode: "number" }).notNull(),
+    currency: text().notNull(),
+    status: text().notNull().default("pending"),
+    reference: text(),
+    payerRef: text(),
+    detail: jsonb<Record<string, unknown>>(),
+    createdAt: createdAt(),
+    updatedAt: timestamptz().notNull().defaultNow(),
+    paidAt: timestamptz(),
+  },
+  (t) => ({
+    payments_site_provider_reference: unique("payments_site_provider_reference").on(
+      t.siteId,
+      t.provider,
+      t.reference,
+    ),
+    payments_site_status: index("payments_site_status").on(t.siteId, t.status),
+    payments_entry: index("payments_entry").on(t.entryId),
+  }),
+);
+
+export const workflowRuns = table(
+  "workflow_runs",
+  {
+    id: pk(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "workflow_runs_site_id_sites_id_fk",
+      }),
+    orgId: text().notNull(),
+    workflowKey: text().notNull(),
+    trigger: text().notNull(),
+    entryId: text(),
+    dedupe: text(),
+    status: text().notNull().default("pending"),
+    attempts: integer().notNull().default(0),
+    runAt: timestamptz().notNull().defaultNow(),
+    lastError: text(),
+    detail: jsonb<Record<string, unknown>>(),
+    createdAt: createdAt(),
+    updatedAt: timestamptz().notNull().defaultNow(),
+  },
+  (t) => ({
+    workflow_runs_dedupe: unique("workflow_runs_dedupe").on(t.siteId, t.workflowKey, t.dedupe),
+    workflow_runs_due: index("workflow_runs_due").on(t.status, t.runAt),
+    workflow_runs_site_created: index("workflow_runs_site_created").on(t.siteId, t.createdAt),
+  }),
+);
+
+export const flowSessions = table(
+  "flow_sessions",
+  {
+    id: pk(),
+    siteId: text()
+      .notNull()
+      .references(() => sites.id, {
+        onDelete: "cascade",
+        name: "flow_sessions_site_id_sites_id_fk",
+      }),
+    orgId: text().notNull(),
+    pageKey: text().notNull(),
+    flowKey: text().notNull(),
+    tokenHash: text().notNull(),
+    answers: jsonb<Record<string, Record<string, unknown>>>().notNull().default("{}"),
+    createdAt: createdAt(),
+    updatedAt: timestamptz().notNull().defaultNow(),
+    expiresAt: timestamptz().notNull(),
+  },
+  (t) => ({
+    flow_sessions_token: unique("flow_sessions_token").on(t.tokenHash, t.pageKey, t.flowKey),
+    flow_sessions_expiry: index("flow_sessions_expiry").on(t.expiresAt),
+  }),
+);
