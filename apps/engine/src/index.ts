@@ -54,6 +54,11 @@ export const app = await bootstrap({
   apiPrefix: "",
   defaultVersion: false,
   /**
+   * `/health/live` and `/health/ready` need no session: an orchestrator has
+   * none. `auth.public` is the flag the actor contributor already skips.
+   */
+  health: { flags: ["auth.public"] },
+  /**
    * What a visitor sees when the server breaks.
    *
    * The default handler answers a problem document — correct for an API and

@@ -82,6 +82,13 @@ ENV MIGRATIONS_DIR=/app/migrations
 ENV PORT=3000
 EXPOSE 3000
 
+# Readiness, not liveness: a container whose database stopped answering serves
+# nothing but errors, and Docker marking it unhealthy is what tells somebody.
+# Node's own fetch, so the image needs no curl. The start period covers the
+# migrations boot runs before it listens.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health/ready').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+
 # Migrations and first-boot provisioning run inside the app's own lifecycle
 # (`MigrateAdapter`), so there is no entrypoint script and no ordering to get
 # wrong — the server does not start listening until the database is ready.
