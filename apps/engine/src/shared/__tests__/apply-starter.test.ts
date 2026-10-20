@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   entries,
   organizations,
   siteSpecs,
@@ -29,6 +30,7 @@ import { STARTERS, starterFor } from "@forinda-cms/spec";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_starters";
 const SITE = "site_starters";
@@ -50,7 +52,7 @@ suite("applying a starter", () => {
     const starter = starterFor(key)!;
     const spec = SiteSpec.parse(starter.build("Riverside Salon"));
 
-    const result = await new ApplySpecUseCase(db, scope).execute(spec, {
+    const result = await new ApplySpecUseCase(db, scope, kdb).execute(spec, {
       ...ACTOR,
       source: `starter:${key}`,
     });
@@ -73,11 +75,14 @@ suite("applying a starter", () => {
 
   it("leaves a site somebody can immediately use", async () => {
     const spec = SiteSpec.parse(starterFor("bookings")!.build("Riverside Salon"));
-    await new ApplySpecUseCase(db, scope).execute(spec, { ...ACTOR, source: "starter:bookings" });
+    await new ApplySpecUseCase(db, scope, kdb).execute(spec, {
+      ...ACTOR,
+      source: "starter:bookings",
+    });
 
     // The point of a starter is that the next thing you do works. Adding a
     // service is the next thing anyone does.
-    const written = await new EntryWriteUseCase(db, scope).create(spec, {
+    const written = await new EntryWriteUseCase(db, scope, kdb).create(spec, {
       typeKey: "service",
       slug: "haircut",
       status: "published",

@@ -10,6 +10,7 @@ import { eq } from "drizzle-orm";
 import {
   closeAllPools,
   createDb,
+  createKdb,
   organizations,
   siteSpecs,
   sites,
@@ -23,6 +24,7 @@ import { atLeast, refusal, roleOf, ROLES } from "@/shared/roles";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_roles";
 const SITE = "site_roles";
@@ -75,7 +77,7 @@ suite("applying a spec", () => {
   });
 
   const apply = (role: string, next = spec) =>
-    new ApplySpecUseCase(db, scope).execute(next, {
+    new ApplySpecUseCase(db, scope, kdb).execute(next, {
       actor: "someone@example.test",
       role: role as never,
       source: "admin",

@@ -8,13 +8,14 @@
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { closeAllPools, createDb, entries, organizations, sites } from "@forinda-cms/db";
+import { closeAllPools, createDb, createKdb, entries, organizations, sites } from "@forinda-cms/db";
 
 import { EntryRepository } from "@/shared/repositories";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
+const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_list";
 const SITE = "site_list";
@@ -76,7 +77,7 @@ suite("a page of entries", () => {
       },
     ]);
 
-    repo = new EntryRepository(db, scope);
+    repo = new EntryRepository(kdb, scope);
   });
 
   const page = (over: Record<string, unknown> = {}) =>

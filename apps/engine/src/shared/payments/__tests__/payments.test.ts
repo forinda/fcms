@@ -87,7 +87,7 @@ suite("payments", () => {
     use = new PaymentUseCase(
       repository,
       new WorkflowUseCase(db, scope),
-      new EntryRepository(db, scope),
+      new EntryRepository(kdb, scope),
     );
   });
 

@@ -8,15 +8,15 @@
  * layer cannot each forget it differently.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import { and, eq } from "drizzle-orm";
 import { validateEntry, type ContentType, type SiteSpec } from "@forinda-cms/spec";
 
-import { entries, uniqueIndexName, type EntryRow } from "@forinda-cms/db";
-import type { Db, Scope } from "@forinda-cms/db";
+import { UniqueViolationError, type ExpressionBuilder } from "@forinda/kickjs-db";
+import { uniqueIndexName, type EntryRow } from "@forinda-cms/db";
+import type { Db, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
 import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
-import { DB } from "@/shared/db";
+import { DB, KDB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface EntryInput {
@@ -43,10 +43,12 @@ export class EntryWriteUseCase {
   private readonly workflows: WorkflowUseCase;
 
   constructor(
-    @Inject(DB) private readonly db: Db,
+    // Drizzle only for the workflow queue, until that moves too (ADR 0052).
+    @Inject(DB) db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
+    @Inject(KDB) private readonly kdb: Kdb,
   ) {
-    this.repo = new EntryRepository(db, scope);
+    this.repo = new EntryRepository(kdb, scope);
     this.workflows = new WorkflowUseCase(db, scope);
   }
 
@@ -54,9 +56,8 @@ export class EntryWriteUseCase {
     return spec.content.find((t) => t.key === key);
   }
 
-  private get scoped() {
-    return and(eq(entries.orgId, this.scope.orgId), eq(entries.siteId, this.scope.siteId));
-  }
+  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+    eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async create(spec: SiteSpec, input: EntryInput): Promise<EntryWriteResult> {
     const type = this.typeOf(spec, input.typeKey);
@@ -71,8 +72,8 @@ export class EntryWriteUseCase {
     if (!validation.ok) return { ok: false, errors: validation.errors ?? {} };
 
     try {
-      const [row] = await this.db
-        .insert(entries)
+      const row = await this.kdb
+        .insertInto("entries")
         .values({
           siteId: this.scope.siteId,
           orgId: this.scope.orgId,
@@ -82,7 +83,8 @@ export class EntryWriteUseCase {
           status: input.status ?? "draft",
           visitorId: input.visitorId ?? null,
         })
-        .returning();
+        .returningAll()
+        .executeTakeFirstOrThrow();
 
       // Queued after the write, never inside it (ADR 0024 §1): the row is the
       // customer's and the automation is the owner's, so a slow webhook must
@@ -90,16 +92,16 @@ export class EntryWriteUseCase {
       await this.workflows.enqueue(spec, {
         on: "entry.created",
         typeKey: input.typeKey,
-        entryId: row!.id,
+        entryId: row.id,
       });
 
-      return { ok: true, entry: row! };
+      return { ok: true, entry: row };
     } catch (error) {
       // A taken slug is a field the caller can fix, not a server fault. Left to
       // propagate it answered 500 with a SQL statement in the log and nothing
       // useful to the caller — a form would show no error, and an agent would
       // report the site as broken.
-      if (!isUniqueViolation(error)) throw error;
+      if (!(error instanceof UniqueViolationError)) throw error;
       return { ok: false, errors: taken(this.scope.siteId, type, input, error) };
     }
   }
@@ -119,8 +121,8 @@ export class EntryWriteUseCase {
 
     let row: EntryRow | undefined;
     try {
-      [row] = await this.db
-        .update(entries)
+      row = await this.kdb
+        .updateTable("entries")
         .set({
           // Only when the caller said something about it. `slug: undefined`
           // means "not mentioned", and writing null for it clears the address
@@ -133,10 +135,12 @@ export class EntryWriteUseCase {
         })
         // Scoped as well as keyed by id: an id from a request must not be able
         // to reach another site's row just because it is a valid uuid.
-        .where(and(this.scoped, eq(entries.id, id)))
-        .returning();
+        .where(this.scoped)
+        .where("id", "=", id)
+        .returningAll()
+        .executeTakeFirst();
     } catch (error) {
-      if (!isUniqueViolation(error)) throw error;
+      if (!(error instanceof UniqueViolationError)) throw error;
       return { ok: false, errors: taken(this.scope.siteId, type, input, error) };
     }
 
@@ -178,10 +182,12 @@ export class EntryWriteUseCase {
   }
 
   async delete(id: string): Promise<boolean> {
-    const rows = await this.db
-      .delete(entries)
-      .where(and(this.scoped, eq(entries.id, id)))
-      .returning({ id: entries.id });
+    const rows = await this.kdb
+      .deleteFrom("entries")
+      .where(this.scoped)
+      .where("id", "=", id)
+      .returning("id")
+      .execute();
     return rows.length > 0;
   }
 
@@ -205,13 +211,9 @@ function taken(
   siteId: string,
   type: ContentType,
   input: EntryInput,
-  error: unknown,
+  error: UniqueViolationError,
 ): Record<string, string> {
-  const constraint = String(
-    (error as { constraint_name?: unknown }).constraint_name ??
-      (error as { cause?: { constraint_name?: unknown } }).cause?.constraint_name ??
-      "",
-  );
+  const constraint = error.constraint ?? "";
 
   for (const field of type.fields) {
     if (!("unique" in field) || field.unique !== true) continue;
@@ -224,18 +226,4 @@ function taken(
   }
 
   return { slug: `Another ${type.label} already uses "${input.slug}".` };
-}
-
-/**
- * Postgres' unique-violation code, wherever the driver put it.
- *
- * Drizzle wraps the driver error, so the code can be on the error or on its
- * cause — checking only one is how this reads as "not a unique violation" and
- * becomes a 500.
- */
-function isUniqueViolation(error: unknown): boolean {
-  for (let current = error; current; current = (current as { cause?: unknown }).cause) {
-    if ((current as { code?: unknown }).code === "23505") return true;
-  }
-  return false;
 }

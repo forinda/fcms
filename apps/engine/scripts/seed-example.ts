@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { joinFiles } from "@forinda-cms/lang";
-import { createDb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
+import { createDb, createKdb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
 import { ApplySpecUseCase } from "../src/modules/admin/use-cases/apply-spec.usecase";
 
 const url = process.env["DATABASE_URL"];
@@ -57,6 +57,7 @@ if (!joined.ok) {
 }
 
 const db = createDb(url);
+const kdb = createKdb(url);
 
 await db.insert(organizations).values({ id: ORG, name: "Default" }).onConflictDoNothing();
 await db
@@ -72,7 +73,7 @@ await db
 
 // Constructed directly rather than resolved: a script has no request, and the
 // use-case's constructor is the same one the container calls.
-const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE });
+const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }, kdb);
 const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
   role: "owner",
