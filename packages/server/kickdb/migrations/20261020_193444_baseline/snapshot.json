@@ -1,0 +1,1451 @@
+{
+  "version": 1,
+  "dialect": "postgres",
+  "tables": {
+    "assets": {
+      "name": "assets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "blob_hash": {
+          "name": "blob_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "content_type": {
+          "name": "content_type",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "integer",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "alt": {
+          "name": "alt",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "assets_org",
+          "columns": [
+            "org_id"
+          ],
+          "unique": false
+        },
+        {
+          "name": "assets_blob",
+          "columns": [
+            "blob_hash"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "assets_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "entries": {
+      "name": "entries",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "type_key": {
+          "name": "type_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "data": {
+          "name": "data",
+          "type": "jsonb",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default": "draft",
+          "primaryKey": false
+        },
+        "visitor_id": {
+          "name": "visitor_id",
+          "type": "uuid",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "entries_site_type_slug",
+          "columns": [
+            "site_id",
+            "type_key",
+            "slug"
+          ],
+          "unique": true
+        },
+        {
+          "name": "entries_site_type",
+          "columns": [
+            "site_id",
+            "type_key"
+          ],
+          "unique": false
+        },
+        {
+          "name": "entries_data_gin",
+          "columns": [
+            "data"
+          ],
+          "unique": false,
+          "using": "gin"
+        },
+        {
+          "name": "entries_site_type_status",
+          "columns": [
+            "site_id",
+            "type_key",
+            "status"
+          ],
+          "unique": false
+        },
+        {
+          "name": "entries_visitor",
+          "columns": [
+            "site_id",
+            "visitor_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "entries_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        },
+        {
+          "name": "entries_visitor_id_visitors_id_fk",
+          "columns": [
+            "visitor_id"
+          ],
+          "refTable": "visitors",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "set_null",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "flow_sessions": {
+      "name": "flow_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "page_key": {
+          "name": "page_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "flow_key": {
+          "name": "flow_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "answers": {
+          "name": "answers",
+          "type": "jsonb",
+          "nullable": false,
+          "default": "{}",
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "flow_sessions_token",
+          "columns": [
+            "token_hash",
+            "page_key",
+            "flow_key"
+          ],
+          "unique": true
+        },
+        {
+          "name": "flow_sessions_expiry",
+          "columns": [
+            "expires_at"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "flow_sessions_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "login_attempts": {
+      "name": "login_attempts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "nullable": false,
+          "default": "login",
+          "primaryKey": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "at": {
+          "name": "at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "login_attempts_kind_email_at",
+          "columns": [
+            "kind",
+            "email",
+            "at"
+          ],
+          "unique": false
+        },
+        {
+          "name": "login_attempts_at",
+          "columns": [
+            "at"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [],
+      "checks": []
+    },
+    "organizations": {
+      "name": "organizations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [],
+      "foreignKeys": [],
+      "checks": []
+    },
+    "owner_sessions": {
+      "name": "owner_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "owner_sessions_token",
+          "columns": [
+            "token_hash"
+          ],
+          "unique": true
+        },
+        {
+          "name": "owner_sessions_owner",
+          "columns": [
+            "owner_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "owner_sessions_owner_id_owners_id_fk",
+          "columns": [
+            "owner_id"
+          ],
+          "refTable": "owners",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "owners": {
+      "name": "owners",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "nullable": false,
+          "default": "owner",
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "owners_email",
+          "columns": [
+            "email"
+          ],
+          "unique": true
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "owners_org_id_organizations_id_fk",
+          "columns": [
+            "org_id"
+          ],
+          "refTable": "organizations",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "payments": {
+      "name": "payments",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "type_key": {
+          "name": "type_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "via": {
+          "name": "via",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "amount": {
+          "name": "amount",
+          "type": "bigint",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default": "pending",
+          "primaryKey": false
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "payer_ref": {
+          "name": "payer_ref",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "payments_site_provider_reference",
+          "columns": [
+            "site_id",
+            "provider",
+            "reference"
+          ],
+          "unique": true
+        },
+        {
+          "name": "payments_site_status",
+          "columns": [
+            "site_id",
+            "status"
+          ],
+          "unique": false
+        },
+        {
+          "name": "payments_entry",
+          "columns": [
+            "entry_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "payments_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        },
+        {
+          "name": "payments_entry_id_entries_id_fk",
+          "columns": [
+            "entry_id"
+          ],
+          "refTable": "entries",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "site_specs": {
+      "name": "site_specs",
+      "columns": {
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "document": {
+          "name": "document",
+          "type": "jsonb",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [],
+      "foreignKeys": [
+        {
+          "name": "site_specs_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "sites": {
+      "name": "sites",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": true
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "domain": {
+          "name": "domain",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "spec_version": {
+          "name": "spec_version",
+          "type": "integer",
+          "nullable": false,
+          "default": "1",
+          "primaryKey": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "text",
+          "nullable": false,
+          "default": "UTC",
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "sites_org_slug",
+          "columns": [
+            "org_id",
+            "slug"
+          ],
+          "unique": true
+        },
+        {
+          "name": "sites_domain",
+          "columns": [
+            "domain"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "sites_org_id_organizations_id_fk",
+          "columns": [
+            "org_id"
+          ],
+          "refTable": "organizations",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "spec_patches": {
+      "name": "spec_patches",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "nullable": false,
+          "default": null,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "actor": {
+          "name": "actor",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "harness": {
+          "name": "harness",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "ops": {
+          "name": "ops",
+          "type": "jsonb",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "inverse": {
+          "name": "inverse",
+          "type": "jsonb",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "classification": {
+          "name": "classification",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "summary": {
+          "name": "summary",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "applied_at": {
+          "name": "applied_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "reverted_at": {
+          "name": "reverted_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "spec_patches_site_seq",
+          "columns": [
+            "site_id",
+            "seq"
+          ],
+          "unique": true
+        },
+        {
+          "name": "spec_patches_site_applied",
+          "columns": [
+            "site_id",
+            "applied_at"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "spec_patches_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "visitor_saves": {
+      "name": "visitor_saves",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "visitor_id": {
+          "name": "visitor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "type_key": {
+          "name": "type_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "visitor_saves_unique",
+          "columns": [
+            "visitor_id",
+            "entry_id"
+          ],
+          "unique": true
+        },
+        {
+          "name": "visitor_saves_visitor",
+          "columns": [
+            "visitor_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "visitor_saves_visitor_id_visitors_id_fk",
+          "columns": [
+            "visitor_id"
+          ],
+          "refTable": "visitors",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "visitor_sessions": {
+      "name": "visitor_sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "visitor_id": {
+          "name": "visitor_id",
+          "type": "uuid",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "ip_address": {
+          "name": "ip_address",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "visitor_sessions_token",
+          "columns": [
+            "token_hash"
+          ],
+          "unique": true
+        },
+        {
+          "name": "visitor_sessions_visitor",
+          "columns": [
+            "visitor_id"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "visitor_sessions_visitor_id_visitors_id_fk",
+          "columns": [
+            "visitor_id"
+          ],
+          "refTable": "visitors",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "visitors": {
+      "name": "visitors",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamptz",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "visitors_site_email",
+          "columns": [
+            "site_id",
+            "email"
+          ],
+          "unique": true
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "visitors_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    },
+    "workflow_runs": {
+      "name": "workflow_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "default": "uuidv7()",
+          "defaultSql": true,
+          "primaryKey": true
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "workflow_key": {
+          "name": "workflow_key",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "trigger": {
+          "name": "trigger",
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "primaryKey": false
+        },
+        "entry_id": {
+          "name": "entry_id",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "dedupe": {
+          "name": "dedupe",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "default": "pending",
+          "primaryKey": false
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "default": "0",
+          "primaryKey": false
+        },
+        "run_at": {
+          "name": "run_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "detail": {
+          "name": "detail",
+          "type": "jsonb",
+          "nullable": true,
+          "default": null,
+          "primaryKey": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nullable": false,
+          "default": "CURRENT_TIMESTAMP",
+          "primaryKey": false
+        }
+      },
+      "indexes": [
+        {
+          "name": "workflow_runs_dedupe",
+          "columns": [
+            "site_id",
+            "workflow_key",
+            "dedupe"
+          ],
+          "unique": true
+        },
+        {
+          "name": "workflow_runs_due",
+          "columns": [
+            "status",
+            "run_at"
+          ],
+          "unique": false
+        },
+        {
+          "name": "workflow_runs_site_created",
+          "columns": [
+            "site_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "foreignKeys": [
+        {
+          "name": "workflow_runs_site_id_sites_id_fk",
+          "columns": [
+            "site_id"
+          ],
+          "refTable": "sites",
+          "refColumns": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no_action"
+        }
+      ],
+      "checks": []
+    }
+  }
+}

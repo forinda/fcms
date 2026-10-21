@@ -6,8 +6,8 @@
  * removing the last owner.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
-import { closeAllPools, createDb, createKdb, organizations, type OwnerRow } from "@forinda-cms/db";
+import { eq } from "@forinda/kickjs-db";
+import { closeAllPools, createDb, organizations, type OwnerRow } from "@forinda-cms/db";
 
 import { PeopleUseCase } from "../use-cases/people.usecase";
 import { OwnerRepository } from "@/shared/repositories";
@@ -15,7 +15,6 @@ import { OwnerRepository } from "@/shared/repositories";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_people";
 const OTHER_ORG = "org_people_other";
@@ -42,15 +41,15 @@ suite("people", () => {
   const asOwner = () => ({ actor: owner });
 
   beforeEach(async () => {
-    owners = new OwnerRepository(kdb);
+    owners = new OwnerRepository(db);
     // `owners_email` is unique across the whole install, not per organization,
     // so this suite keeps to its own domain and clears anything of its own a
     // previous run left behind.
     for (const row of await owners.list(ORG)) await owners.remove(ORG, row.id);
     for (const row of await owners.list(OTHER_ORG)) await owners.remove(OTHER_ORG, row.id);
-    await db.delete(organizations).where(eq(organizations.id, OTHER_ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "People org" });
+    await db.deleteFrom("organizations").where(eq(organizations.id, OTHER_ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "People org" }).execute();
 
     owner = await owners.create({
       orgId: ORG,
@@ -58,7 +57,7 @@ suite("people", () => {
       passwordHash: "not-a-real-hash",
       role: "owner",
     });
-    staff = new PeopleUseCase(kdb);
+    staff = new PeopleUseCase(db);
   });
 
   it("adds somebody with the role they were given", async () => {
@@ -172,7 +171,7 @@ suite("people", () => {
     // not be able to demote or delete somebody in a different one, and the
     // answer has to be the one an unknown id gets, or the difference between
     // "not yours" and "does not exist" is itself an answer.
-    await db.insert(organizations).values({ id: OTHER_ORG, name: "Somebody else" });
+    await db.insertInto("organizations").values({ id: OTHER_ORG, name: "Somebody else" }).execute();
     const stranger = await owners.create({
       orgId: OTHER_ORG,
       email: "stranger@people.test",
@@ -194,7 +193,7 @@ suite("people", () => {
     expect(after?.role).toBe("owner");
 
     await owners.remove(OTHER_ORG, stranger.id);
-    await db.delete(organizations).where(eq(organizations.id, OTHER_ORG));
+    await db.deleteFrom("organizations").where(eq(organizations.id, OTHER_ORG)).execute();
   });
 
   it("treats an unknown role as the least there is", async () => {

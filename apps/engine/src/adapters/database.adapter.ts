@@ -19,19 +19,11 @@
  */
 import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
 import { sql } from "@forinda/kickjs-db";
-import {
-  createDb,
-  createKdb,
-  releaseDb,
-  releaseKdb,
-  runMigrations,
-  type Db,
-  type Kdb,
-} from "@forinda-cms/db";
+import { createDb, releaseDb, runMigrations, type Db } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { Actor, CURRENT_SCOPE, ResolveSite } from "@/contributors";
-import { DB, KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 
 // Side-effect import: `src/shared` sits outside every module, so no module glob
@@ -62,7 +54,6 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
      * hold with the release that matches it.
      */
     let db: Db;
-    let kdb: Kdb;
 
     return {
       /**
@@ -86,8 +77,6 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // workspace package is never globbed, its decorator never runs, and
         // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
-        kdb = createKdb(getEnv("DATABASE_URL"));
-        container.registerInstance(KDB, kdb);
 
         container.registerFactory(
           CURRENT_SCOPE,
@@ -109,7 +98,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // lives in the target database, so a completed migration is a no-op and
         // an interrupted one resumes.
         await runMigrations(getEnv("DATABASE_URL"));
-        await provision(kdb);
+        await provision(db);
       },
 
       /**
@@ -119,7 +108,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
        */
       async onHealthCheck() {
         try {
-          await sql`select 1`.execute(kdb.qb);
+          await sql`select 1`.execute(db.qb);
           return { name: "database", status: "up" as const };
         } catch {
           return { name: "database", status: "down" as const };
@@ -132,7 +121,6 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // `releaseDb`), and closing it here ended the new one's connection on
         // every file save.
         await releaseDb(getEnv("DATABASE_URL"));
-        await releaseKdb(getEnv("DATABASE_URL"));
       },
     };
   },
@@ -145,16 +133,16 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
  * makes `docker compose up` reach a working site rather than a 404 and an
  * instruction.
  */
-async function provision(kdb: Kdb): Promise<void> {
+async function provision(db: Db): Promise<void> {
   const orgId = getEnv("ORG_ID");
   const siteId = getEnv("SITE_ID");
 
-  await kdb
+  await db
     .insertInto("organizations")
     .values({ id: orgId, name: "Default" })
     .onConflict((oc) => oc.doNothing())
     .execute();
-  await kdb
+  await db
     .insertInto("sites")
     .values({
       id: siteId,
@@ -172,7 +160,7 @@ async function provision(kdb: Kdb): Promise<void> {
   const email = getEnv("OWNER_EMAIL");
   const password = getEnv("OWNER_PASSWORD");
   if (email && password) {
-    const created = await new ProvisionOwnerUseCase(kdb).execute({ orgId, email, password });
+    const created = await new ProvisionOwnerUseCase(db).execute({ orgId, email, password });
     if (created) console.log(`[install] created the first owner: ${created.email}`);
   }
 
@@ -180,8 +168,8 @@ async function provision(kdb: Kdb): Promise<void> {
   // same constructors the container calls, with the scope this install is
   // configured for.
   const scope = { orgId, siteId };
-  if (!(await new SpecRepository(kdb, scope).find())) {
-    await new ApplySpecUseCase(kdb, scope).execute(
+  if (!(await new SpecRepository(db, scope).find())) {
+    await new ApplySpecUseCase(db, scope).execute(
       SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
       {
         actor: "install",

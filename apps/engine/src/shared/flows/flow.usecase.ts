@@ -8,10 +8,10 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import type { FlowSessionRow, Kdb, Scope } from "@forinda-cms/db";
+import type { FlowSessionRow, Db, Scope } from "@forinda-cms/db";
 import type { Page, SiteSpec } from "@forinda-cms/spec";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export const FLOW_COOKIE = "fcms_flow";
@@ -24,7 +24,7 @@ export type Flow = NonNullable<Page["flows"]>[number];
 @Service({ scope: Lifetime.REQUEST })
 export class FlowUseCase {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 

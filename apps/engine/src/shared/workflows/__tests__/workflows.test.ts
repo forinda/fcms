@@ -7,11 +7,10 @@
  * the same row.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import {
   closeAllPools,
   createDb,
-  createKdb,
   entries,
   isEmbedded,
   organizations,
@@ -38,7 +37,6 @@ const suite = url ? describe : describe.skip;
  */
 const embedded = url ? isEmbedded(url) : false;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_workflows";
 const SITE = "site_workflows";
@@ -76,15 +74,18 @@ suite("workflows", () => {
   let entryId: string;
 
   beforeEach(async () => {
-    await db.delete(workflowRuns);
-    await db.delete(entries).where(eq(entries.siteId, SITE));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
+    await db.deleteFrom("workflow_runs").execute();
+    await db.deleteFrom("entries").where(eq(entries.siteId, SITE)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
 
-    await db.insert(organizations).values({ id: ORG, name: "Workflows org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" });
+    await db.insertInto("organizations").values({ id: ORG, name: "Workflows org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" })
+      .execute();
     const [entry] = await db
-      .insert(entries)
+      .insertInto("entries")
       .values({
         siteId: SITE,
         orgId: ORG,
@@ -92,10 +93,11 @@ suite("workflows", () => {
         data: { customerName: "Amina", status: "pending" },
         status: "draft",
       })
-      .returning();
+      .returningAll()
+      .execute();
     entryId = entry!.id;
 
-    use = new WorkflowUseCase(kdb, scope);
+    use = new WorkflowUseCase(db, scope);
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -208,15 +210,20 @@ suite("workflows", () => {
       const [run] = await use.runDue(moving);
 
       expect(run!.status).toBe("done");
-      const [row] = await db.select().from(entries).where(eq(entries.id, entryId));
+      const [row] = await db
+        .selectFrom("entries")
+        .selectAll()
+        .where(eq(entries.id, entryId))
+        .execute();
       expect((row!.data as Record<string, unknown>)["status"]).toBe("confirmed");
     });
 
     it("refuses a transition the type does not declare", async () => {
       await db
-        .update(entries)
+        .updateTable("entries")
         .set({ data: { customerName: "Amina", status: "confirmed" } })
-        .where(eq(entries.id, entryId));
+        .where(eq(entries.id, entryId))
+        .execute();
 
       // `confirmed → confirmed` is fine, but nothing goes back to pending: the
       // declared transitions are the point of a state field.
@@ -248,9 +255,10 @@ suite("workflows", () => {
       // Four more attempts and it gives up with the reason on the row.
       for (let attempt = 2; attempt <= 5; attempt += 1) {
         await db
-          .update(workflowRuns)
+          .updateTable("workflow_runs")
           .set({ runAt: new Date(0) })
-          .where(eq(workflowRuns.status, "pending"));
+          .where(eq(workflowRuns.status, "pending"))
+          .execute();
         const [row] = await use.runDue(failing);
         if (attempt < 5) expect(row!.status).toBe("pending");
         else {
@@ -400,7 +408,11 @@ suite("workflows", () => {
       });
       // Nothing left the building, and the row did not move.
       expect(fetched).not.toHaveBeenCalled();
-      const [row] = await db.select().from(entries).where(eq(entries.id, entryId));
+      const [row] = await db
+        .selectFrom("entries")
+        .selectAll()
+        .where(eq(entries.id, entryId))
+        .execute();
       expect((row!.data as Record<string, unknown>)["status"]).toBe("pending");
     });
   });
@@ -437,7 +449,7 @@ suite("workflows", () => {
       await use.enqueue(spec_, event());
       await use.runDue(spec_);
 
-      const queued = await db.select().from(workflowRuns);
+      const queued = await db.selectFrom("workflow_runs").selectAll().execute();
       const followed = queued.find((r) => r.workflowKey === "on-confirmed");
       expect(followed).toBeDefined();
       expect(followed!.detail).toMatchObject({ depth: 1 });
@@ -460,13 +472,14 @@ suite("workflows", () => {
       await use.enqueue(loop, event());
       for (let round = 0; round < 6; round += 1) {
         await db
-          .update(workflowRuns)
+          .updateTable("workflow_runs")
           .set({ runAt: new Date(0) })
-          .where(eq(workflowRuns.status, "pending"));
+          .where(eq(workflowRuns.status, "pending"))
+          .execute();
         await use.runDue(loop);
       }
 
-      const runs = await db.select().from(workflowRuns);
+      const runs = await db.selectFrom("workflow_runs").selectAll().execute();
       const depths = runs.map((r) => (r.detail as { depth?: number } | null)?.depth ?? 0);
       expect(Math.max(...depths)).toBeLessThanOrEqual(3);
       expect(runs.length).toBeLessThan(10);
@@ -497,7 +510,7 @@ suite("workflows", () => {
         const everyMinute = nightly("* * * * *");
         expect(await use.enqueueDue(everyMinute)).toBe(1);
 
-        const [run] = await db.select().from(workflowRuns);
+        const [run] = await db.selectFrom("workflow_runs").selectAll().execute();
         // Not the year 2000: the database said what time it is.
         expect(run!.dedupe?.startsWith("2000")).toBe(false);
       } finally {

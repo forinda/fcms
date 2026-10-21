@@ -28,7 +28,7 @@
  */
 import { sql } from "@forinda/kickjs-db";
 
-import type { Kdb } from "./client.js";
+import type { Db } from "./client.js";
 import { createHash } from "node:crypto";
 import type { ContentType, Field, SiteSpec } from "@forinda-cms/spec";
 import type { Classification } from "@forinda-cms/spec";
@@ -309,7 +309,7 @@ export function planMigration(
  * declined a deletion should still get their new index.
  */
 export async function runMigration(
-  tx: Kdb,
+  tx: Db,
   steps: readonly MigrationStep[],
   options: { allowDestructive?: boolean } = {},
 ): Promise<{ applied: MigrationStep[]; skipped: MigrationStep[] }> {
@@ -347,7 +347,7 @@ export async function runMigration(
  * scoped `WHERE site_id = '…'`, so one site can never drop another's.
  */
 export async function reconcileIndexes(
-  tx: Kdb,
+  tx: Db,
   spec: SiteSpec,
   scope: PlanScope,
 ): Promise<{ created: string[]; dropped: string[] }> {

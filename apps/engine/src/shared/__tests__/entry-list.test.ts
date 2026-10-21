@@ -7,15 +7,14 @@
  * without limit.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
-import { closeAllPools, createDb, createKdb, entries, organizations, sites } from "@forinda-cms/db";
+import { eq } from "@forinda/kickjs-db";
+import { closeAllPools, createDb, entries, organizations, sites } from "@forinda-cms/db";
 
 import { EntryRepository } from "@/shared/repositories";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_list";
 const SITE = "site_list";
@@ -27,57 +26,63 @@ suite("a page of entries", () => {
   let repo: EntryRepository;
 
   beforeEach(async () => {
-    await db.delete(entries).where(eq(entries.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "List org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "list", name: "List" });
+    await db.deleteFrom("entries").where(eq(entries.orgId, ORG)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "List org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "list", name: "List" })
+      .execute();
 
-    await db.insert(entries).values([
-      {
-        siteId: SITE,
-        orgId: ORG,
-        typeKey: "booking",
-        slug: "ana",
-        status: "published",
-        data: { customerName: "Ana Mwangi", phone: "0700000001" },
-        createdAt: at(1),
-        updatedAt: at(9),
-      },
-      {
-        siteId: SITE,
-        orgId: ORG,
-        typeKey: "booking",
-        slug: "ben",
-        status: "draft",
-        data: { customerName: "Ben Otieno", phone: "0700000002" },
-        createdAt: at(2),
-        updatedAt: at(2),
-      },
-      {
-        siteId: SITE,
-        orgId: ORG,
-        typeKey: "booking",
-        slug: "carol",
-        status: "published",
-        data: { customerName: "Carol Wanjiru", phone: "0700000003" },
-        createdAt: at(3),
-        updatedAt: at(3),
-      },
-      // Another type, to prove the filter is not "everything on the site".
-      {
-        siteId: SITE,
-        orgId: ORG,
-        typeKey: "service",
-        slug: "haircut",
-        status: "published",
-        data: { name: "Haircut" },
-        createdAt: at(4),
-        updatedAt: at(4),
-      },
-    ]);
+    await db
+      .insertInto("entries")
+      .values([
+        {
+          siteId: SITE,
+          orgId: ORG,
+          typeKey: "booking",
+          slug: "ana",
+          status: "published",
+          data: { customerName: "Ana Mwangi", phone: "0700000001" },
+          createdAt: at(1),
+          updatedAt: at(9),
+        },
+        {
+          siteId: SITE,
+          orgId: ORG,
+          typeKey: "booking",
+          slug: "ben",
+          status: "draft",
+          data: { customerName: "Ben Otieno", phone: "0700000002" },
+          createdAt: at(2),
+          updatedAt: at(2),
+        },
+        {
+          siteId: SITE,
+          orgId: ORG,
+          typeKey: "booking",
+          slug: "carol",
+          status: "published",
+          data: { customerName: "Carol Wanjiru", phone: "0700000003" },
+          createdAt: at(3),
+          updatedAt: at(3),
+        },
+        // Another type, to prove the filter is not "everything on the site".
+        {
+          siteId: SITE,
+          orgId: ORG,
+          typeKey: "service",
+          slug: "haircut",
+          status: "published",
+          data: { name: "Haircut" },
+          createdAt: at(4),
+          updatedAt: at(4),
+        },
+      ])
+      .execute();
 
-    repo = new EntryRepository(kdb, scope);
+    repo = new EntryRepository(db, scope);
   });
 
   const page = (over: Record<string, unknown> = {}) =>
@@ -124,16 +129,19 @@ suite("a page of entries", () => {
     expect((await page({ search: "%" })).total).toBe(0);
     expect((await page({ search: "_" })).total).toBe(0);
     // …and a name that really contains one is still findable.
-    await db.insert(entries).values({
-      siteId: SITE,
-      orgId: ORG,
-      typeKey: "booking",
-      slug: "percent",
-      status: "draft",
-      data: { customerName: "50% off promo" },
-      createdAt: at(5),
-      updatedAt: at(5),
-    });
+    await db
+      .insertInto("entries")
+      .values({
+        siteId: SITE,
+        orgId: ORG,
+        typeKey: "booking",
+        slug: "percent",
+        status: "draft",
+        data: { customerName: "50% off promo" },
+        createdAt: at(5),
+        updatedAt: at(5),
+      })
+      .execute();
     expect((await page({ search: "50%" })).rows.map((r) => r.slug)).toEqual(["percent"]);
   });
 

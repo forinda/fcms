@@ -8,9 +8,9 @@
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import type { ExpressionBuilder } from "@forinda/kickjs-db";
 
-import type { Kdb, KdbSchema, NewPaymentRow, PaymentRow, Scope } from "@forinda-cms/db";
+import type { Db, DbSchema, NewPaymentRow, PaymentRow, Scope } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -18,11 +18,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class PaymentRepository {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
-  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "payments">) =>
+  private readonly scoped = (eb: ExpressionBuilder<DbSchema, "payments">) =>
     eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async create(row: Omit<NewPaymentRow, "siteId" | "orgId">): Promise<PaymentRow> {

@@ -10,9 +10,9 @@ import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { sql, type Expression, type ExpressionBuilder, type SqlBool } from "@forinda/kickjs-db";
 import { DRAFT_KEY, VISITOR_KEY, type Entry } from "@forinda-cms/render";
 
-import type { EntryRow, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
+import type { EntryRow, Db, DbSchema, Scope } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface EntryPageQuery {
@@ -41,7 +41,7 @@ export interface EntryPage {
  * everything. ponytail: `ilike` cannot use the GIN index, which is fine into
  * the tens of thousands of rows and is where a trigram index goes when it isn't.
  */
-function conditions(eb: ExpressionBuilder<KdbSchema, "entries">, query: EntryPageQuery) {
+function conditions(eb: ExpressionBuilder<DbSchema, "entries">, query: EntryPageQuery) {
   const out: Expression<SqlBool>[] = [];
   if (query.status) out.push(eb("status", "=", query.status));
 
@@ -89,11 +89,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class EntryRepository {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
-  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+  private readonly scoped = (eb: ExpressionBuilder<DbSchema, "entries">) =>
     eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async byId(id: string): Promise<EntryRow | null> {
@@ -118,7 +118,7 @@ export class EntryRepository {
    * actually wants — a page of rows, a total, and a way to find one.
    */
   async pageOfType(typeKey: string, query: EntryPageQuery): Promise<EntryPage> {
-    const where = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+    const where = (eb: ExpressionBuilder<DbSchema, "entries">) =>
       eb.and([this.scoped(eb), eb("typeKey", "=", typeKey), ...conditions(eb, query)]);
 
     const [rows, counted] = await Promise.all([

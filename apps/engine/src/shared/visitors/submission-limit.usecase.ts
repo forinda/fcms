@@ -10,9 +10,9 @@
  * owner.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import type { Kdb } from "@forinda-cms/db";
+import type { Db } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 
 /** Ten in ten minutes: generous for a person, useless for a script. */
 export const SUBMISSIONS_ALLOWED = 10;
@@ -20,7 +20,7 @@ export const SUBMISSION_WINDOW_MS = 10 * 60 * 1000;
 
 @Service({ scope: Lifetime.REQUEST })
 export class SubmissionLimitUseCase {
-  constructor(@Inject(KDB) private readonly db: Kdb) {}
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   async allow(typeKey: string, visitorId: string | null, ip: string | null): Promise<boolean> {
     const since = new Date(Date.now() - SUBMISSION_WINDOW_MS);

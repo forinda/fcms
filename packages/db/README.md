@@ -10,10 +10,17 @@ export DATABASE_URL="postgres://user:pass@localhost:5432/forinda_cms"
 pnpm --filter @forinda-cms/db db:migrate
 ```
 
-Migrations are **idempotent and resumable** — Drizzle keeps its ledger inside
-the target database, so a run that died halfway continues rather than replaying.
-That is the property doc 09 §6 relies on, and the reason the install artifact can
-migrate on boot instead of asking a self-hoster to run a command.
+Migrations are **idempotent and resumable** — kickjs-db keeps its ledger
+(`kick_migrations`) inside the target database, so a run that died halfway
+continues rather than replaying. That is the property doc 09 §6 relies on, and
+the reason the install artifact can migrate on boot instead of asking a
+self-hoster to run a command.
+
+They live in `kickdb/migrations/`, generated from `src/schema.ts`. The older
+`migrations/` folder is Drizzle's, from before ADR 0052: it stays so an install
+that predates the switch can finish its history and be adopted on first boot
+(`src/kickdb/migrate.ts`), and `baseline.test.ts` uses it to build such
+installs.
 
 ## The test database is a different database
 

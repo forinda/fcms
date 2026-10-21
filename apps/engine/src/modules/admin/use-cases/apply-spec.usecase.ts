@@ -11,10 +11,10 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { checkReferences, classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
 
 import { planMigration, reconcileIndexes, runMigration, type MigrationStep } from "@forinda-cms/db";
-import type { Kdb, Scope } from "@forinda-cms/db";
+import type { Db, Scope } from "@forinda-cms/db";
 import { EntryRepository, PatchRepository, SpecRepository } from "@/shared/repositories";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { atLeast, refusal, roleOf, type Role } from "@/shared/roles";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
@@ -101,7 +101,7 @@ export class ApplySpecUseCase {
   private readonly entries: EntryRepository;
 
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
     this.specs = new SpecRepository(db, scope);

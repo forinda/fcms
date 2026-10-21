@@ -13,10 +13,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { createDb } from "./client.js";
+import type { PGlite } from "@electric-sql/pglite";
+
+import { createDb, embeddedFor, isEmbedded } from "./client.js";
 
 const dirs: string[] = [];
-const opened: { $client?: { close?: () => Promise<void> } }[] = [];
+const opened: PGlite[] = [];
 
 const scratch = () => {
   const dir = mkdtempSync(join(tmpdir(), "fcms-lock-"));
@@ -25,7 +27,8 @@ const scratch = () => {
 };
 
 const open = (url: string) => {
-  const db = createDb(url) as unknown as { $client?: { close?: () => Promise<void> } };
+  if (!isEmbedded(url)) return createDb(url);
+  const db = embeddedFor(url);
   opened.push(db);
   return db;
 };
@@ -34,7 +37,7 @@ const open = (url: string) => {
 // removing the directory out from under it is an unhandled rejection rather
 // than a failure anybody can read.
 afterEach(async () => {
-  for (const db of opened.splice(0)) await db.$client?.close?.().catch(() => undefined);
+  for (const db of opened.splice(0)) await db.close().catch(() => undefined);
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 

@@ -6,11 +6,10 @@
  * and a payment that has been paid cannot be walked backwards by a callback.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import {
   closeAllPools,
   createDb,
-  createKdb,
   entries,
   organizations,
   payments,
@@ -27,7 +26,6 @@ import { PaymentUseCase } from "../payment.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_payments";
 const SITE = "site_payments";
@@ -64,15 +62,18 @@ suite("payments", () => {
   let entryId: string;
 
   beforeEach(async () => {
-    await db.delete(payments);
-    await db.delete(entries).where(eq(entries.siteId, SITE));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
+    await db.deleteFrom("payments").execute();
+    await db.deleteFrom("entries").where(eq(entries.siteId, SITE)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
 
-    await db.insert(organizations).values({ id: ORG, name: "Payments org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" });
+    await db.insertInto("organizations").values({ id: ORG, name: "Payments org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" })
+      .execute();
     const [entry] = await db
-      .insert(entries)
+      .insertInto("entries")
       .values({
         siteId: SITE,
         orgId: ORG,
@@ -80,14 +81,15 @@ suite("payments", () => {
         data: { name: "Amina", deposit: 1500 },
         status: "draft",
       })
-      .returning();
+      .returningAll()
+      .execute();
     entryId = entry!.id;
 
-    repository = new PaymentRepository(kdb, scope);
+    repository = new PaymentRepository(db, scope);
     use = new PaymentUseCase(
       repository,
-      new WorkflowUseCase(kdb, scope),
-      new EntryRepository(kdb, scope),
+      new WorkflowUseCase(db, scope),
+      new EntryRepository(db, scope),
     );
   });
 
@@ -178,7 +180,7 @@ suite("payments", () => {
   describe("scope", () => {
     it("does not hand one site's payment to another", async () => {
       const started = await record();
-      const elsewhere = new PaymentRepository(kdb, { orgId: ORG, siteId: "site_someone_else" });
+      const elsewhere = new PaymentRepository(db, { orgId: ORG, siteId: "site_someone_else" });
 
       expect(await elsewhere.byId((started as { payment: PaymentRow }).payment.id)).toBeNull();
     });
@@ -210,7 +212,7 @@ suite("payments", () => {
       // A salon's deposit belongs to the service. A booking that copied the
       // number would be a number a form could carry.
       const [service] = await db
-        .insert(entries)
+        .insertInto("entries")
         .values({
           siteId: SITE,
           orgId: ORG,
@@ -219,7 +221,8 @@ suite("payments", () => {
           data: { name: "Cut", deposit: 500 },
           status: "published",
         })
-        .returning();
+        .returningAll()
+        .execute();
 
       const referring = SiteSpec.parse({
         ...spec,

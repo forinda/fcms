@@ -29,7 +29,6 @@
     "@forinda/kickjs-swagger": "catalog:",
     "@node-rs/argon2": "catalog:",
     "dotenv": "catalog:",
-    "drizzle-orm": "catalog:",
     "express": "catalog:",
     "multer": "catalog:",
     "reflect-metadata": "catalog:",

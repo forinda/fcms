@@ -12,14 +12,13 @@
  * default: a suite that cannot run is a suite nobody runs.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import { SiteSpec } from "@forinda-cms/spec";
 import { renderPage, routes } from "@forinda-cms/render";
 
 import {
   closeAllPools,
   createDb,
-  createKdb,
   entries,
   organizations,
   siteSpecs,
@@ -40,7 +39,6 @@ const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_test";
 const SITE = "site_test";
@@ -95,29 +93,32 @@ suite("the persistence layer", () => {
   const of = (siteId = SITE, orgId = ORG) => {
     const scope = { orgId, siteId };
     return {
-      apply: new ApplySpecUseCase(kdb, scope),
-      undo: new UndoSpecUseCase(kdb, scope),
-      history: new SiteHistoryUseCase(kdb, scope),
-      specs: new SpecRepository(kdb, scope),
-      entries: new EntryRepository(kdb, scope),
-      read: new EntryReadUseCase(new EntryRepository(kdb, scope)),
-      writer: new EntryWriteUseCase(kdb, scope),
+      apply: new ApplySpecUseCase(db, scope),
+      undo: new UndoSpecUseCase(db, scope),
+      history: new SiteHistoryUseCase(db, scope),
+      specs: new SpecRepository(db, scope),
+      entries: new EntryRepository(db, scope),
+      read: new EntryReadUseCase(new EntryRepository(db, scope)),
+      writer: new EntryWriteUseCase(db, scope),
     };
   };
   const repo = of;
 
   beforeEach(async () => {
-    await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
-    await db.delete(entries).where(eq(entries.orgId, ORG));
-    await db.delete(siteSpecs).where(eq(siteSpecs.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
+    await db.deleteFrom("spec_patches").where(eq(specPatches.orgId, ORG)).execute();
+    await db.deleteFrom("entries").where(eq(entries.orgId, ORG)).execute();
+    await db.deleteFrom("site_specs").where(eq(siteSpecs.orgId, ORG)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
 
-    await db.insert(organizations).values({ id: ORG, name: "Test org" });
-    await db.insert(sites).values([
-      { id: SITE, orgId: ORG, slug: "salon", name: "Riverside Salon" },
-      { id: OTHER_SITE, orgId: ORG, slug: "other", name: "Other Salon" },
-    ]);
+    await db.insertInto("organizations").values({ id: ORG, name: "Test org" }).execute();
+    await db
+      .insertInto("sites")
+      .values([
+        { id: SITE, orgId: ORG, slug: "salon", name: "Riverside Salon" },
+        { id: OTHER_SITE, orgId: ORG, slug: "other", name: "Other Salon" },
+      ])
+      .execute();
   });
 
   afterAll(async () => {
@@ -135,7 +136,11 @@ suite("the persistence layer", () => {
 
     it("records an inverse for every change, never null", async () => {
       await repo().apply.execute(spec, { actor: "test", role: "owner" as const, source: "cli" });
-      const [patch] = await db.select().from(specPatches).where(eq(specPatches.siteId, SITE));
+      const [patch] = await db
+        .selectFrom("spec_patches")
+        .selectAll()
+        .where(eq(specPatches.siteId, SITE))
+        .execute();
       expect(patch!.inverse).toBeTruthy();
       // Doc 13's argument that a non-developer can review rests on a wrong "yes"
       // being cheap, which is only true because this is written at the time.
@@ -190,24 +195,27 @@ suite("the persistence layer", () => {
 
     it("names what would be lost, and how much", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      await db.insert(entries).values([
-        {
-          siteId: SITE,
-          orgId: ORG,
-          typeKey: "service",
-          slug: "cut",
-          data: { name: "Cut", blurb: "x" },
-          status: "published",
-        },
-        {
-          siteId: SITE,
-          orgId: ORG,
-          typeKey: "service",
-          slug: "colour",
-          data: { name: "Colour" },
-          status: "published",
-        },
-      ]);
+      await db
+        .insertInto("entries")
+        .values([
+          {
+            siteId: SITE,
+            orgId: ORG,
+            typeKey: "service",
+            slug: "cut",
+            data: { name: "Cut", blurb: "x" },
+            status: "published",
+          },
+          {
+            siteId: SITE,
+            orgId: ORG,
+            typeKey: "service",
+            slug: "colour",
+            data: { name: "Colour" },
+            status: "published",
+          },
+        ])
+        .execute();
 
       await expect(
         repo().apply.execute(withoutBlurb, { actor: "a", role: "owner" as const, source: "chat" }),
@@ -246,24 +254,27 @@ suite("the persistence layer", () => {
     });
 
     it("never reads another site's entries", async () => {
-      await db.insert(entries).values([
-        {
-          siteId: SITE,
-          orgId: ORG,
-          typeKey: "service",
-          slug: "a",
-          data: { name: "Mine" },
-          status: "published",
-        },
-        {
-          siteId: OTHER_SITE,
-          orgId: ORG,
-          typeKey: "service",
-          slug: "b",
-          data: { name: "Theirs" },
-          status: "published",
-        },
-      ]);
+      await db
+        .insertInto("entries")
+        .values([
+          {
+            siteId: SITE,
+            orgId: ORG,
+            typeKey: "service",
+            slug: "a",
+            data: { name: "Mine" },
+            status: "published",
+          },
+          {
+            siteId: OTHER_SITE,
+            orgId: ORG,
+            typeKey: "service",
+            slug: "b",
+            data: { name: "Theirs" },
+            status: "published",
+          },
+        ])
+        .execute();
       const rows = await repo().entries.allOfType("service");
       expect(rows.map((r) => r["name"])).toEqual(["Mine"]);
     });
@@ -278,16 +289,19 @@ suite("the persistence layer", () => {
   describe("the EntrySource seam pays off (ADR 0007)", () => {
     it("renders a page from database rows with an unchanged renderer", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      await db.insert(entries).values([
-        {
-          siteId: SITE,
-          orgId: ORG,
-          typeKey: "service",
-          slug: "cut",
-          data: { name: "Cut and finish" },
-          status: "published",
-        },
-      ]);
+      await db
+        .insertInto("entries")
+        .values([
+          {
+            siteId: SITE,
+            orgId: ORG,
+            typeKey: "service",
+            slug: "cut",
+            data: { name: "Cut and finish" },
+            status: "published",
+          },
+        ])
+        .execute();
 
       const loaded = (await repo().specs.find())!;
       const source = await repo().read.source(["service"]);

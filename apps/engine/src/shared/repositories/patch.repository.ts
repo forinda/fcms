@@ -9,9 +9,9 @@ import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, eq, isNull, sql } from "@forinda/kickjs-db";
 import type { Classification, PatchOp } from "@forinda-cms/spec";
 
-import { tables, type Kdb, type Scope } from "@forinda-cms/db";
+import { specPatches as patches, type Db, type Scope } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface RecordPatch {
@@ -24,8 +24,6 @@ export interface RecordPatch {
   readonly harness?: string | undefined;
 }
 
-const patches = tables.specPatches;
-
 /**
  * An array for a `jsonb` column. node-postgres binds a JS array as a Postgres
  * array literal (`{…}`), which jsonb rejects; objects it stringifies. So the
@@ -36,7 +34,7 @@ const jsonb = <T>(value: T) => sql<T>`${JSON.stringify(value)}::jsonb`;
 @Repository({ scope: Lifetime.REQUEST })
 export class PatchRepository {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
@@ -51,7 +49,7 @@ export class PatchRepository {
    * the same value — the unique index on (site_id, seq) then rejects the second,
    * which is the behaviour we want rather than a silent interleave.
    */
-  async nextSeq(tx: Kdb = this.db): Promise<number> {
+  async nextSeq(tx: Db = this.db): Promise<number> {
     const row = await tx
       .selectFrom("spec_patches")
       .select(sql<number>`coalesce(max(seq), 0)::int + 1`.as("next"))
@@ -60,7 +58,7 @@ export class PatchRepository {
     return row?.next ?? 1;
   }
 
-  async record(seq: number, patch: RecordPatch, tx: Kdb = this.db): Promise<void> {
+  async record(seq: number, patch: RecordPatch, tx: Db = this.db): Promise<void> {
     await tx
       .insertInto("spec_patches")
       .values({
@@ -79,7 +77,7 @@ export class PatchRepository {
   }
 
   /** The most recent patch that has not been undone. */
-  async latestApplied(tx: Kdb = this.db) {
+  async latestApplied(tx: Db = this.db) {
     const row = await tx
       .selectFrom("spec_patches")
       .selectAll()
@@ -91,7 +89,7 @@ export class PatchRepository {
   }
 
   /** Marks rather than deletes: history stays append-only across an undo. */
-  async markReverted(id: bigint, tx: Kdb = this.db): Promise<void> {
+  async markReverted(id: bigint, tx: Db = this.db): Promise<void> {
     await tx
       .updateTable("spec_patches")
       .set({ revertedAt: new Date() })

@@ -5,13 +5,11 @@
  * share one pool rather than opening N. Fifteen lines that avoid the obvious
  * bug.
  */
-import { drizzle } from "drizzle-orm/postgres-js";
-import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { PGlite } from "@electric-sql/pglite";
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import postgres from "postgres";
 import pg from "pg";
+import type { Insertable, Selectable } from "@forinda/kickjs-db";
 import {
   createDbClient,
   safeNullComparison,
@@ -21,38 +19,7 @@ import {
 import { pgDialect, type PgPoolLike } from "@forinda/kickjs-db/pg";
 import { pglitePool } from "@forinda/kickjs-db/pglite";
 
-import * as schema from "./schema/index.js";
-import * as kschema from "./kickdb/schema.js";
-
-/**
- * The pool, and how many holders it has.
- *
- * The count is what makes a cached pool safe to hand out twice. Under `kick
- * dev` two applications overlap for a moment on every save — the reloaded one
- * builds while the previous one shuts down — and they share this map, so a
- * shutdown that simply ended the pool ended the *new* app's connection with
- * it. Every request after a file save then failed with `write
- * CONNECTION_ENDED`, and the fix looked like restarting the dev server.
- *
- * One number rather than a per-application pool, because sharing is the point:
- * N sites on one instance share one pool (doc 09 §7).
- */
-interface Pool {
-  readonly sql: postgres.Sql;
-  holders: number;
-}
-
-const pools = new Map<string, Pool>();
-
-function poolFor(url: string): postgres.Sql {
-  let pool = pools.get(url);
-  if (!pool) {
-    pool = { sql: postgres(url, { max: 10, onnotice: () => {} }), holders: 0 };
-    pools.set(url, pool);
-  }
-  pool.holders += 1;
-  return pool.sql;
-}
+import * as schema from "./schema.js";
 
 /**
  * Embedded instances, cached the way pools are and for the same reason.
@@ -151,7 +118,28 @@ export function isEmbedded(url: string): boolean {
 }
 
 /**
- * A connection to the site's database (ADR 0050).
+ * The client, and how many holders it has.
+ *
+ * The count is what makes a cached client safe to hand out twice. Under `kick
+ * dev` two applications overlap for a moment on every save — the reloaded one
+ * builds while the previous one shuts down — and they share this map, so a
+ * shutdown that simply ended the pool ended the *new* app's connection with
+ * it. Every request after a file save then failed with `write
+ * CONNECTION_ENDED`, and the fix looked like restarting the dev server.
+ *
+ * One per URL rather than per application, because sharing is the point: N
+ * sites on one instance share one pool (doc 09 §7). An embedded database gets
+ * exactly one `pglitePool`: the pool is what hands PGlite's single connection
+ * to one caller at a time, and two pools would each think they had it.
+ */
+const clients = new Map<string, { client: Db; pool: PgPoolLike; holders: number }>();
+
+/** The tables as kickjs-db types them, for `ExpressionBuilder<DbSchema, "…">`. */
+export type DbSchema = SchemaToTypes<typeof schema>;
+export type Db = KickDbClient<DbSchema>;
+
+/**
+ * A connection to the site's database (ADR 0050, ADR 0052).
  *
  * `postgres://…` is a server somebody runs. Anything else is a directory, and
  * the database runs inside this process — real Postgres 18, compiled to WASM,
@@ -163,119 +151,64 @@ export function isEmbedded(url: string): boolean {
  * and not an abstraction: the SQL, the schema and the migrations do not know
  * which they are talking to.
  */
-export function createDb(url: string) {
-  if (isEmbedded(url)) {
-    return drizzlePglite(embeddedFor(url), {
-      schema,
-      casing: "snake_case",
-    }) as unknown as ReturnType<typeof drizzle<typeof schema>>;
-  }
-  return drizzle(poolFor(url), { schema, casing: "snake_case" });
-}
-
-/**
- * Let go of one holder's pool, closing it only when nobody is left.
- *
- * What an application calls on shutdown. `closeAllPools` stays for tests and
- * for the end of the process, where "nobody else can be using it" is true by
- * construction.
- */
-export async function releaseDb(url: string): Promise<void> {
-  const pool = pools.get(url);
-  if (!pool) return;
-
-  pool.holders -= 1;
-  if (pool.holders > 0) return;
-
-  pools.delete(url);
-  await pool.sql.end({ timeout: 5 });
-}
-
-export type Db = ReturnType<typeof createDb>;
-
-/**
- * kickjs-db clients (ADR 0052), one per URL, shared and counted like the pools
- * above and for the same reason.
- *
- * An embedded database gets exactly one `pglitePool` per instance: the pool is
- * what hands PGlite's single connection to one caller at a time, and two pools
- * would each think they had it.
- */
-const kdbs = new Map<string, { client: Kdb; pool: PgPoolLike; holders: number }>();
-
-/** The tables as kickjs-db types them, for `ExpressionBuilder<KdbSchema, "…">`. */
-export type KdbSchema = SchemaToTypes<typeof kschema>;
-export type Kdb = KickDbClient<KdbSchema>;
-
-export function createKdb(url: string): Kdb {
-  let held = kdbs.get(url);
+export function createDb(url: string): Db {
+  let held = clients.get(url);
   if (!held) {
     const pool = isEmbedded(url)
       ? pglitePool(embeddedFor(url))
       : new pg.Pool({ connectionString: url, max: 10 });
     const client = createDbClient({
-      schema: kschema,
+      schema,
       dialect: pgDialect({ pool }),
       casing: "snake_case",
       plugins: [safeNullComparison()],
-    }) as Kdb;
+    }) as Db;
     held = { client, pool, holders: 0 };
-    kdbs.set(url, held);
+    clients.set(url, held);
   }
   held.holders += 1;
   return held.client;
 }
 
-/** `releaseDb` for the kickjs-db client. The embedded instance outlives it. */
-export async function releaseKdb(url: string): Promise<void> {
-  const held = kdbs.get(url);
+/**
+ * Let go of one holder's client, closing its pool only when nobody is left.
+ *
+ * What an application calls on shutdown. `closeAllPools` stays for tests and
+ * for the end of the process, where "nobody else can be using it" is true by
+ * construction. The embedded instance outlives its pool: it is the database.
+ */
+export async function releaseDb(url: string): Promise<void> {
+  const held = clients.get(url);
   if (!held) return;
   held.holders -= 1;
   if (held.holders > 0) return;
-  kdbs.delete(url);
+  clients.delete(url);
   if (!isEmbedded(url)) await held.pool.end?.();
 }
 
-/**
- * A database *or* a transaction.
- *
- * Drizzle's transaction callback receives a `PgTransaction`, which is not a
- * `Db` — it has no `$client`. Repositories that accept an optional `tx` were
- * casting it back with `as Db`, which is a lie the compiler was talked out of
- * rather than a type.
- *
- * Derived from `transaction`'s own callback signature, so it stays correct if
- * Drizzle changes shape, and nothing has to cast.
- */
-export type Executor = Db | Parameters<Parameters<Db["transaction"]>[0]>[0];
-
 /** For tests and graceful shutdown. */
 export async function closeAllPools(): Promise<void> {
-  const open = [...pools.values()];
-  pools.clear();
-  await Promise.all(open.map((pool) => pool.sql.end({ timeout: 5 })));
-  const kopen = [...kdbs.entries()];
-  kdbs.clear();
-  await Promise.all(kopen.map(([url, held]) => (isEmbedded(url) ? undefined : held.pool.end?.())));
+  const open = [...clients.entries()];
+  clients.clear();
+  await Promise.all(open.map(([url, held]) => (isEmbedded(url) ? undefined : held.pool.end?.())));
 }
 
-/**
- * The rows of a raw `db.execute`, whichever driver ran it.
- *
- * `postgres-js` resolves to the rows themselves; `pglite` resolves to
- * `{ rows }`. Nothing else in the two drivers differs for this codebase, and it
- * is not a dialect difference at all — the SQL is identical — so it belongs
- * here rather than in `dialect.ts` and certainly not in a caller.
- *
- * Found by running the engine suite against both: three tests failed, all of
- * them this, and one of them silently — `databaseNow()` read no row, fell back
- * to `new Date()`, and the queue went back to trusting the process's clock,
- * which is the exact bug that comment exists to prevent.
- */
-export function rowsOf<T>(result: unknown): T[] {
-  if (Array.isArray(result)) return result as T[];
-  if (result && typeof result === "object" && Array.isArray((result as { rows?: unknown }).rows)) {
-    return (result as { rows: T[] }).rows;
-  }
-  return [];
-}
+/** A row as read back. Text columns are `string`; narrow them where they are read. */
+type Row<T extends keyof DbSchema> = Selectable<DbSchema[T]>;
+
+export type OrganizationRow = Row<"organizations">;
+export type SiteRow = Row<"sites">;
+export type SiteSpecRow = Row<"site_specs">;
+export type SpecPatchRow = Row<"spec_patches">;
+export type EntryRow = Row<"entries">;
+export type AssetRow = Row<"assets">;
+export type OwnerRow = Row<"owners">;
+export type OwnerSessionRow = Row<"owner_sessions">;
+export type LoginAttemptRow = Row<"login_attempts">;
+export type VisitorRow = Row<"visitors">;
+export type VisitorSessionRow = Row<"visitor_sessions">;
+export type VisitorSaveRow = Row<"visitor_saves">;
+export type PaymentRow = Row<"payments">;
+export type NewPaymentRow = Insertable<DbSchema["payments"]>;
+export type WorkflowRunRow = Row<"workflow_runs">;
+export type FlowSessionRow = Row<"flow_sessions">;

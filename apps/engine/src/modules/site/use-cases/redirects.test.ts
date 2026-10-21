@@ -15,10 +15,10 @@
  * use-case fixed that as a side effect, which is a fair argument for the shape.
  */
 import { describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { createDb, createKdb, organizations, siteSpecs, sites, specPatches } from "@forinda-cms/db";
+import { createDb, organizations, siteSpecs, sites, specPatches } from "@forinda-cms/db";
 import { SpecRepository } from "@/shared/repositories";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 import { RedirectsUseCase } from "./redirects.usecase";
@@ -26,7 +26,6 @@ import { RedirectsUseCase } from "./redirects.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_redirect";
 const SITE = "site_redirect";
@@ -46,20 +45,20 @@ suite("redirects from the patch spine", () => {
   const of = () => {
     const scope = { orgId: ORG, siteId: SITE };
     return {
-      apply: new ApplySpecUseCase(kdb, scope),
-      redirects: new RedirectsUseCase(kdb, scope),
-      specs: new SpecRepository(kdb, scope),
+      apply: new ApplySpecUseCase(db, scope),
+      redirects: new RedirectsUseCase(db, scope),
+      specs: new SpecRepository(db, scope),
     };
   };
   const repo = of;
 
   const reset = async () => {
-    await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
-    await db.delete(siteSpecs).where(eq(siteSpecs.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "Redirect org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "r", name: "R" });
+    await db.deleteFrom("spec_patches").where(eq(specPatches.orgId, ORG)).execute();
+    await db.deleteFrom("site_specs").where(eq(siteSpecs.orgId, ORG)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "Redirect org" }).execute();
+    await db.insertInto("sites").values({ id: SITE, orgId: ORG, slug: "r", name: "R" }).execute();
   };
 
   it("redirects a moved page without anyone writing a rule", async () => {

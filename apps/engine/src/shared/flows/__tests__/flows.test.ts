@@ -6,15 +6,8 @@
  * and somebody else's journey read with a guessed token.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
-import {
-  closeAllPools,
-  createDb,
-  createKdb,
-  flowSessions,
-  organizations,
-  sites,
-} from "@forinda-cms/db";
+import { eq } from "@forinda/kickjs-db";
+import { closeAllPools, createDb, flowSessions, organizations, sites } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { FlowUseCase } from "../flow.usecase";
@@ -22,7 +15,6 @@ import { FlowUseCase } from "../flow.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_flows";
 const SITE = "site_flows";
@@ -88,13 +80,16 @@ suite("flows", () => {
   const other = "b".repeat(64);
 
   beforeEach(async () => {
-    await db.delete(flowSessions);
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "Flows org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" });
+    await db.deleteFrom("flow_sessions").execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "Flows org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" })
+      .execute();
 
-    flows = new FlowUseCase(kdb, { orgId: ORG, siteId: SITE });
+    flows = new FlowUseCase(db, { orgId: ORG, siteId: SITE });
   });
 
   afterAll(async () => {
@@ -118,7 +113,7 @@ suite("flows", () => {
 
   it("stores the token hashed, never the token", async () => {
     await flows.choose(token, page, flow, "stylist", { slug: "amina" });
-    const [row] = await db.select().from(flowSessions);
+    const [row] = await db.selectFrom("flow_sessions").selectAll().execute();
 
     expect(row!.tokenHash).not.toBe(token);
     expect(row!.tokenHash).toHaveLength(64);
@@ -138,12 +133,15 @@ suite("flows", () => {
     await flows.choose(token, page, flow, "stylist", { slug: "amina" });
     await flows.finish(token, page.key, flow.key);
 
-    expect(await db.select().from(flowSessions)).toHaveLength(0);
+    expect(await db.selectFrom("flow_sessions").selectAll().execute()).toHaveLength(0);
   });
 
   it("treats an expired journey as one that was never started", async () => {
     await flows.choose(token, page, flow, "stylist", { slug: "amina" });
-    await db.update(flowSessions).set({ expiresAt: new Date(Date.now() - 1000) });
+    await db
+      .updateTable("flow_sessions")
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .execute();
 
     expect(await flows.answers(token, page.key, flow.key)).toEqual({});
   });

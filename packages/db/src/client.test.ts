@@ -1,7 +1,7 @@
 /**
  * Pool sharing, and the shutdown that used to break the dev server.
  *
- * postgres.js connects lazily, so a client can be created and released here
+ * `pg.Pool` connects lazily, so a client can be created and released here
  * without a database — what is under test is the bookkeeping, not the socket.
  */
 import { describe, expect, it } from "vitest";
@@ -14,7 +14,7 @@ describe("connection pooling", () => {
   it("shares one client between holders of the same URL", () => {
     const a = createDb(URL_);
     const b = createDb(URL_);
-    expect(a.$client).toBe(b.$client);
+    expect(a).toBe(b);
     return closeAllPools();
   });
 
@@ -25,12 +25,12 @@ describe("connection pooling", () => {
     // failed with `write CONNECTION_ENDED`.
     const reloaded = createDb(URL_);
     const previous = createDb(URL_);
-    expect(reloaded.$client).toBe(previous.$client);
+    expect(reloaded).toBe(previous);
 
     await releaseDb(URL_);
 
     // Same client, still the one the surviving application holds.
-    expect(createDb(URL_).$client).toBe(reloaded.$client);
+    expect(createDb(URL_)).toBe(reloaded);
     await closeAllPools();
   });
 
@@ -40,7 +40,7 @@ describe("connection pooling", () => {
 
     // A fresh pool, because the old one was closed rather than handed back.
     const second = createDb(URL_);
-    expect(second.$client).not.toBe(first.$client);
+    expect(second).not.toBe(first);
     await closeAllPools();
   });
 
