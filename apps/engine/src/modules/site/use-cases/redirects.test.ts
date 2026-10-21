@@ -22,6 +22,7 @@ import { createDb, organizations, siteSpecs, sites, specPatches } from "@forinda
 import { SpecRepository } from "@/shared/repositories";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 import { RedirectsUseCase } from "./redirects.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -45,9 +46,9 @@ suite("redirects from the patch spine", () => {
   const of = () => {
     const scope = { orgId: ORG, siteId: SITE };
     return {
-      apply: new ApplySpecUseCase(db, scope),
-      redirects: new RedirectsUseCase(db, scope),
-      specs: new SpecRepository(db, scope),
+      apply: standalone(db, scope)(ApplySpecUseCase),
+      redirects: standalone(db, scope)(RedirectsUseCase),
+      specs: standalone(db, scope)(SpecRepository),
     };
   };
   const repo = of;

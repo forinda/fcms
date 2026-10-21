@@ -10,8 +10,6 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import type { OwnerSessionRow } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
-import type { Db } from "@forinda-cms/db";
 import { OwnerRepository } from "@/shared/repositories/owner.repository";
 
 export interface SessionView {
@@ -26,11 +24,7 @@ export interface SessionView {
 
 @Service({ scope: Lifetime.REQUEST })
 export class SessionsUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   async list(ownerId: string, currentToken: string | undefined): Promise<SessionView[]> {
     const current = currentToken ? await this.owners.findBySessionToken(currentToken) : null;

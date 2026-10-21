@@ -16,6 +16,7 @@ import { sites } from "@forinda-cms/db";
 import { eq } from "@forinda/kickjs-db";
 
 import { DB } from "@/shared/db";
+import { inSite } from "@/contributors/site.contributor";
 import { SpecRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
@@ -96,13 +97,14 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
               .where(eq(sites.orgId, orgId))
               .execute();
             for (const site of all) {
-              const scope = { orgId, siteId: site.id };
-              const spec = await new SpecRepository(db, scope).find();
-              if (!spec) continue;
+              await inSite({ orgId, siteId: site.id }, async () => {
+                const spec = await container.resolve(SpecRepository).find();
+                if (!spec) return;
 
-              const workflows = new WorkflowUseCase(db, scope);
-              await workflows.enqueueDue(spec);
-              await workflows.runDue(spec);
+                const workflows = container.resolve(WorkflowUseCase);
+                await workflows.enqueueDue(spec);
+                await workflows.runDue(spec);
+              });
             }
           } catch (error) {
             // A tick that throws must not take the timer with it: the next one

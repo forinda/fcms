@@ -21,6 +21,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import { WorkflowUseCase, fires } from "../workflow.usecase";
 import { reachable } from "../actions";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -97,7 +98,7 @@ suite("workflows", () => {
       .execute();
     entryId = entry!.id;
 
-    use = new WorkflowUseCase(db, scope);
+    use = standalone(db, scope)(WorkflowUseCase);
   });
 
   afterEach(() => vi.unstubAllGlobals());

@@ -32,6 +32,7 @@ import {
   ApplySpecUseCase,
   type ApplySpecInput,
 } from "@/modules/admin/use-cases/apply-spec.usecase";
+import { standalone } from "@/shared/standalone";
 
 const SITE = "site_planner";
 const ORG = "org_planner";
@@ -131,7 +132,10 @@ const db = url ? createDb(url) : (undefined as never);
 suite("executing a plan (needs a database)", () => {
   const repo = () => ({
     applySpec: (spec: unknown, input: ApplySpecInput) =>
-      new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }).execute(spec as SiteSpec, input),
+      standalone(db, { orgId: ORG, siteId: SITE })(ApplySpecUseCase).execute(
+        spec as SiteSpec,
+        input,
+      ),
   });
 
   const reset = async () => {

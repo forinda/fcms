@@ -13,6 +13,7 @@ import { closeAllPools, createDb, organizations, type OwnerRow } from "@forinda-
 import { AccountUseCase } from "../use-cases/account.usecase";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 import { OwnerRepository } from "@/shared/repositories";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -31,7 +32,7 @@ suite("your own account", () => {
   let token: string;
 
   beforeEach(async () => {
-    owners = new OwnerRepository(db);
+    owners = standalone(db)(OwnerRepository);
     for (const row of await owners.list(ORG)) await owners.remove(ORG, row.id);
     await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
     await db.insertInto("organizations").values({ id: ORG, name: "Account org" }).execute();
@@ -42,7 +43,7 @@ suite("your own account", () => {
       passwordHash: await hashPassword(CURRENT),
     });
     token = (await owners.openSession(actor.id, 60_000, {})).token;
-    accounts = new AccountUseCase(db);
+    accounts = standalone(db)(AccountUseCase);
   });
 
   const change = (over: Partial<{ current: string; next: string; confirm: string }> = {}) =>

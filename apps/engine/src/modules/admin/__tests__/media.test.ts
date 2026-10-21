@@ -16,6 +16,7 @@ import { assets, closeAllPools, createDb, organizations, sites } from "@forinda-
 import { AssetRepository } from "@/shared/repositories/asset.repository";
 import { MediaUseCase } from "../use-cases/media.usecase";
 import { defaultMediaDir } from "@/config";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -44,7 +45,7 @@ suite("media", () => {
       .execute();
 
     process.env["MEDIA_DIR"] = mkdtempSync(join(tmpdir(), "fcms-media-"));
-    uploads = new MediaUseCase(new AssetRepository(db, { orgId: ORG, siteId: SITE }));
+    uploads = standalone(db, { orgId: ORG, siteId: SITE })(MediaUseCase);
   });
 
   const upload = (over: Partial<{ buffer: Buffer; originalname: string; mimetype: string }> = {}) =>
@@ -121,9 +122,9 @@ suite("media", () => {
       ])
       .execute();
     try {
-      const names = (await new AssetRepository(db, { orgId: ORG, siteId: SITE }).list()).map(
-        (a) => a.filename,
-      );
+      const names = (
+        await standalone(db, { orgId: ORG, siteId: SITE })(AssetRepository).list()
+      ).map((a) => a.filename);
       expect(names).toContain("shared.png");
       expect(names).not.toContain("theirs.png");
     } finally {

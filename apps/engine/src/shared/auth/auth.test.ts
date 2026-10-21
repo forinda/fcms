@@ -9,14 +9,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "@forinda/kickjs-db";
 
-import {
-  closeAllPools,
-  createDb,
-  loginAttempts,
-  organizations,
-  ownerSessions,
-  owners,
-} from "@forinda-cms/db";
+import { closeAllPools, createDb, organizations, owners } from "@forinda-cms/db";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 import {
@@ -29,6 +22,7 @@ import {
   TooManyAttemptsError,
 } from "./auth.usecase";
 import { OwnerRepository } from "@/shared/repositories";
+import { standalone } from "@/shared/standalone";
 
 describe("password hashing (no database needed)", () => {
   it("verifies a correct password and rejects a wrong one", async () => {
@@ -83,14 +77,14 @@ suite("signing in", () => {
   });
 
   const provision = () =>
-    new ProvisionOwnerUseCase(db).execute({ orgId: ORG, email: EMAIL, password: PASSWORD });
+    standalone(db)(ProvisionOwnerUseCase).execute({ orgId: ORG, email: EMAIL, password: PASSWORD });
 
   it("creates the first owner and then refuses to create another", async () => {
     expect(await provision()).not.toBeNull();
     // A restart with the env still set must not add a second account, and a
     // leaked env var must not mint one on a running install.
     expect(await provision()).toBeNull();
-    expect(await new OwnerRepository(db).count()).toBe(1);
+    expect(await standalone(db)(OwnerRepository).count()).toBe(1);
   });
 
   it("stores a hash, never the password", async () => {
@@ -106,14 +100,17 @@ suite("signing in", () => {
 
   it("signs in with the right password", async () => {
     await provision();
-    const session = await new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD });
+    const session = await standalone(db)(LoginUseCase).execute({
+      email: EMAIL,
+      password: PASSWORD,
+    });
     expect(session.token).toBeTruthy();
     expect(session.owner.email).toBe(EMAIL);
   });
 
   it("gives the same answer for a wrong password and an unknown account", async () => {
     await provision();
-    const login = new LoginUseCase(db);
+    const login = standalone(db)(LoginUseCase);
 
     // Different messages here turn the login form into a user-enumeration
     // oracle, which is the whole reason this is one error type.
@@ -129,7 +126,7 @@ suite("signing in", () => {
 
   it("is case-insensitive about the email", async () => {
     await provision();
-    const session = await new LoginUseCase(db).execute({
+    const session = await standalone(db)(LoginUseCase).execute({
       email: EMAIL.toUpperCase(),
       password: PASSWORD,
     });
@@ -155,11 +152,15 @@ suite("the lockout", () => {
     await db.deleteFrom("owners").execute();
     await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
     await db.insertInto("organizations").values({ id: ORG, name: "Auth org" }).execute();
-    await new ProvisionOwnerUseCase(db).execute({ orgId: ORG, email: EMAIL, password: PASSWORD });
+    await standalone(db)(ProvisionOwnerUseCase).execute({
+      orgId: ORG,
+      email: EMAIL,
+      password: PASSWORD,
+    });
   });
 
   const wrong = () =>
-    new LoginUseCase(db).execute({ email: EMAIL, password: "wrong", ipAddress: IP });
+    standalone(db)(LoginUseCase).execute({ email: EMAIL, password: "wrong", ipAddress: IP });
 
   it("refuses after too many failures, and says so", async () => {
     for (let i = 0; i < LOCKOUT_AFTER; i++) {
@@ -176,7 +177,7 @@ suite("the lockout", () => {
     for (let i = 0; i < LOCKOUT_AFTER; i++) await wrong().catch(() => {});
 
     await expect(
-      new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP }),
+      standalone(db)(LoginUseCase).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP }),
     ).rejects.toBeInstanceOf(TooManyAttemptsError);
   });
 
@@ -185,20 +186,20 @@ suite("the lockout", () => {
 
     // An owner who mistyped nine times and then got it right does not start
     // tomorrow nine attempts down.
-    await new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP });
+    await standalone(db)(LoginUseCase).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP });
     await expect(wrong()).rejects.toBeInstanceOf(InvalidCredentialsError);
   });
 
   it("counts attempts from one address against another email", async () => {
     // Otherwise a guessing attack just changes the email between tries.
     for (let i = 0; i < LOCKOUT_AFTER; i++) {
-      await new LoginUseCase(db)
+      await standalone(db)(LoginUseCase)
         .execute({ email: `nobody${i}@example.test`, password: "x", ipAddress: IP })
         .catch(() => {});
     }
 
     await expect(
-      new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP }),
+      standalone(db)(LoginUseCase).execute({ email: EMAIL, password: PASSWORD, ipAddress: IP }),
     ).rejects.toBeInstanceOf(TooManyAttemptsError);
   });
 
@@ -206,7 +207,7 @@ suite("the lockout", () => {
     // Locking by email alone hands an attacker a way to lock a real owner out
     // of their own site from anywhere.
     for (let i = 0; i < LOCKOUT_AFTER; i++) {
-      await new LoginUseCase(db)
+      await standalone(db)(LoginUseCase)
         .execute({ email: EMAIL, password: "wrong", ipAddress: "198.51.100.4" })
         .catch(() => {});
     }
@@ -214,7 +215,7 @@ suite("the lockout", () => {
     // The real owner, on their own connection, is still locked — that is the
     // trade the email counter makes, and it is deliberate. What must not happen
     // is a *different* account being locked.
-    const other = await new LoginUseCase(db)
+    const other = await standalone(db)(LoginUseCase)
       .execute({ email: "someone@else.test", password: "x", ipAddress: "192.0.2.9" })
       .catch((e: unknown) => e);
     expect(other).toBeInstanceOf(InvalidCredentialsError);
@@ -230,10 +231,14 @@ suite("sessions", () => {
     await db.deleteFrom("owners").execute();
     await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
     await db.insertInto("organizations").values({ id: ORG, name: "Auth org" }).execute();
-    await new ProvisionOwnerUseCase(db).execute({ orgId: ORG, email: EMAIL, password: PASSWORD });
+    await standalone(db)(ProvisionOwnerUseCase).execute({
+      orgId: ORG,
+      email: EMAIL,
+      password: PASSWORD,
+    });
   });
 
-  const signIn = () => new LoginUseCase(db).execute({ email: EMAIL, password: PASSWORD });
+  const signIn = () => standalone(db)(LoginUseCase).execute({ email: EMAIL, password: PASSWORD });
 
   it("stores the token's hash and not the token", async () => {
     const { token } = await signIn();
@@ -245,11 +250,11 @@ suite("sessions", () => {
 
   it("resolves an owner from a live token", async () => {
     const { token } = await signIn();
-    expect((await new AuthenticateUseCase(db).execute(token))?.email).toBe(EMAIL);
+    expect((await standalone(db)(AuthenticateUseCase).execute(token))?.email).toBe(EMAIL);
   });
 
   it("resolves nothing for a missing, wrong or expired token", async () => {
-    const auth = new AuthenticateUseCase(db);
+    const auth = standalone(db)(AuthenticateUseCase);
     expect(await auth.execute(undefined)).toBeNull();
     expect(await auth.execute("not-a-real-token")).toBeNull();
 
@@ -263,18 +268,18 @@ suite("sessions", () => {
 
   it("stops working the moment it is signed out", async () => {
     const { token } = await signIn();
-    await new LogoutUseCase(db).execute(token);
+    await standalone(db)(LogoutUseCase).execute(token);
     // Deleted rather than marked: a revoked session should not exist.
-    expect(await new AuthenticateUseCase(db).execute(token)).toBeNull();
+    expect(await standalone(db)(AuthenticateUseCase).execute(token)).toBeNull();
     expect((await db.selectFrom("owner_sessions").selectAll().execute()).length).toBe(0);
   });
 
   it("leaves other sessions alone when one signs out", async () => {
     const first = await signIn();
     const second = await signIn();
-    await new LogoutUseCase(db).execute(first.token);
+    await standalone(db)(LogoutUseCase).execute(first.token);
 
-    expect(await new AuthenticateUseCase(db).execute(first.token)).toBeNull();
-    expect(await new AuthenticateUseCase(db).execute(second.token)).not.toBeNull();
+    expect(await standalone(db)(AuthenticateUseCase).execute(first.token)).toBeNull();
+    expect(await standalone(db)(AuthenticateUseCase).execute(second.token)).not.toBeNull();
   });
 });

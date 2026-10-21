@@ -25,6 +25,7 @@ import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.useca
 import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SpecRepository } from "@/shared/repositories";
 import { STARTERS, starterFor } from "@forinda-cms/spec";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -53,12 +54,15 @@ suite("applying a starter", () => {
     const starter = starterFor(key)!;
     const spec = SiteSpec.parse(starter.build("Riverside Salon"));
 
-    const result = await new ApplySpecUseCase(db, scope).execute(spec, {
+    const result = await standalone(
+      db,
+      scope,
+    )(ApplySpecUseCase).execute(spec, {
       ...ACTOR,
       source: `starter:${key}`,
     });
 
-    expect((await new SpecRepository(db, scope).find())?.name).toBe("Riverside Salon");
+    expect((await standalone(db, scope)(SpecRepository).find())?.name).toBe("Riverside Salon");
     // Entries share one table, so a migration step is an index rather than a
     // column: one per field somebody can filter or sort by, and one per field
     // that has to be unique. The count is a property of the starter, and zero
@@ -69,21 +73,27 @@ suite("applying a starter", () => {
         stored.filter((f) => "unique" in f && f.unique).length,
     );
 
-    const [first] = await new SiteHistoryUseCase(db, scope).execute(1);
+    const [first] = await standalone(db, scope)(SiteHistoryUseCase).execute(1);
     expect(first?.source).toBe(`starter:${key}`);
     expect(first?.actor).toBe("owner@example.test");
   });
 
   it("leaves a site somebody can immediately use", async () => {
     const spec = SiteSpec.parse(starterFor("bookings")!.build("Riverside Salon"));
-    await new ApplySpecUseCase(db, scope).execute(spec, {
+    await standalone(
+      db,
+      scope,
+    )(ApplySpecUseCase).execute(spec, {
       ...ACTOR,
       source: "starter:bookings",
     });
 
     // The point of a starter is that the next thing you do works. Adding a
     // service is the next thing anyone does.
-    const written = await new EntryWriteUseCase(db, scope).create(spec, {
+    const written = await standalone(
+      db,
+      scope,
+    )(EntryWriteUseCase).create(spec, {
       typeKey: "service",
       slug: "haircut",
       status: "published",

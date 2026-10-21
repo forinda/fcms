@@ -6,11 +6,12 @@
  * service against the person who has to clean it up.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { closeAllPools, createDb, loginAttempts, organizations, owners } from "@forinda-cms/db";
+import { closeAllPools, createDb, organizations } from "@forinda-cms/db";
 import { eq } from "@forinda/kickjs-db";
 
 import { LoginUseCase, ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 import { SUBMISSIONS_ALLOWED, SubmissionLimitUseCase } from "../submission-limit.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -28,7 +29,7 @@ suite("submission limits", () => {
     await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
     await db.insertInto("organizations").values({ id: ORG, name: "Submit org" }).execute();
 
-    limit = new SubmissionLimitUseCase(db);
+    limit = standalone(db)(SubmissionLimitUseCase);
   });
 
   it("allows a person and stops a script", async () => {
@@ -44,7 +45,7 @@ suite("submission limits", () => {
     // The reason the key is namespaced. Without it, filling a contact form
     // enough times would rate-limit sign-in — turning spam into a denial of
     // service against the one person who can clear it.
-    await new ProvisionOwnerUseCase(db).execute({
+    await standalone(db)(ProvisionOwnerUseCase).execute({
       orgId: ORG,
       email: "owner@example.test",
       password: "a-long-enough-password",
@@ -52,7 +53,7 @@ suite("submission limits", () => {
 
     for (let i = 0; i < SUBMISSIONS_ALLOWED * 2; i++) await limit.record("enquiry", null, IP);
 
-    const session = await new LoginUseCase(db).execute({
+    const session = await standalone(db)(LoginUseCase).execute({
       email: "owner@example.test",
       password: "a-long-enough-password",
       ipAddress: IP,

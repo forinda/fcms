@@ -8,11 +8,10 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { SiteSpec, valueOf } from "@forinda-cms/spec";
 
-import type { Db, Scope } from "@forinda-cms/db";
+import type { Db } from "@forinda-cms/db";
 import { PatchRepository, SpecRepository } from "@/shared/repositories";
 
 import { DB } from "@/shared/db";
-import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface UndoResult {
   readonly seq: number;
@@ -21,16 +20,11 @@ export interface UndoResult {
 
 @Service({ scope: Lifetime.REQUEST })
 export class UndoSpecUseCase {
-  private readonly specs: SpecRepository;
-  private readonly patches: PatchRepository;
-
   constructor(
     @Inject(DB) private readonly db: Db,
-    @Inject(CURRENT_SCOPE) private readonly scope: Scope,
-  ) {
-    this.specs = new SpecRepository(db, scope);
-    this.patches = new PatchRepository(db, scope);
-  }
+    @Inject(SpecRepository) private readonly specs: SpecRepository,
+    @Inject(PatchRepository) private readonly patches: PatchRepository,
+  ) {}
 
   async execute(): Promise<UndoResult | null> {
     return this.db.transaction(async (tx) => {

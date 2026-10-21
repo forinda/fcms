@@ -11,6 +11,7 @@ import { closeAllPools, createDb, organizations, type OwnerRow } from "@forinda-
 
 import { PeopleUseCase } from "../use-cases/people.usecase";
 import { OwnerRepository } from "@/shared/repositories";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -41,7 +42,7 @@ suite("people", () => {
   const asOwner = () => ({ actor: owner });
 
   beforeEach(async () => {
-    owners = new OwnerRepository(db);
+    owners = standalone(db)(OwnerRepository);
     // `owners_email` is unique across the whole install, not per organization,
     // so this suite keeps to its own domain and clears anything of its own a
     // previous run left behind.
@@ -57,7 +58,7 @@ suite("people", () => {
       passwordHash: "not-a-real-hash",
       role: "owner",
     });
-    staff = new PeopleUseCase(db);
+    staff = standalone(db)(PeopleUseCase);
   });
 
   it("adds somebody with the role they were given", async () => {

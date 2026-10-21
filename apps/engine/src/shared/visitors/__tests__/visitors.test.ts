@@ -12,13 +12,13 @@ import {
   createDb,
   organizations,
   sites,
-  visitorSaves,
   visitorSessions,
   visitors,
 } from "@forinda-cms/db";
 
 import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
 import { VisitorCredentialsError, VisitorUseCase } from "../visitor.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -51,8 +51,8 @@ suite("visitors", () => {
       ])
       .execute();
 
-    here = new VisitorUseCase(db, { orgId: ORG, siteId: SITE });
-    elsewhere = new VisitorUseCase(db, { orgId: ORG, siteId: OTHER });
+    here = standalone(db, { orgId: ORG, siteId: SITE })(VisitorUseCase);
+    elsewhere = standalone(db, { orgId: ORG, siteId: OTHER })(VisitorUseCase);
   });
 
   const register = (use = here) => use.register({ email: EMAIL, password: PASSWORD });
@@ -115,7 +115,7 @@ suite("visitors", () => {
       // resolve to an actor, or "saved a hotel" and "edited the site" are one
       // permissions bug apart.
       const session = await register();
-      expect(await new AuthenticateUseCase(db).execute(session.token)).toBeNull();
+      expect(await standalone(db)(AuthenticateUseCase).execute(session.token)).toBeNull();
     });
 
     it("stops working when signed out", async () => {

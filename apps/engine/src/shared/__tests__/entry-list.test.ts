@@ -11,6 +11,7 @@ import { eq } from "@forinda/kickjs-db";
 import { closeAllPools, createDb, entries, organizations, sites } from "@forinda-cms/db";
 
 import { EntryRepository } from "@/shared/repositories";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -82,7 +83,7 @@ suite("a page of entries", () => {
       ])
       .execute();
 
-    repo = new EntryRepository(db, scope);
+    repo = standalone(db, scope)(EntryRepository);
   });
 
   const page = (over: Record<string, unknown> = {}) =>

@@ -6,11 +6,9 @@
  * caller.
  */
 import { Inject, Service } from "@forinda/kickjs";
-import type { Db, OwnerRow } from "@forinda-cms/db";
+import type { OwnerRow } from "@forinda-cms/db";
 import { OwnerRepository } from "@/shared/repositories/owner.repository";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
-
-import { DB } from "@/shared/db";
 
 /**
  * A hash of a value nobody will supply.
@@ -78,11 +76,7 @@ export class InvalidCredentialsError extends Error {
 
 @Service()
 export class LoginUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   async execute(input: LoginInput): Promise<Session> {
     const ip = input.ipAddress ?? null;
@@ -118,11 +112,7 @@ export class LoginUseCase {
 
 @Service()
 export class LogoutUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   /** Deletes the session rather than marking it — a revoked session should not exist. */
   async execute(token: string): Promise<void> {
@@ -132,11 +122,7 @@ export class LogoutUseCase {
 
 @Service()
 export class AuthenticateUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   async execute(token: string | undefined): Promise<OwnerRow | null> {
     if (!token) return null;
@@ -160,11 +146,7 @@ export class AuthenticateUseCase {
  */
 @Service()
 export class ProvisionOwnerUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   async execute(input: {
     orgId: string;

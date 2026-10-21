@@ -13,6 +13,7 @@ import { parse as parseYaml } from "yaml";
 import { joinFiles } from "@forinda-cms/lang";
 import { createDb, closeAllPools } from "@forinda-cms/db";
 import { ApplySpecUseCase } from "../src/modules/admin/use-cases/apply-spec.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 if (!url) {
@@ -75,9 +76,9 @@ await db
   .onConflict((oc) => oc.doNothing())
   .execute();
 
-// Constructed directly rather than resolved: a script has no request, and the
-// use-case's constructor is the same one the container calls.
-const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE });
+// Resolved, not constructed: a script has no request, so `standalone` binds
+// what the app's adapters would and the container builds the rest.
+const applySpec = standalone(db, { orgId: ORG, siteId: SITE })(ApplySpecUseCase);
 const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
   role: "owner",

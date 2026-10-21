@@ -8,18 +8,12 @@
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "@forinda/kickjs-db";
-import {
-  closeAllPools,
-  createDb,
-  loginAttempts,
-  organizations,
-  ownerSessions,
-  owners,
-} from "@forinda-cms/db";
+import { closeAllPools, createDb, organizations } from "@forinda-cms/db";
 
 import { LoginUseCase, ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 import { AuthenticateUseCase } from "@/shared/auth/auth.usecase";
 import { SessionsUseCase } from "../use-cases/sessions.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -39,7 +33,7 @@ suite("sessions", () => {
     await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
     await db.insertInto("organizations").values({ id: ORG, name: "Sessions org" }).execute();
 
-    const owner = await new ProvisionOwnerUseCase(db).execute({
+    const owner = await standalone(db)(ProvisionOwnerUseCase).execute({
       orgId: ORG,
       email: EMAIL,
       password: PASSWORD,
@@ -48,7 +42,7 @@ suite("sessions", () => {
   });
 
   const signIn = (userAgent: string) =>
-    new LoginUseCase(db).execute({
+    standalone(db)(LoginUseCase).execute({
       email: EMAIL,
       password: PASSWORD,
       userAgent,
@@ -59,7 +53,7 @@ suite("sessions", () => {
     await signIn("fcms");
     await signIn("Mozilla/5.0 (Macintosh) Chrome/140.0");
 
-    const rows = await new SessionsUseCase(db).list(ownerId, undefined);
+    const rows = await standalone(db)(SessionsUseCase).list(ownerId, undefined);
     expect(rows.map((r) => r.what).sort()).toEqual(["Chrome", "Command line (fcms)"]);
   });
 
@@ -67,7 +61,7 @@ suite("sessions", () => {
     const mine = await signIn("Chrome/140");
     await signIn("fcms");
 
-    const rows = await new SessionsUseCase(db).list(ownerId, mine.token);
+    const rows = await standalone(db)(SessionsUseCase).list(ownerId, mine.token);
     expect(rows.filter((r) => r.current)).toHaveLength(1);
     expect(rows.find((r) => r.current)!.what).toBe("Chrome");
   });
@@ -76,12 +70,12 @@ suite("sessions", () => {
     const browser = await signIn("Chrome/140");
     const cli = await signIn("fcms");
 
-    const sessions = new SessionsUseCase(db);
+    const sessions = standalone(db)(SessionsUseCase);
     const target = (await sessions.list(ownerId, browser.token)).find((r) => !r.current)!;
 
     expect(await sessions.revoke(ownerId, target.id, browser.token)).toBe(true);
 
-    const auth = new AuthenticateUseCase(db);
+    const auth = standalone(db)(AuthenticateUseCase);
     expect(await auth.execute(cli.token)).toBeNull();
     // And the one doing the revoking is untouched.
     expect(await auth.execute(browser.token)).not.toBeNull();
@@ -91,11 +85,11 @@ suite("sessions", () => {
     // The button for that is Sign out; a revoke that logs you out mid-list
     // reads as a bug.
     const mine = await signIn("Chrome/140");
-    const sessions = new SessionsUseCase(db);
+    const sessions = standalone(db)(SessionsUseCase);
     const current = (await sessions.list(ownerId, mine.token)).find((r) => r.current)!;
 
     expect(await sessions.revoke(ownerId, current.id, mine.token)).toBe(false);
-    expect(await new AuthenticateUseCase(db).execute(mine.token)).not.toBeNull();
+    expect(await standalone(db)(AuthenticateUseCase).execute(mine.token)).not.toBeNull();
   });
 
   it("signs out everywhere else, keeping this one", async () => {
@@ -103,9 +97,9 @@ suite("sessions", () => {
     const cli = await signIn("fcms");
     const other = await signIn("Firefox/130");
 
-    expect(await new SessionsUseCase(db).revokeOthers(ownerId, mine.token)).toBe(2);
+    expect(await standalone(db)(SessionsUseCase).revokeOthers(ownerId, mine.token)).toBe(2);
 
-    const auth = new AuthenticateUseCase(db);
+    const auth = standalone(db)(AuthenticateUseCase);
     expect(await auth.execute(cli.token)).toBeNull();
     expect(await auth.execute(other.token)).toBeNull();
     expect(await auth.execute(mine.token)).not.toBeNull();
@@ -113,11 +107,13 @@ suite("sessions", () => {
 
   it("records that a session was used, so the list can say when", async () => {
     const mine = await signIn("Chrome/140");
-    expect((await new SessionsUseCase(db).list(ownerId, mine.token))[0]!.lastUsed).toBeNull();
+    expect(
+      (await standalone(db)(SessionsUseCase).list(ownerId, mine.token))[0]!.lastUsed,
+    ).toBeNull();
 
-    await new AuthenticateUseCase(db).execute(mine.token);
+    await standalone(db)(AuthenticateUseCase).execute(mine.token);
 
-    const [row] = await new SessionsUseCase(db).list(ownerId, mine.token);
+    const [row] = await standalone(db)(SessionsUseCase).list(ownerId, mine.token);
     expect(row!.lastUsed).toBeInstanceOf(Date);
   });
 
@@ -126,9 +122,9 @@ suite("sessions", () => {
     const recently = new Date(Date.now() - 10_000);
     await db.updateTable("owner_sessions").set({ lastUsedAt: recently }).execute();
 
-    await new AuthenticateUseCase(db).execute(mine.token);
+    await standalone(db)(AuthenticateUseCase).execute(mine.token);
 
-    const [row] = await new SessionsUseCase(db).list(ownerId, mine.token);
+    const [row] = await standalone(db)(SessionsUseCase).list(ownerId, mine.token);
     expect(row!.lastUsed).toEqual(recently);
   });
 });

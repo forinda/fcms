@@ -19,6 +19,7 @@ import { SiteSpec } from "@forinda-cms/spec";
 
 import { ApplySpecUseCase, NotAllowedError } from "@/modules/admin/use-cases/apply-spec.usecase";
 import { atLeast, refusal, roleOf, ROLES } from "@/shared/roles";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -78,7 +79,10 @@ suite("applying a spec", () => {
   });
 
   const apply = (role: string, next = spec) =>
-    new ApplySpecUseCase(db, scope).execute(next, {
+    standalone(
+      db,
+      scope,
+    )(ApplySpecUseCase).execute(next, {
       actor: "someone@example.test",
       role: role as never,
       source: "admin",
