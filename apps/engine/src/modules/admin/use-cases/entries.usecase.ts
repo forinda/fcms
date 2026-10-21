@@ -18,6 +18,28 @@ import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
 import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
+import { atLeast, refusal, type Role } from "@/shared/roles";
+import { NotAllowedError } from "./apply-spec.usecase";
+
+/**
+ * Who is writing. A role, or `"visitor"` — somebody submitting a public form
+ * (ADR 0027), which may create an entry and do nothing else.
+ */
+export type Writer = Role | "visitor";
+
+/**
+ * Everything that writes content needs at least an editor (ADR 0008 §2).
+ *
+ * Checked here rather than per route, because a route that forgot is exactly
+ * how `/api` let a viewer's token write: the admin checked, the API did not,
+ * and both reached this class.
+ */
+function mayWrite(by: Writer, visitorMay: boolean): void {
+  if (by === "visitor" ? visitorMay : atLeast(by, "editor")) return;
+  throw new NotAllowedError(
+    refusal(by === "visitor" ? "viewer" : by, "change what is on the site"),
+  );
+}
 
 export interface EntryInput {
   readonly typeKey: string;
@@ -53,7 +75,8 @@ export class EntryWriteUseCase {
   private readonly scoped = (eb: ExpressionBuilder<DbSchema, "entries">) =>
     eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
-  async create(spec: SiteSpec, input: EntryInput): Promise<EntryWriteResult> {
+  async create(spec: SiteSpec, input: EntryInput, by: Writer): Promise<EntryWriteResult> {
+    mayWrite(by, true);
     const type = this.typeOf(spec, input.typeKey);
     if (!type) return { ok: false, errors: { _: `No content type named "${input.typeKey}".` } };
 
@@ -100,7 +123,8 @@ export class EntryWriteUseCase {
     }
   }
 
-  async update(spec: SiteSpec, id: string, input: EntryInput): Promise<EntryWriteResult> {
+  async update(spec: SiteSpec, id: string, input: EntryInput, by: Role): Promise<EntryWriteResult> {
+    mayWrite(by, false);
     const type = this.typeOf(spec, input.typeKey);
     if (!type) return { ok: false, errors: { _: `No content type named "${input.typeKey}".` } };
     if (type.derived)
@@ -171,11 +195,13 @@ export class EntryWriteUseCase {
    * boundary between "written" and "public", which is why it is one deliberate
    * action rather than a checkbox on the form that someone leaves ticked.
    */
-  async setStatus(id: string, status: "draft" | "published"): Promise<boolean> {
+  async setStatus(id: string, status: "draft" | "published", by: Role): Promise<boolean> {
+    mayWrite(by, false);
     return this.repo.setStatus(id, status);
   }
 
-  async delete(id: string): Promise<boolean> {
+  async delete(id: string, by: Role): Promise<boolean> {
+    mayWrite(by, false);
     const rows = await this.db
       .deleteFrom("entries")
       .where(this.scoped)

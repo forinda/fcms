@@ -70,16 +70,20 @@ export class SubmissionController {
     const journey = await this.journey(ctx, spec, key);
     const data = coerceEntryInput(type, { ...fields, ...journey.selections });
 
-    const result = await this.entries.create(spec, {
-      typeKey: key,
-      data,
-      // So the person who booked can see what they booked (ADR 0027). Null for
-      // an anonymous submission, which stays anonymous.
-      visitorId: visitor?.id ?? null,
-      // Draft, always. Nothing a stranger writes is visible until someone
-      // publishes it.
-      status: "draft",
-    });
+    const result = await this.entries.create(
+      spec,
+      {
+        typeKey: key,
+        data,
+        // So the person who booked can see what they booked (ADR 0027). Null for
+        // an anonymous submission, which stays anonymous.
+        visitorId: visitor?.id ?? null,
+        // Draft, always. Nothing a stranger writes is visible until someone
+        // publishes it.
+        status: "draft",
+      },
+      "visitor",
+    );
 
     if (!result.ok) {
       const first = Object.values(result.errors)[0] ?? "That could not be saved.";

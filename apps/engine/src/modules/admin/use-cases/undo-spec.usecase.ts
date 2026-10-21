@@ -12,6 +12,8 @@ import type { Db } from "@forinda-cms/db";
 import { PatchRepository, SpecRepository } from "@/shared/repositories";
 
 import { DB } from "@/shared/db";
+import type { Role } from "@/shared/roles";
+import { NotAllowedError, notAllowed } from "./apply-spec.usecase";
 
 export interface UndoResult {
   readonly seq: number;
@@ -26,17 +28,29 @@ export class UndoSpecUseCase {
     @Inject(PatchRepository) private readonly patches: PatchRepository,
   ) {}
 
-  async execute(): Promise<UndoResult | null> {
+  /**
+   * @param role Who is asking. Undo writes a spec, so it is held to what an
+   *   apply of the restored document would need (ADR 0008 §2): a manager to
+   *   change the site at all, a developer if it takes tier-3 CSS with it.
+   *   Required, as it is on apply, so no door can leave it out.
+   */
+  async execute(role: Role): Promise<UndoResult | null> {
+    const current = await this.specs.find();
+
     return this.db.transaction(async (tx) => {
       const last = await this.patches.latestApplied(tx);
       if (!last) return null;
 
       // Narrowed rather than cast: `remove` and `move` carry no value, and the
       // helper says so instead of the column type pretending otherwise.
-      const restored = valueOf(last.inverse[0]);
+      const value = valueOf(last.inverse[0]);
+      const restored = value === null ? null : SiteSpec.parse(value);
+
+      const refused = notAllowed(role, restored, current);
+      if (refused) throw new NotAllowedError(refused);
 
       if (restored === null) await this.specs.clear(tx);
-      else await this.specs.save(SiteSpec.parse(restored), tx);
+      else await this.specs.save(restored, tx);
 
       // Marked, not deleted: "what happened to my site last Tuesday" has to
       // survive an undo.

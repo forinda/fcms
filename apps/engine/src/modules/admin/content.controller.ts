@@ -252,7 +252,7 @@ export class ContentController {
     const body = ctx.body as Record<string, unknown>;
     const status = body["status"] === "published" ? "published" : "draft";
 
-    await this.writer.setStatus(String(params["id"]), status);
+    await this.writer.setStatus(String(params["id"]), status, viewerRole(ctx));
     if (isInertiaRequest(ctx)) {
       flash(ctx, { success: status === "published" ? "Published." : "Unpublished." });
       return backToList(ctx);
@@ -305,7 +305,7 @@ ${entryForm(type, {}, { action: `/admin/content/${key}/new`, choices })}`,
     if (!spec || !type) return notFound(ctx);
 
     const { slug, data } = readForm(ctx, type);
-    const result = await this.writer.create(spec, { typeKey: key, slug, data });
+    const result = await this.writer.create(spec, { typeKey: key, slug, data }, viewerRole(ctx));
 
     if (result.ok) return redirect(ctx, `/admin/content/${key}`);
 
@@ -386,7 +386,12 @@ ${paymentsPanel(await this.payments.forEntry(entry.id), `/admin/content/${type.k
 
     const id = String(params["id"]);
     const { slug, data } = readForm(ctx, type);
-    const result = await this.writer.update(spec, id, { typeKey: type.key, slug, data });
+    const result = await this.writer.update(
+      spec,
+      id,
+      { typeKey: type.key, slug, data },
+      viewerRole(ctx),
+    );
 
     if (result.ok) return redirect(ctx, `/admin/content/${type.key}`);
 
@@ -462,7 +467,7 @@ ${entryForm(type, data, {
       );
 
     const params = ctx.params as Record<string, string>;
-    await this.writer.delete(String(params["id"]));
+    await this.writer.delete(String(params["id"]), viewerRole(ctx));
     if (isInertiaRequest(ctx)) {
       flash(ctx, { success: "Deleted." });
       return backToList(ctx);
@@ -625,7 +630,7 @@ ${
 
   @Post("/history/undo")
   async undo(ctx: Ctx): Promise<void> {
-    await this.undoLast.execute();
+    await this.undoLast.execute(viewerRole(ctx));
     redirect(ctx, "/admin/history");
   }
 }
