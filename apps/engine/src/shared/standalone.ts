@@ -16,13 +16,18 @@ import type { Db, Scope } from "@forinda-cms/db";
 import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
-export function standalone(db: Db, scope?: Scope) {
+/**
+ * @param bind Anything else the code under test needs that an adapter would
+ *   bind in the app — `STORAGE` for media, say.
+ */
+export function standalone(db: Db, scope?: Scope, bind?: (container: Container) => void) {
   // The framework installs this at bootstrap; outside one nothing has.
   Container.setRequestStoreProvider(() => requestStore.getStore() ?? null);
 
   const container = Container.create();
   container.registerInstance(DB, db);
   if (scope) container.registerInstance(CURRENT_SCOPE, scope);
+  bind?.(container);
 
   const unit = { requestId: "standalone", instances: new Map(), values: new Map() };
   return <T>(service: new (...args: never[]) => T): T =>

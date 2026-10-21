@@ -3,7 +3,10 @@ export * from "./workflows.adapter";
 
 import { fileURLToPath } from "node:url";
 
+import { getEnv } from "@forinda/kickjs";
 import { InertiaAdapter } from "@forinda/kickjs-inertia";
+import { StorageAdapter } from "@forinda/kickjs-storage/adapter";
+import { diskStorage } from "@forinda/kickjs-storage/disk";
 
 import { roleOf } from "@/shared/roles";
 import { DatabaseAdapter } from "./database.adapter";
@@ -32,5 +35,13 @@ const pages = InertiaAdapter({
   },
 });
 
+/**
+ * Where uploaded bytes go (ADR 0053): `MEDIA_DIR`, beside the database in the
+ * install's data directory, so one backup covers both. Binds `STORAGE`, and
+ * adds the directory to `/health/ready` — an install that cannot write media
+ * is not ready to take an upload.
+ */
+const media = StorageAdapter({ storage: diskStorage({ root: getEnv("MEDIA_DIR") }) });
+
 /** Instances, not factories — `bootstrap({ adapters })` takes the invoked form. */
-export const adapters = [DatabaseAdapter(), WorkflowsAdapter(), pages];
+export const adapters = [DatabaseAdapter(), WorkflowsAdapter(), media, pages];
