@@ -26,6 +26,7 @@ apps/marketing/public/install/
 # built output, never edited by hand (ADR 0046).
 packages/server/app/
 packages/server/migrations/
+packages/server/kickdb/
 
 # Working notes, kept out of the public repository on purpose (they stay on
 # disk, they are just not published). `docs/decisions/` is the reasoning behind
