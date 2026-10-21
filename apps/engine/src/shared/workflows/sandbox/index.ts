@@ -39,14 +39,26 @@ try {
   // 'Object.create(null)': no prototype, so no inherited anything. The context
   // gets exactly what is put in it, and 'globalThis' inside is empty.
   const context = vm.createContext(Object.create(null));
-  const logs = [];
-  context.console = {
-    log: (...args) => {
+
+  // Nothing from this realm is handed in — not a function, not an object.
+  // Anything made here has this realm's 'Function' one '.constructor' away,
+  // and that one can see 'process': 'console.log.constructor("return
+  // process")()' was an escape, and so was the same climb through 'input'.
+  // So the console is built by code running inside, and the input crosses as
+  // JSON text and is parsed by the context's own 'JSON'.
+  const logs = vm.runInContext(
+    '(() => {' +
+      '  const logs = [];' +
       // Kept for the run history rather than written anywhere: a script's
       // console is a debugging aid, not an output channel.
-      if (logs.length < 50) logs.push(args.map(String).join(" ").slice(0, 500));
-    },
-  };
+      '  globalThis.console = { log: (...args) => {' +
+      '    if (logs.length < 50) logs.push(args.map(String).join(" ").slice(0, 500));' +
+      '  } };' +
+      '  return logs;' +
+      '})()',
+    context,
+  );
+  const inside = vm.runInContext("JSON.parse", context)(JSON.stringify(input ?? null));
 
   const fn = vm.compileFunction(String(code), ["input"], {
     parsingContext: context,
@@ -55,8 +67,33 @@ try {
     timeout: timeoutMs,
   });
 
-  const value = await fn(input);
-  reply({ value: value === undefined ? null : value, logs });
+  // Settled and serialised *inside*, and handed out through a box rather than
+  // a promise: the runner never awaits, '.then's or walks anything the script
+  // could have touched. Awaiting a promise from the context calls that realm's
+  // 'Promise.prototype.then', which the script can replace; the spec happens
+  // to give a replaced 'then' the context's own resolvers (the escape tests
+  // hold that), but the runner should not depend on it. The box has no
+  // prototype, so a setter the script plants on 'Object.prototype' cannot
+  // intercept the write; 'stringify', 'then' and 'Reflect.apply' are taken
+  // before the script runs, so replacing them changes only the script's own
+  // code, never how its value is settled.
+  const box = vm.runInContext("Object.create(null)", context);
+  vm.runInContext(
+    "((stringify, then, apply) => (box, fn, input, logs) => { apply(then, (async () => stringify({ value: (v => v === undefined ? null : v)(await fn(input)), logs }))(), [text => { box.text = text; }, error => { box.error = String(error && error.message || error); }]); })(JSON.stringify, Promise.prototype.then, Reflect.apply)",
+    context,
+  )(box, fn, inside, logs);
+
+  // Polled on this realm's own clock; the parent's kill is the deadline.
+  while (box.text === undefined && box.error === undefined) {
+    await new Promise((done) => setImmediate(done));
+  }
+  const text = box.text;
+  if (typeof box.error === "string") reply({ error: box.error });
+  else if (typeof text !== "string") reply({ error: "the script did not answer with a value" });
+  else
+    process.stdout.write(
+      text.length > MAX_OUTPUT ? JSON.stringify({ error: "returned too much" }) : text,
+    );
 } catch (error) {
   // Not 'instanceof Error': an error thrown inside the 'vm' comes from that
   // context's realm, so it is an Error with a different constructor and the
@@ -93,6 +130,13 @@ export function timeoutOf(asked: unknown): number {
  * @param input What the pipeline put in front of it — and the only thing it
  *   can see. No network, no filesystem, no secrets: not "declared and
  *   enforced", absent (ADR 0031 §2).
+ *
+ * Absent in the script's realm, specifically. The process around it denies
+ * the filesystem and child processes, but on this Node `--permission` does not
+ * cover the network — a process with `process` in hand can open a socket. What
+ * keeps the network out is that the script has no `fetch`, `require` or
+ * `process`, and nothing from the runner's realm to climb to them through;
+ * the escape tests are what hold that.
  */
 export async function runScript(
   code: string,

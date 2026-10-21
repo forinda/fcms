@@ -76,6 +76,64 @@ describe("what a script cannot reach", () => {
     expect(result.error).toMatch(/process is not defined/);
   });
 
+  // The same climb through anything handed in from outside. A function or
+  // object made in the runner's own realm has that realm's `Function` as its
+  // constructor's constructor — and that one *can* see `process`. Each of
+  // these reached it, and from there the network, which `--permission` does
+  // not cover on this Node.
+  it.each([
+    ["the console it was given", "console.log.constructor('return process')()"],
+    ["its input", "input.constructor.constructor('return process')()"],
+    ["something nested in its input", "input.lines.constructor.constructor('return process')()"],
+    [
+      "the console's own prototype",
+      "Object.getPrototypeOf(console).constructor.constructor('return process')()",
+    ],
+  ])("cannot climb out through %s", async (_, climb) => {
+    const result = await run(`return typeof (${climb}).pid`, { lines: [1] });
+    expect(result.value).not.toBe("number");
+    expect(result.error).toMatch(/process is not defined/);
+  });
+
+  it("cannot climb out through whatever settles what it returns", async () => {
+    // Returning a thenable makes whoever awaits it call `then` with *its*
+    // resolve and reject — functions from the awaiting realm. If the runner
+    // awaits it, those are the runner's, and their constructor sees
+    // `process`: the reply then carries a real pid.
+    const result = await run(
+      `return { then(resolve) {
+         try { resolve(typeof resolve.constructor("return process")().pid); }
+         catch (error) { resolve("refused: " + error.message); }
+       } }`,
+    );
+    expect(result.value).not.toBe("number");
+    expect(String(result.value)).toMatch(/process is not defined/);
+  });
+
+  it("cannot climb out through a 'then' it planted for whoever settles it", async () => {
+    // A script can replace its own realm's Promise.prototype.then. Nothing
+    // that settles its value may call it: the runner never awaits the
+    // context, and the settling code uses the 'then' taken before the script
+    // ran. Were it called, the reply would carry what it found instead of 1.
+    const result = await run(
+      `const then = Promise.prototype.then;
+       Promise.prototype.then = function (resolve, reject) {
+         let found;
+         try { found = typeof resolve.constructor("return process")().pid; }
+         catch (error) { found = "refused: " + error.message; }
+         Promise.prototype.then = then;
+         return then.call(Promise.resolve(found), resolve, reject);
+       };
+       return Promise.resolve(1);`,
+    );
+    expect(result, JSON.stringify(result)).toMatchObject({ value: 1 });
+  });
+
+  it("cannot change what it hands back by replacing its own JSON", async () => {
+    const result = await run("JSON.stringify = () => ({ length: 1 }); return 1");
+    expect(result).toMatchObject({ value: 1 });
+  });
+
   it("cannot read a file, even when it asks the runtime nicely", async () => {
     // Belt and braces: the `vm` has no `require`, and the process itself is
     // started with the filesystem denied.
