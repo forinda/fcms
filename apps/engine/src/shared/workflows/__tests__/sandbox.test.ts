@@ -76,6 +76,25 @@ describe("what a script cannot reach", () => {
     expect(result.error).toMatch(/process is not defined/);
   });
 
+  // The same climb through anything handed in from outside. A function or
+  // object made in the runner's own realm has that realm's `Function` as its
+  // constructor's constructor — and that one *can* see `process`. Each of
+  // these reached it, and from there the network, which `--permission` does
+  // not cover on this Node.
+  it.each([
+    ["the console it was given", "console.log.constructor('return process')()"],
+    ["its input", "input.constructor.constructor('return process')()"],
+    ["something nested in its input", "input.lines.constructor.constructor('return process')()"],
+    [
+      "the console's own prototype",
+      "Object.getPrototypeOf(console).constructor.constructor('return process')()",
+    ],
+  ])("cannot climb out through %s", async (_, climb) => {
+    const result = await run(`return typeof (${climb}).pid`, { lines: [1] });
+    expect(result.value).not.toBe("number");
+    expect(result.error).toMatch(/process is not defined/);
+  });
+
   it("cannot read a file, even when it asks the runtime nicely", async () => {
     // Belt and braces: the `vm` has no `require`, and the process itself is
     // started with the filesystem denied.

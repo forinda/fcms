@@ -39,14 +39,26 @@ try {
   // 'Object.create(null)': no prototype, so no inherited anything. The context
   // gets exactly what is put in it, and 'globalThis' inside is empty.
   const context = vm.createContext(Object.create(null));
-  const logs = [];
-  context.console = {
-    log: (...args) => {
+
+  // Nothing from this realm is handed in — not a function, not an object.
+  // Anything made here has this realm's 'Function' one '.constructor' away,
+  // and that one can see 'process': 'console.log.constructor("return
+  // process")()' was an escape, and so was the same climb through 'input'.
+  // So the console is built by code running inside, and the input crosses as
+  // JSON text and is parsed by the context's own 'JSON'.
+  const logs = vm.runInContext(
+    '(() => {' +
+      '  const logs = [];' +
       // Kept for the run history rather than written anywhere: a script's
       // console is a debugging aid, not an output channel.
-      if (logs.length < 50) logs.push(args.map(String).join(" ").slice(0, 500));
-    },
-  };
+      '  globalThis.console = { log: (...args) => {' +
+      '    if (logs.length < 50) logs.push(args.map(String).join(" ").slice(0, 500));' +
+      '  } };' +
+      '  return logs;' +
+      '})()',
+    context,
+  );
+  const inside = vm.runInContext("JSON.parse", context)(JSON.stringify(input ?? null));
 
   const fn = vm.compileFunction(String(code), ["input"], {
     parsingContext: context,
@@ -55,7 +67,7 @@ try {
     timeout: timeoutMs,
   });
 
-  const value = await fn(input);
+  const value = await fn(inside);
   reply({ value: value === undefined ? null : value, logs });
 } catch (error) {
   // Not 'instanceof Error': an error thrown inside the 'vm' comes from that
@@ -93,6 +105,13 @@ export function timeoutOf(asked: unknown): number {
  * @param input What the pipeline put in front of it — and the only thing it
  *   can see. No network, no filesystem, no secrets: not "declared and
  *   enforced", absent (ADR 0031 §2).
+ *
+ * Absent in the script's realm, specifically. The process around it denies
+ * the filesystem and child processes, but on this Node `--permission` does not
+ * cover the network — a process with `process` in hand can open a socket. What
+ * keeps the network out is that the script has no `fetch`, `require` or
+ * `process`, and nothing from the runner's realm to climb to them through;
+ * the escape tests are what hold that.
  */
 export async function runScript(
   code: string,
