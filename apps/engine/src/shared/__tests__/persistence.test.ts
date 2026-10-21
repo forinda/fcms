@@ -34,6 +34,7 @@ import {
 import { EntryWriteUseCase } from "@/modules/admin/use-cases/entries.usecase";
 import { SiteHistoryUseCase } from "@/modules/admin/use-cases/site-history.usecase";
 import { UndoSpecUseCase } from "@/modules/admin/use-cases/undo-spec.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -93,13 +94,13 @@ suite("the persistence layer", () => {
   const of = (siteId = SITE, orgId = ORG) => {
     const scope = { orgId, siteId };
     return {
-      apply: new ApplySpecUseCase(db, scope),
-      undo: new UndoSpecUseCase(db, scope),
-      history: new SiteHistoryUseCase(db, scope),
-      specs: new SpecRepository(db, scope),
-      entries: new EntryRepository(db, scope),
-      read: new EntryReadUseCase(new EntryRepository(db, scope)),
-      writer: new EntryWriteUseCase(db, scope),
+      apply: standalone(db, scope)(ApplySpecUseCase),
+      undo: standalone(db, scope)(UndoSpecUseCase),
+      history: standalone(db, scope)(SiteHistoryUseCase),
+      specs: standalone(db, scope)(SpecRepository),
+      entries: standalone(db, scope)(EntryRepository),
+      read: standalone(db, scope)(EntryReadUseCase),
+      writer: standalone(db, scope)(EntryWriteUseCase),
     };
   };
   const repo = of;

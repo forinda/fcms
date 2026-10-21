@@ -15,7 +15,13 @@
  *     site (health) is not forced to invent one. A route that needs a site says
  *     so by calling `ctx.require`.
  */
-import { ctn, defineHttpContextDecorator, getEnv } from "@forinda/kickjs";
+import {
+  ctn,
+  defineHttpContextDecorator,
+  getEnv,
+  getRequestValue,
+  requestStore,
+} from "@forinda/kickjs";
 import type { Scope } from "@forinda-cms/db";
 
 export interface SiteScope {
@@ -54,6 +60,42 @@ function pickHost(
  * shape multi-site has to break anyway (doc 03 §4).
  */
 export const CURRENT_SCOPE = ctn<Scope>("app/Site/scope");
+
+/**
+ * `CURRENT_SCOPE`'s factory: the site this unit of work is for.
+ *
+ * `getRequestValue` rather than a `ctx` reference: a factory has no request
+ * object, and `ResolveSite` (or `inSite`) already published the scope under
+ * `site` (doc 03 §4).
+ */
+export function currentScope(): Scope {
+  const scope = getRequestValue("site");
+  if (!scope) throw new Error("no site on this request — is ResolveSite applied?");
+  return scope;
+}
+
+/**
+ * Run `work` for one site, outside an HTTP request: boot, the workflow tick, a
+ * script.
+ *
+ * It opens the same unit of work a request does, with `site` set as
+ * `ResolveSite` would set it — so `CURRENT_SCOPE` and every request-scoped
+ * use-case resolve from the container exactly as they do in a request, rather
+ * than being assembled by hand with `new` and drifting from what the container
+ * builds. A child container with `CURRENT_SCOPE` overridden looks like the
+ * answer and is not: a class the parent registers is built with the parent's
+ * bindings, so the override never reaches it.
+ */
+export function inSite<T>(scope: Scope, work: () => Promise<T>): Promise<T> {
+  return requestStore.run(
+    {
+      requestId: `site:${scope.siteId}`,
+      instances: new Map(),
+      values: new Map([["site", { ...scope, host: null }]]),
+    },
+    work,
+  );
+}
 
 export const ResolveSite = defineHttpContextDecorator({
   key: "site",

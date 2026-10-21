@@ -7,10 +7,11 @@
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "@forinda/kickjs-db";
-import { closeAllPools, createDb, flowSessions, organizations, sites } from "@forinda-cms/db";
+import { closeAllPools, createDb, organizations, sites } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { FlowUseCase } from "../flow.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -89,7 +90,7 @@ suite("flows", () => {
       .values({ id: SITE, orgId: ORG, slug: "salon", name: "Salon" })
       .execute();
 
-    flows = new FlowUseCase(db, { orgId: ORG, siteId: SITE });
+    flows = standalone(db, { orgId: ORG, siteId: SITE })(FlowUseCase);
   });
 
   afterAll(async () => {

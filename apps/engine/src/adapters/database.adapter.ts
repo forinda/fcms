@@ -17,12 +17,12 @@
  * listening, and it is the hook that also fires under `createTestApp` — which is
  * what makes these tokens substitutable in a test.
  */
-import { defineAdapter, getEnv, getRequestValue, Scope } from "@forinda/kickjs";
+import { defineAdapter, getEnv, Scope, type Container } from "@forinda/kickjs";
 import { sql } from "@forinda/kickjs-db";
 import { createDb, releaseDb, runMigrations, type Db } from "@forinda-cms/db";
 import { SiteSpec } from "@forinda-cms/spec";
 
-import { Actor, CURRENT_SCOPE, ResolveSite } from "@/contributors";
+import { Actor, CURRENT_SCOPE, currentScope, inSite, ResolveSite } from "@/contributors";
 import { DB } from "@/shared/db";
 import { ApplySpecUseCase } from "@/modules/admin/use-cases/apply-spec.usecase";
 
@@ -78,18 +78,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // asking for it fails at the first request rather than at boot.
         container.registerInstance(DB, db);
 
-        container.registerFactory(
-          CURRENT_SCOPE,
-          () => {
-            // `getRequestValue` rather than a `ctx` reference: this factory has
-            // no request object, and the site contributor already published the
-            // scope under `site` (doc 03 §4).
-            const scope = getRequestValue("site");
-            if (!scope) throw new Error("no site on this request — is ResolveSite applied?");
-            return scope;
-          },
-          Scope.REQUEST,
-        );
+        container.registerFactory(CURRENT_SCOPE, currentScope, Scope.REQUEST);
 
         if (config.migrate === false) return;
 
@@ -98,7 +87,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
         // lives in the target database, so a completed migration is a no-op and
         // an interrupted one resumes.
         await runMigrations(getEnv("DATABASE_URL"));
-        await provision(db);
+        await provision(db, container);
       },
 
       /**
@@ -133,7 +122,7 @@ export const DatabaseAdapter = defineAdapter<DatabaseConfig>({
  * makes `docker compose up` reach a working site rather than a 404 and an
  * instruction.
  */
-async function provision(db: Db): Promise<void> {
+async function provision(db: Db, container: Container): Promise<void> {
   const orgId = getEnv("ORG_ID");
   const siteId = getEnv("SITE_ID");
 
@@ -160,25 +149,25 @@ async function provision(db: Db): Promise<void> {
   const email = getEnv("OWNER_EMAIL");
   const password = getEnv("OWNER_PASSWORD");
   if (email && password) {
-    const created = await new ProvisionOwnerUseCase(db).execute({ orgId, email, password });
+    const created = await container
+      .resolve(ProvisionOwnerUseCase)
+      .execute({ orgId, email, password });
     if (created) console.log(`[install] created the first owner: ${created.email}`);
   }
 
-  // Boot has no request, so these are constructed rather than resolved — the
-  // same constructors the container calls, with the scope this install is
-  // configured for.
-  const scope = { orgId, siteId };
-  if (!(await new SpecRepository(db, scope).find())) {
-    await new ApplySpecUseCase(db, scope).execute(
-      SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")),
-      {
+  // Boot has no request, so it opens a unit of work for the site this install
+  // is configured for, and resolves what a request would.
+  await inSite({ orgId, siteId }, async () => {
+    if (await container.resolve(SpecRepository).find()) return;
+    await container
+      .resolve(ApplySpecUseCase)
+      .execute(SiteSpec.parse(starterFor("blank")!.build(getEnv("SITE_NAME") ?? "A new site")), {
         actor: "install",
         // Boot is the install itself, before anybody has signed in — there is
         // no session to take a role from, and it is the act that creates the
         // first owner.
         role: "owner",
         source: "boot",
-      },
-    );
-  }
+      });
+  });
 }

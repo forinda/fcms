@@ -39,16 +39,12 @@ export type EntryWriteResult =
 
 @Service({ scope: Lifetime.REQUEST })
 export class EntryWriteUseCase {
-  private readonly repo: EntryRepository;
-  private readonly workflows: WorkflowUseCase;
-
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
-  ) {
-    this.repo = new EntryRepository(db, scope);
-    this.workflows = new WorkflowUseCase(db, scope);
-  }
+    @Inject(EntryRepository) private readonly repo: EntryRepository,
+    @Inject(WorkflowUseCase) private readonly workflows: WorkflowUseCase,
+  ) {}
 
   private typeOf(spec: SiteSpec, key: string): ContentType | undefined {
     return spec.content.find((t) => t.key === key);

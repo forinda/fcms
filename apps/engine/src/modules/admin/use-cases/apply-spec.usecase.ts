@@ -96,18 +96,13 @@ function validate(next: SiteSpec): SiteSpec {
 
 @Service({ scope: Lifetime.REQUEST })
 export class ApplySpecUseCase {
-  private readonly specs: SpecRepository;
-  private readonly patches: PatchRepository;
-  private readonly entries: EntryRepository;
-
   constructor(
     @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
-  ) {
-    this.specs = new SpecRepository(db, scope);
-    this.patches = new PatchRepository(db, scope);
-    this.entries = new EntryRepository(db, scope);
-  }
+    @Inject(SpecRepository) private readonly specs: SpecRepository,
+    @Inject(PatchRepository) private readonly patches: PatchRepository,
+    @Inject(EntryRepository) private readonly entries: EntryRepository,
+  ) {}
 
   /**
    * What `execute` *would* do, without doing it.

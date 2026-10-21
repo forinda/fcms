@@ -18,10 +18,8 @@
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 
-import type { Db } from "@forinda-cms/db";
 import type { OwnerRow } from "@forinda-cms/db";
 
-import { DB } from "@/shared/db";
 import { hashPassword } from "@/shared/auth/passwords";
 import { OwnerRepository } from "@/shared/repositories";
 import { atLeast, roleOf, type Role } from "@/shared/roles";
@@ -38,11 +36,7 @@ const MIN_PASSWORD = 12;
 
 @Service({ scope: Lifetime.REQUEST })
 export class PeopleUseCase {
-  private readonly owners: OwnerRepository;
-
-  constructor(@Inject(DB) db: Db) {
-    this.owners = new OwnerRepository(db);
-  }
+  constructor(@Inject(OwnerRepository) private readonly owners: OwnerRepository) {}
 
   list(orgId: string): Promise<OwnerRow[]> {
     return this.owners.list(orgId);

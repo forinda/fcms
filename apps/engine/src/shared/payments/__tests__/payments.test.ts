@@ -12,16 +12,14 @@ import {
   createDb,
   entries,
   organizations,
-  payments,
   sites,
   type PaymentRow,
 } from "@forinda-cms/db";
 import { ContentType, SiteSpec } from "@forinda-cms/spec";
 
-import { EntryRepository } from "@/shared/repositories";
-import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "../payment.repository";
 import { PaymentUseCase } from "../payment.usecase";
+import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -85,12 +83,10 @@ suite("payments", () => {
       .execute();
     entryId = entry!.id;
 
-    repository = new PaymentRepository(db, scope);
-    use = new PaymentUseCase(
-      repository,
-      new WorkflowUseCase(db, scope),
-      new EntryRepository(db, scope),
-    );
+    // One unit of work, so the use-case gets this same repository.
+    const get = standalone(db, scope);
+    repository = get(PaymentRepository);
+    use = get(PaymentUseCase);
   });
 
   afterAll(async () => {
@@ -180,7 +176,9 @@ suite("payments", () => {
   describe("scope", () => {
     it("does not hand one site's payment to another", async () => {
       const started = await record();
-      const elsewhere = new PaymentRepository(db, { orgId: ORG, siteId: "site_someone_else" });
+      const elsewhere = standalone(db, { orgId: ORG, siteId: "site_someone_else" })(
+        PaymentRepository,
+      );
 
       expect(await elsewhere.byId((started as { payment: PaymentRow }).payment.id)).toBeNull();
     });

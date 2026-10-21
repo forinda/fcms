@@ -1,10 +1,12 @@
 /**
  * Owners and their sessions. Rows in, rows out.
  */
+import { Inject, Repository } from "@forinda/kickjs";
 import { sql, type ExpressionBuilder } from "@forinda/kickjs-db";
 
 import type { Db, DbSchema, OwnerRow, OwnerSessionRow } from "@forinda-cms/db";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
+import { DB } from "@/shared/db";
 
 /** An id out of a URL must not reach a uuid column raw. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,8 +19,11 @@ const byEmailOrAddress =
       ? eb.or([eb("email", "=", email.toLowerCase()), eb("ipAddress", "=", ipAddress)])
       : eb("email", "=", email.toLowerCase());
 
+// A singleton: owners belong to the install, not to a site, so nothing here
+// reads the request — which is what lets the singleton auth use-cases inject it.
+@Repository()
 export class OwnerRepository {
-  constructor(private readonly db: Db) {}
+  constructor(@Inject(DB) private readonly db: Db) {}
 
   async findByEmail(email: string): Promise<OwnerRow | null> {
     const row = await this.db

@@ -10,21 +10,14 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { valueOf } from "@forinda-cms/spec";
 
-import type { Db, Scope } from "@forinda-cms/db";
 import { PatchRepository, SpecRepository } from "@/shared/repositories";
-
-import { DB } from "@/shared/db";
-import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 @Service({ scope: Lifetime.REQUEST })
 export class RedirectsUseCase {
-  private readonly specs: SpecRepository;
-  private readonly patches: PatchRepository;
-
-  constructor(@Inject(DB) db: Db, @Inject(CURRENT_SCOPE) scope: Scope) {
-    this.specs = new SpecRepository(db, scope);
-    this.patches = new PatchRepository(db, scope);
-  }
+  constructor(
+    @Inject(SpecRepository) private readonly specs: SpecRepository,
+    @Inject(PatchRepository) private readonly patches: PatchRepository,
+  ) {}
 
   /** Old path → current path, for every page that still exists somewhere else. */
   async execute(limit = 200): Promise<Map<string, string>> {
