@@ -67,22 +67,33 @@ try {
     timeout: timeoutMs,
   });
 
-  // Settled and serialised *inside*: the runner only ever receives text. A
-  // returned thenable is called by code in the context, not by the runner
-  // (the spec runs a thenable's job in its own 'then''s realm anyway, and
-  // the escape test holds that), and nothing here walks an object the
-  // script made — getters, proxies and 'toJSON' all run in their own realm.
-  // 'stringify' is taken before the script runs, so a script that replaces its
-  // own 'JSON.stringify' changes nothing about what comes back: always a
-  // string.
-  const settle = vm.runInContext(
-    "(stringify => async (fn, input, logs) => stringify({ value: (v => v === undefined ? null : v)(await fn(input)), logs }))(JSON.stringify)",
+  // Settled and serialised *inside*, and handed out through a box rather than
+  // a promise: the runner never awaits, '.then's or walks anything the script
+  // could have touched. Awaiting a promise from the context calls that realm's
+  // 'Promise.prototype.then', which the script can replace; the spec happens
+  // to give a replaced 'then' the context's own resolvers (the escape tests
+  // hold that), but the runner should not depend on it. The box has no
+  // prototype, so a setter the script plants on 'Object.prototype' cannot
+  // intercept the write; 'stringify', 'then' and 'Reflect.apply' are taken
+  // before the script runs, so replacing them changes only the script's own
+  // code, never how its value is settled.
+  const box = vm.runInContext("Object.create(null)", context);
+  vm.runInContext(
+    "((stringify, then, apply) => (box, fn, input, logs) => { apply(then, (async () => stringify({ value: (v => v === undefined ? null : v)(await fn(input)), logs }))(), [text => { box.text = text; }, error => { box.error = String(error && error.message || error); }]); })(JSON.stringify, Promise.prototype.then, Reflect.apply)",
     context,
-  );
-  const text = await settle(fn, inside, logs);
-  process.stdout.write(
-    text.length > MAX_OUTPUT ? JSON.stringify({ error: "returned too much" }) : text,
-  );
+  )(box, fn, inside, logs);
+
+  // Polled on this realm's own clock; the parent's kill is the deadline.
+  while (box.text === undefined && box.error === undefined) {
+    await new Promise((done) => setImmediate(done));
+  }
+  const text = box.text;
+  if (typeof box.error === "string") reply({ error: box.error });
+  else if (typeof text !== "string") reply({ error: "the script did not answer with a value" });
+  else
+    process.stdout.write(
+      text.length > MAX_OUTPUT ? JSON.stringify({ error: "returned too much" }) : text,
+    );
 } catch (error) {
   // Not 'instanceof Error': an error thrown inside the 'vm' comes from that
   // context's realm, so it is an Error with a different constructor and the
