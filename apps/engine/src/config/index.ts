@@ -1,3 +1,4 @@
+import { getEnv } from "@forinda/kickjs";
 import { loadEnvFromSchema } from "@forinda/kickjs/config";
 import { fromZod } from "@forinda/kickjs-schema/zod";
 import { z } from "zod";
@@ -63,8 +64,11 @@ const envSchema = fromZod(
     ORG_ID: z.string().default("default"),
 
     /**
-     * Trust `X-Forwarded-Host`. Off by default because trusting it unconditionally
-     * lets a caller pick which site they get once multi-site exists.
+     * Behind a reverse proxy: take the client's address from the proxy's
+     * `X-Forwarded-For` (one hop — see `trustProxy`) and the host from
+     * `X-Forwarded-Host`. Off by default because without a proxy anyone can
+     * send those headers: trusting them unconditionally lets a caller pick
+     * the address the lockout counts, or which site they get.
      */
     TRUST_PROXY: z.stringbool().default(false),
 
@@ -122,5 +126,16 @@ const envSchema = fromZod(
 );
 
 loadEnvFromSchema(envSchema);
+
+/**
+ * Express's `trust proxy`, from `TRUST_PROXY`.
+ *
+ * One hop, not `true`: `true` trusts every entry in `X-Forwarded-For`,
+ * including the first, which is whatever the client wrote. With one, the
+ * address is the one the proxy in front of this server appended — the one it
+ * actually saw.
+ */
+export const trustProxy = (enabled: boolean = getEnv("TRUST_PROXY") === true): 1 | false =>
+  enabled ? 1 : false;
 
 export default envSchema;

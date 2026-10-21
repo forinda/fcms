@@ -3,6 +3,7 @@ import "reflect-metadata";
 // before any `@Value` or `ConfigService.get` resolves. Without it those return
 // undefined and Zod's coercion and defaults are silently skipped.
 import "./config";
+import { trustProxy } from "./config";
 import { bootstrap, createLogger, errorHandler, expressRuntime } from "@forinda/kickjs";
 import { inertiaErrorHandler } from "@forinda/kickjs-inertia";
 import { statusHtml } from "@forinda-cms/render";
@@ -51,6 +52,9 @@ export const app = await bootstrap({
   middlewares,
   adapters,
   runtime: expressRuntime(),
+  // Without it every request behind a reverse proxy came from the proxy, and
+  // ten bad sign-ins from anyone locked out everyone (see `trustProxy`).
+  trustProxy: trustProxy(),
   apiPrefix: "",
   defaultVersion: false,
   /**

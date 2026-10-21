@@ -19,29 +19,16 @@ export function firstHeader(value: string | string[] | undefined): string | null
 }
 
 /**
- * Who the request came from, for the session record.
+ * Who the request came from, for the session record and the lockout.
  *
- * `ctx.req.ip` first: on Express that is the address the runtime resolved, and
- * it already accounts for the proxy setting. `X-Forwarded-For` is read only
- * when `TRUST_PROXY` says so and only its first hop — an unconditional read
- * lets any caller write their own address into the audit trail, and the site
- * contributor already applies that rule to the host header.
- *
- * KickJS has no public `ctx.ip` in v8.3.1 (its `resolveClientIp` is internal),
- * so this mirrors that precedence rather than reaching past the runtime.
+ * The runtime's answer, which follows `trustProxy` (from `TRUST_PROXY`, one
+ * hop): behind a proxy, the address the proxy saw; otherwise the socket. Not
+ * `X-Forwarded-For` read here by hand — the first entry is whatever the
+ * client wrote, so reading it let a guesser name a fresh address on every
+ * attempt, or somebody else's.
  */
 export function clientIp(ctx: Ctx): string | null {
-  const req = ctx.req as { ip?: string; socket?: { remoteAddress?: string } };
-  if (typeof req.ip === "string" && req.ip.length > 0) return req.ip;
-
-  if (getEnv("TRUST_PROXY") === true) {
-    const headers = ctx.req.headers as Record<string, string | string[] | undefined>;
-    const forwarded = firstHeader(headers["x-forwarded-for"]);
-    const hop = forwarded?.split(",")[0]?.trim();
-    if (hop) return hop;
-  }
-
-  return req.socket?.remoteAddress ?? null;
+  return ctx.ip ?? null;
 }
 
 /**
