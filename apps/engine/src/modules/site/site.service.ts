@@ -86,6 +86,8 @@ export class SiteService {
     viewer?: string | null,
     /** The journey token, so a flow renders the step this visitor is on. */
     flowToken?: string | undefined,
+    /** This response's CSP nonce, for every script and style the page carries. */
+    nonce?: string,
   ): Promise<Rendered | null> {
     const resolved = await this.resolve(viewer);
     if (!resolved) return null;
@@ -117,6 +119,7 @@ export class SiteService {
         ...(Object.keys(flow).length > 0 ? { flow } : {}),
         path,
         ...(canonicalBase ? { canonicalBase } : {}),
+        ...(nonce ? { nonce } : {}),
       },
       match.entry as Entry | undefined,
     );
@@ -181,7 +184,11 @@ export class SiteService {
    * in their own site's clothes without asking for it. `null` only when the
    * site has no spec at all, which is a genuinely different situation.
    */
-  async renderStatus(status: number, canonicalBase?: string): Promise<Rendered | null> {
+  async renderStatus(
+    status: number,
+    canonicalBase?: string,
+    nonce?: string,
+  ): Promise<Rendered | null> {
     const resolved = await this.resolve(null);
     if (!resolved) return null;
 
@@ -193,6 +200,7 @@ export class SiteService {
       locale: { locale: resolved.spec.locale, currency: resolved.spec.currency },
       path: `/${status}`,
       ...(canonicalBase ? { canonicalBase } : {}),
+      ...(nonce ? { nonce } : {}),
     });
   }
 }

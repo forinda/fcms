@@ -18,6 +18,7 @@ import type { SiteSpec } from "@forinda-cms/spec";
 import { PublicSite } from "@/route-flags";
 import { PaymentRepository, PaymentUseCase, PROVIDERS } from "@/shared/payments";
 import { SiteSpecUseCase } from "@/shared/use-cases";
+import { newNonce, sitePolicy } from "./csp";
 
 @Controller()
 @PublicSite
@@ -43,7 +44,12 @@ export class PaymentController {
     const integration = spec.wiring.find((i) => i.key === payment.via);
     const written = String(integration?.config?.["instruction"] ?? "");
 
-    html(ctx, page(spec, payment, instructionFor(payment, written || "Payment is pending.")));
+    const nonce = newNonce();
+    html(
+      ctx,
+      page(spec, payment, instructionFor(payment, written || "Payment is pending."), nonce),
+      nonce,
+    );
   }
 
   /**
@@ -140,7 +146,7 @@ export function money(amount: number, currency: string): string {
   return `${currency} ${(amount / 100).toFixed(2)}`;
 }
 
-function page(spec: SiteSpec, payment: PaymentRow, instruction: string): string {
+function page(spec: SiteSpec, payment: PaymentRow, instruction: string, nonce: string): string {
   const provider = PROVIDERS[payment.provider];
   const asking = payment.status === "pending" && provider?.needsPayerRef && !payment.reference;
   // Only refresh where there is something to wait *for*: a provider that can be
@@ -155,7 +161,7 @@ function page(spec: SiteSpec, payment: PaymentRow, instruction: string): string 
 <title>${esc(WORDS[payment.status] ?? "Payment")} — ${esc(spec.name)}</title>
 <meta name="robots" content="noindex">
 ${waiting ? '<meta http-equiv="refresh" content="5">' : ""}
-<style>${siteCss(spec)}
+<style nonce="${nonce}">${siteCss(spec)}
 .pay{max-width:26rem;margin:4rem auto;padding:0 1rem}
 .pay .amount{font-size:2rem;font-weight:700;margin:.2rem 0}
 .pay .state{display:inline-block;padding:.15rem .6rem;border-radius:99px;background:#f5f5f4}
@@ -184,9 +190,11 @@ function esc(value: string): string {
   );
 }
 
-function html(ctx: Ctx, body: string): void {
+/** The site's policy, so this page holds to it like every other one the site serves. */
+function html(ctx: Ctx, body: string, nonce: string): void {
   ctx.res.statusCode = 200;
   ctx.res.setHeader("content-type", "text/html; charset=utf-8");
+  ctx.res.setHeader("content-security-policy", sitePolicy(nonce));
   ctx.res.end(body);
 }
 

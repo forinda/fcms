@@ -329,6 +329,33 @@ describe("what a site publishes to machines", () => {
     expect(page(on)).toContain("gtag('config','G-ABC1234567')");
   });
 
+  it("stamps the response's nonce on every script and style it emits", () => {
+    // The policy allows exactly the nonced tags. One without the nonce is a
+    // tag the browser drops — an analytics loader that silently stops, or a
+    // page that loses its styles — so every one of ours must carry it.
+    const spec = SiteSpec.parse({
+      ...base,
+      analytics: { gtag: "G-ABC1234567", plausible: "stays.example" },
+    });
+    const html = renderPage(spec.pages[1]!, {
+      spec,
+      source: staticSource({}),
+      nonce: "n0nce",
+    }).html;
+
+    const executable = [...html.matchAll(/<script\b[^>]*>/g)]
+      .map((m) => m[0])
+      .filter((tag) => !tag.includes("application/ld+json"));
+    const styles = [...html.matchAll(/<style\b[^>]*>/g)].map((m) => m[0]);
+
+    expect(executable.length).toBeGreaterThanOrEqual(3);
+    expect(styles.length).toBeGreaterThanOrEqual(1);
+    for (const tag of [...executable, ...styles]) expect(tag).toContain('nonce="n0nce"');
+
+    const plain = renderPage(spec.pages[1]!, { spec, source: staticSource({}) }).html;
+    expect(plain).not.toContain("nonce=");
+  });
+
   it("refuses a measurement id that is really a script", () => {
     expect(() =>
       SiteSpec.parse({ ...base, analytics: { gtag: "G-1'></script><script>alert(1)</script>" } }),

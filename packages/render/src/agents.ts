@@ -14,20 +14,24 @@ import { esc, fragment, raw, type Html } from "./html.js";
  * `SiteSpec.analytics`. The values that do reach the page are escaped anyway;
  * the schema already constrains them to an id, a domain and a URL.
  */
-export function analytics(spec: SiteSpec): Html | null {
+export function analytics(spec: SiteSpec, nonce?: string): Html | null {
   const a = spec.analytics;
   if (!a) return null;
+  // The response's CSP nonce on every tag, the loaders included: the policy is
+  // 'strict-dynamic', so what a nonced loader adds is trusted and nothing
+  // else is.
+  const n = nonce ? ` nonce="${esc(nonce)}"` : "";
 
   const tags: Html[] = [];
 
   if (a.gtag) {
     const id = esc(a.gtag);
     tags.push(
-      raw(`<script async src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>`),
+      raw(`<script${n} async src="https://www.googletagmanager.com/gtag/js?id=${id}"></script>`),
       // gtag needs its initialiser inline; this is ours, with one id
       // interpolated, not a snippet somebody pasted.
       raw(
-        `<script>window.dataLayer=window.dataLayer||[];` +
+        `<script${n}>window.dataLayer=window.dataLayer||[];` +
           `function gtag(){dataLayer.push(arguments)}` +
           `gtag('js',new Date());gtag('config','${id}')</script>`,
       ),
@@ -37,7 +41,7 @@ export function analytics(spec: SiteSpec): Html | null {
   if (a.plausible) {
     tags.push(
       raw(
-        `<script defer data-domain="${esc(a.plausible)}" ` +
+        `<script${n} defer data-domain="${esc(a.plausible)}" ` +
           `src="https://plausible.io/js/script.js"></script>`,
       ),
     );
@@ -45,7 +49,9 @@ export function analytics(spec: SiteSpec): Html | null {
 
   if (a.umami) {
     tags.push(
-      raw(`<script defer data-website-id="${esc(a.umami.id)}" src="${esc(a.umami.src)}"></script>`),
+      raw(
+        `<script${n} defer data-website-id="${esc(a.umami.id)}" src="${esc(a.umami.src)}"></script>`,
+      ),
     );
   }
 
