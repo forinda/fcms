@@ -40,6 +40,14 @@ describe("returning to where they were", () => {
     expect(safe("/\\\\evil.example")).toBe("/");
   });
 
+  it("refuses a path that only becomes another origin once it is resolved", () => {
+    // Dot-segments collapse to `//evil.example`: the same origin while being
+    // parsed, another host once a browser reads it as a Location.
+    expect(safe("/.//evil.example")).toBe("/");
+    expect(safe("/a/..//evil.example")).toBe("/");
+    expect(safe("/./\\evil.example")).toBe("/");
+  });
+
   it("returns the parsed path, not the text it was asked for", () => {
     expect(safe("/a/../find?x=1#top")).toBe("/find?x=1#top");
     expect(safe(undefined)).toBe("/");
