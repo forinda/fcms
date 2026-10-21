@@ -20,7 +20,7 @@ import {
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { WorkflowUseCase, fires } from "../workflow.usecase";
-import { reachable } from "../actions";
+import { reachable } from "@/shared/integrations/outbound";
 import { standalone } from "@/shared/standalone";
 
 const url = process.env["DATABASE_URL"];
