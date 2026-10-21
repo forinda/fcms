@@ -14,6 +14,7 @@ import type { Integration, SiteSpec } from "@forinda-cms/spec";
 
 import type { IntegrationKindInfo, Setting } from "@/shared/integrations";
 import { esc } from "./view";
+import { SECRET_PREFIX, secretVariable } from "@/shared/integrations/secrets";
 
 export interface IntegrationListOptions {
   readonly spec: SiteSpec;
@@ -153,9 +154,10 @@ ${
     secrets.length > 0
       ? `<fieldset>
     <legend>Credentials</legend>
-    <p class="help">Each of these is the <strong>name of an environment variable</strong> —
-      never the value. The secret stays on the machine; the site's spec only says where to
-      look, so it stays safe to print, commit and hand to anyone.</p>
+    <p class="help">Each of these is a <strong>name</strong>, never the value: the value is
+      read from the environment variable <code>${esc(SECRET_PREFIX)}</code> plus that name. The
+      secret stays on the machine; the site's spec only says where to look, so it stays safe to
+      print, commit and hand to anyone.</p>
     ${secrets
       .map((s) => {
         const ref = integration.secrets?.[s.name] ?? "";
@@ -163,7 +165,7 @@ ${
         const status = name
           ? present[name]
             ? `<span class="pill live">this machine has it</span>`
-            : `<span class="pill destructive">this machine has no ${esc(name)}</span>`
+            : `<span class="pill destructive">this machine has no ${esc(secretVariable(ref))}</span>`
           : "";
         return `<div class="field">
       <label for="f-secret-${esc(s.name)}">${esc(s.label)}${

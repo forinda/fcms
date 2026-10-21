@@ -15,6 +15,7 @@ import type { EntryRow } from "@forinda-cms/db";
 
 import { providerFor } from "@/shared/messaging";
 import { runScript, timeoutOf } from "./sandbox";
+import { secretsOf } from "@/shared/integrations/secrets";
 
 export interface ActionContext {
   /**
@@ -246,22 +247,6 @@ const webhookPost: Action = {
  */
 function secretHeaders(integration: Integration): Record<string, string> {
   return secretsOf(integration);
-}
-
-/**
- * `secret:NAME` resolved from the environment, here and nowhere else.
- *
- * The value never reaches a spec, a patch, a run record or a model (ADR 0001) —
- * which is why every caller takes the integration and gets the values back,
- * rather than passing values around.
- */
-function secretsOf(integration: Integration): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [name, ref] of Object.entries(integration.secrets ?? {})) {
-    const value = process.env[ref.replace(/^secret:/, "")];
-    if (value) out[name] = value;
-  }
-  return out;
 }
 
 /**

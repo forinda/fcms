@@ -15,6 +15,7 @@ import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { PaymentRepository } from "./payment.repository";
 import { PROVIDERS } from "./index";
 import type { ChargeRequest, PaymentProvider, PaymentStatus } from "./provider";
+import { secretsOf } from "@/shared/integrations/secrets";
 
 export interface StartInput {
   readonly spec: SiteSpec;
@@ -291,19 +292,14 @@ export class PaymentUseCase {
   /**
    * Config and resolved secrets for one integration.
    *
-   * `secret:NAME` is looked up in the environment here and nowhere else, so a
-   * value never reaches a spec, a patch, a log or a model (ADR 0001).
+   * Secrets through `secretsOf`, the one place `secret:NAME` is resolved.
    */
   private request(
     integration: Integration,
     type: ContentType,
     amount: number,
   ): Omit<ChargeRequest, "payerRef" | "callbackUrl"> {
-    const secrets: Record<string, string> = {};
-    for (const [name, ref] of Object.entries(integration.secrets ?? {})) {
-      const value = process.env[ref.replace(/^secret:/, "")];
-      if (value) secrets[name] = value;
-    }
+    const secrets = secretsOf(integration);
 
     return {
       amount,
