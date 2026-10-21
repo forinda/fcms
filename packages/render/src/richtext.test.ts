@@ -42,6 +42,7 @@ describe("richtext", () => {
       .replace(/&#(x?)([0-9a-f]+);?/gi, (_m, hex: string, n: string) =>
         String.fromCodePoint(Number.parseInt(n, hex ? 16 : 10)),
       )
+      // oxlint-disable-next-line no-control-regex -- matching them is the point: a browser drops them inside a scheme
       .replace(/[\s\u0000-\u001f]/g, "")
       .toLowerCase();
     expect(out).not.toMatch(
