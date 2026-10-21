@@ -17,6 +17,29 @@ import { el, esc, fragment, raw, type Html } from "./html.js";
 import { pointOf } from "./places.js";
 import type { Scope } from "./scope.js";
 import type { EntrySource } from "./entries.js";
+import sanitizeHtml from "sanitize-html";
+
+/**
+ * Formatting, and nothing that runs.
+ *
+ * An allowlist — sanitize-html's own default set of formatting elements, plus
+ * images — because "everything except the dangerous ones" is a list nobody
+ * finishes. No `style` (CSS can carry a URL), no event handlers, no `target`
+ * (a new window the opener can reach), and only schemes that navigate: a
+ * `javascript:` link however it is spelled, entities and tabs included, is
+ * dropped by the parser rather than by a pattern.
+ */
+const RICHTEXT: sanitizeHtml.IOptions = {
+  allowedTags: [...sanitizeHtml.defaults.allowedTags, "img"],
+  allowedAttributes: {
+    a: ["href", "title"],
+    img: ["src", "alt", "title", "width", "height", "loading"],
+  },
+  allowedSchemes: ["http", "https", "mailto", "tel"],
+  allowedSchemesByTag: { img: ["http", "https"] },
+};
+
+export const sanitiseRichtext = (html: string): string => sanitizeHtml(html, RICHTEXT);
 
 export interface BlockContext {
   readonly className: string;
@@ -186,10 +209,12 @@ export const CORE_BLOCKS: Record<string, BlockType> = Object.fromEntries(
       name: "richtext",
       summary: "Formatted text authored by the site owner.",
       attrs: ["html"],
-      // The single audited opt-out from auto-escaping (html.ts). Safe only while
-      // richtext is owner-authored through the admin. Phase 0b must sanitise
-      // here the moment a visitor-submitted field can reach it.
-      render: ({ className, attrs }) => el("div", { class: className }, raw(str(attrs["html"]))),
+      // The single audited opt-out from auto-escaping (html.ts) — sanitised,
+      // because "owner-authored" stopped being true: the block is bound from
+      // entry data, entries include what visitors submit, and the admin
+      // previews drafts inside the owner's session.
+      render: ({ className, attrs }) =>
+        el("div", { class: className }, raw(sanitiseRichtext(str(attrs["html"])))),
     }),
     define({
       name: "image",

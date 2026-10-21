@@ -21,6 +21,8 @@ catalog:
   '@forinda/kickjs-inertia': ^0.4.0
   '@forinda/kickjs-storage': ^0.3.1
   undici: ^7.29.0
+  sanitize-html: ^2.18.1
+  '@types/sanitize-html': ^2.16.0
   '@forinda/kickjs-schema': ^0.2.4
   '@forinda/kickjs-swagger': ^7.3.3
   '@forinda/kickjs-testing': ^8.3.1
