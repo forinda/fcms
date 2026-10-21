@@ -27,6 +27,9 @@ catalogs:
     '@forinda/kickjs-schema':
       specifier: ^0.2.4
       version: 0.2.4
+    '@forinda/kickjs-storage':
+      specifier: ^0.3.1
+      version: 0.3.1
     '@forinda/kickjs-swagger':
       specifier: ^7.3.3
       version: 7.3.3
@@ -294,6 +297,9 @@ importers:
       '@forinda/kickjs-schema':
         specifier: 'catalog:'
         version: 0.2.4(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+      '@forinda/kickjs-storage':
+        specifier: 'catalog:'
+        version: 0.3.1(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
       '@forinda/kickjs-swagger':
         specifier: 'catalog:'
         version: 7.3.3(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
@@ -664,6 +670,9 @@ importers:
       '@forinda/kickjs-schema':
         specifier: 'catalog:'
         version: 0.2.4(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+      '@forinda/kickjs-storage':
+        specifier: 'catalog:'
+        version: 0.3.1(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
       '@node-rs/argon2':
         specifier: 'catalog:'
         version: 2.2.0
@@ -1397,6 +1406,15 @@ packages:
       yup:
         optional: true
       zod:
+        optional: true
+
+  '@forinda/kickjs-storage@0.3.1':
+    resolution: {integrity: sha512-Ktlgrbr0cRH4N/KaU1Q+Takp77R3KQXRFaxQsO3OxXUIOq1/6BZBhBPfT73l/DV5clCVMUDAUx0HOJapfpKHUg==}
+    engines: {node: '>=20.0'}
+    peerDependencies:
+      '@forinda/kickjs': '>=10.1.0'
+    peerDependenciesMeta:
+      '@forinda/kickjs':
         optional: true
 
   '@forinda/kickjs-swagger@7.3.3':
@@ -6654,6 +6672,17 @@ snapshots:
     optionalDependencies:
       valibot: 1.4.2(typescript@7.0.2)
       zod: 4.5.4
+
+  '@forinda/kickjs-storage@0.3.1(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
+    dependencies:
+      '@forinda/kickjs-schema': 0.2.4(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+    optionalDependencies:
+      '@forinda/kickjs': 10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)
+    transitivePeerDependencies:
+      - '@valibot/to-json-schema'
+      - valibot
+      - yup
+      - zod
 
   '@forinda/kickjs-swagger@7.3.3(@forinda/kickjs@10.8.0(dotenv@17.4.2)(express@5.3.0)(multer@2.3.0)(serve-static@2.2.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4))(valibot@1.4.2(typescript@7.0.2))(zod@4.5.4)':
     dependencies:

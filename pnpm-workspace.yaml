@@ -19,6 +19,7 @@ catalog:
   '@forinda/kickjs-cli': ^8.14.2
   '@forinda/kickjs-db': ^8.11.0
   '@forinda/kickjs-inertia': ^0.4.0
+  '@forinda/kickjs-storage': ^0.3.1
   '@forinda/kickjs-schema': ^0.2.4
   '@forinda/kickjs-swagger': ^7.3.3
   '@forinda/kickjs-testing': ^8.3.1
@@ -91,3 +92,4 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - '@forinda/kickjs-db@8.11.0'
+  - '@forinda/kickjs-storage@0.3.1'

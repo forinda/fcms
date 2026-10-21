@@ -26,6 +26,7 @@
     "@forinda/kickjs-db": "catalog:",
     "@forinda/kickjs-inertia": "catalog:",
     "@forinda/kickjs-schema": "catalog:",
+    "@forinda/kickjs-storage": "catalog:",
     "@forinda/kickjs-swagger": "catalog:",
     "@node-rs/argon2": "catalog:",
     "dotenv": "catalog:",

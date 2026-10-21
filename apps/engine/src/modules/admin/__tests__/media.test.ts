@@ -17,6 +17,8 @@ import { AssetRepository } from "@/shared/repositories/asset.repository";
 import { MediaUseCase } from "../use-cases/media.usecase";
 import { defaultMediaDir } from "@/config";
 import { standalone } from "@/shared/standalone";
+import { STORAGE } from "@forinda/kickjs-storage/adapter";
+import { diskStorage } from "@forinda/kickjs-storage/disk";
 
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
@@ -44,8 +46,10 @@ suite("media", () => {
       .values({ id: SITE, orgId: ORG, slug: "media", name: "Media" })
       .execute();
 
-    process.env["MEDIA_DIR"] = mkdtempSync(join(tmpdir(), "fcms-media-"));
-    uploads = standalone(db, { orgId: ORG, siteId: SITE })(MediaUseCase);
+    const root = mkdtempSync(join(tmpdir(), "fcms-media-"));
+    uploads = standalone(db, { orgId: ORG, siteId: SITE }, (c) =>
+      c.registerInstance(STORAGE, diskStorage({ root })),
+    )(MediaUseCase);
   });
 
   const upload = (over: Partial<{ buffer: Buffer; originalname: string; mimetype: string }> = {}) =>
