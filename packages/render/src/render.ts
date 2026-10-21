@@ -50,6 +50,14 @@ export interface RenderOptions {
   /** The path being rendered, so a filter form and a pager can post back to it. */
   readonly path?: string;
   /**
+   * This response's Content-Security-Policy nonce.
+   *
+   * Stamped on every `<script>` and `<style>` the page carries, so the policy
+   * can allow exactly those and nothing an entry smuggles in. Absent, the tags
+   * carry none — a page rendered for a test or a file has no header to match.
+   */
+  readonly nonce?: string;
+  /**
    * The signed-in visitor, when there is one (ADR 0027).
    *
    * Supplied by the server from the session cookie. A `mine: true` query is
@@ -566,6 +574,7 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
   const type = bound ? spec.content.find((t) => t.key === bound) : undefined;
   const jsonld = type && entry ? buildJsonLd(type, entry, spec.name) : undefined;
 
+  const nonced = options.nonce ? { nonce: options.nonce } : {};
   const document = fragment(
     raw("<!doctype html>"),
     el(
@@ -592,14 +601,14 @@ export function renderPage(page: Page, options: RenderOptions, entry?: Entry): R
           ...(entry ? { entry: true } : {}),
           ...(jsonld ? { jsonld } : {}),
         }),
-        el("style", {}, raw(siteCss(spec))),
+        el("style", nonced, raw(siteCss(spec))),
         // Block CSS after site CSS so a block's own rules win, and after the
         // walk so only blocks that actually rendered contribute any.
-        walk.css.length ? el("style", {}, raw(walk.css.join(""))) : null,
-        page.css ? el("style", {}, raw(page.css)) : null,
+        walk.css.length ? el("style", nonced, raw(walk.css.join(""))) : null,
+        page.css ? el("style", nonced, raw(page.css)) : null,
         // Last in the head, after everything that decides what the page looks
         // like — an analytics tag must never be what delays a render.
-        analytics(spec),
+        analytics(spec, options.nonce),
       ),
       el("body", {}, body),
     ),

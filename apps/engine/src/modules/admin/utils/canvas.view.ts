@@ -374,6 +374,10 @@ const SCRIPT = String.raw`
     };
 
     const style = doc.createElement('style');
+    // The page's own CSP nonce, or its policy drops this outline sheet. Read
+    // as the property: browsers hide the attribute once the page has loaded.
+    const nonced = doc.querySelector('style[nonce]');
+    if (nonced) style.nonce = nonced.nonce;
     style.textContent =
       '[data-fcms-hover]{outline:1px dashed #1a7f5a;outline-offset:2px;cursor:pointer}' +
       '[data-fcms-on]{outline:2px solid #1a7f5a;outline-offset:2px}' +

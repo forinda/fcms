@@ -16,6 +16,7 @@ import { VISITOR_COOKIE } from "./account.controller";
 import { FLOW_COOKIE } from "@/shared/flows/flow.usecase";
 import { MediaUseCase } from "@/modules/admin/use-cases/media.usecase";
 import { SiteService } from "./site.service";
+import { newNonce, sitePolicy } from "./csp";
 
 /** The framework's liveness and readiness probes (`bootstrap({ health })`). */
 const PROBES = new Set(["/health/live", "/health/ready"]);
@@ -212,6 +213,8 @@ export class SiteController {
     if (PROBES.has(url)) return ctx.next();
     const path = url !== "/" && url.endsWith("/") ? url.slice(0, -1) : url;
 
+    // One per response, for the policy and every tag the page carries.
+    const nonce = newNonce();
     // The query string is what a visitor's filters, sort and page arrive in
     // (ADR 0019). Passed as-is; the query resolver decides what any of it means,
     // and ignores anything that does not name a filterable field.
@@ -224,6 +227,7 @@ export class SiteController {
       // a `mine` query is answered from this and nothing else (ADR 0027 §2).
       (await this.visitors.fromToken(this.visitorToken(ctx)))?.id ?? null,
       this.flowToken(ctx),
+      nonce,
     );
     if (rendered) {
       ctx.res.setHeader("content-type", "text/html; charset=utf-8");
@@ -231,8 +235,10 @@ export class SiteController {
       // right for the admin and wrong here: the canvas edits the page by
       // framing it (ADR 0017 §2), and DENY made that pane a broken-image icon.
       // `SAMEORIGIN` keeps the site out of *other* people's frames, which is
-      // what the header is for.
+      // what the header is for — and the policy's `frame-ancestors` says the
+      // same to browsers that read that instead.
       ctx.res.setHeader("x-frame-options", "SAMEORIGIN");
+      ctx.res.setHeader("content-security-policy", sitePolicy(nonce));
       ctx.res.end(rendered.html);
       return;
     }
@@ -253,7 +259,8 @@ export class SiteController {
     // The site's own 404 — its layout, its colours, a sentence somebody outside
     // this project would write, and a way back. The bare `<h1>Not found</h1>`
     // that was here reads as a broken site rather than a wrong address.
-    const page = await this.sites.renderStatus(404, this.base(ctx));
+    const page = await this.sites.renderStatus(404, this.base(ctx), nonce);
+    ctx.res.setHeader("content-security-policy", sitePolicy(nonce));
     ctx.res.end(
       page?.html ?? "<!doctype html><meta charset=utf-8><title>Not found</title><h1>Not found</h1>",
     );
