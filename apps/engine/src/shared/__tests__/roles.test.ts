@@ -18,6 +18,7 @@ import {
 import { SiteSpec } from "@forinda-cms/spec";
 
 import { ApplySpecUseCase, NotAllowedError } from "@/modules/admin/use-cases/apply-spec.usecase";
+import { UndoSpecUseCase } from "@/modules/admin/use-cases/undo-spec.usecase";
 import { atLeast, refusal, roleOf, ROLES } from "@/shared/roles";
 import { standalone } from "@/shared/standalone";
 
@@ -137,6 +138,26 @@ suite("applying a spec", () => {
       await apply("developer", withCss);
       const renamed = SiteSpec.parse({ ...withCss, name: "Riverside" });
       await expect(apply("manager", renamed)).resolves.toMatchObject({ seq: 2 });
+    });
+
+    it("is not undone by a manager, even one who read the site before it arrived", async () => {
+      // The race: a manager presses undo, a developer's CSS lands, and the
+      // patch being undone is now the developer's. Judging it against a spec
+      // read before that patch let the manager take the CSS away. Judging it
+      // against the patch's own forward value cannot drift: here the stored
+      // spec is left as it was before the developer's patch, as the stale read
+      // would have seen it.
+      await apply("manager");
+      await apply("developer", withCss);
+      await db
+        .updateTable("site_specs")
+        .set({ document: spec })
+        .where(eq(siteSpecs.siteId, SITE))
+        .execute();
+
+      await expect(
+        standalone(db, scope)(UndoSpecUseCase).execute("manager"),
+      ).rejects.toBeInstanceOf(NotAllowedError);
     });
   });
 });

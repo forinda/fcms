@@ -15,6 +15,8 @@ import { DB } from "@/shared/db";
 import type { Role } from "@/shared/roles";
 import { NotAllowedError, notAllowed } from "./apply-spec.usecase";
 
+const specOf = (value: unknown): SiteSpec | null => (value == null ? null : SiteSpec.parse(value));
+
 export interface UndoResult {
   readonly seq: number;
   readonly summary: string;
@@ -35,18 +37,20 @@ export class UndoSpecUseCase {
    *   Required, as it is on apply, so no door can leave it out.
    */
   async execute(role: Role): Promise<UndoResult | null> {
-    const current = await this.specs.find();
-
     return this.db.transaction(async (tx) => {
       const last = await this.patches.latestApplied(tx);
       if (!last) return null;
 
       // Narrowed rather than cast: `remove` and `move` carry no value, and the
       // helper says so instead of the column type pretending otherwise.
-      const value = valueOf(last.inverse[0]);
-      const restored = value === null ? null : SiteSpec.parse(value);
+      const restored = specOf(valueOf(last.inverse[0]));
 
-      const refused = notAllowed(role, restored, current);
+      // Judged against what *this patch* produced, not against the stored
+      // spec read separately: both sides come from the one row being undone,
+      // so a patch landing in between cannot make the check about a different
+      // change than the one reversed. (Read apart, a manager's undo could take
+      // a developer's CSS that arrived after the manager looked.)
+      const refused = notAllowed(role, restored, specOf(valueOf(last.ops[0])));
       if (refused) throw new NotAllowedError(refused);
 
       if (restored === null) await this.specs.clear(tx);
