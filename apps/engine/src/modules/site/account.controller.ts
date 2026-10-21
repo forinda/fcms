@@ -12,6 +12,7 @@ import { Controller, Get, Inject, Post, getEnv, type Ctx } from "@forinda/kickjs
 import { PublicSite } from "@/route-flags";
 import { VisitorCredentialsError, VisitorUseCase } from "@/shared/visitors/visitor.usecase";
 import { readCookie } from "@/contributors/actor.contributor";
+import { sameSitePath } from "./same-site-path";
 
 /** Distinct from `fcms_session` on purpose: a visitor must never look like an owner. */
 export const VISITOR_COOKIE = "fcms_visitor";
@@ -124,8 +125,7 @@ export class AccountController {
    * a form that also sets a cookie is a phishing primitive.
    */
   private back(ctx: Ctx, body: Record<string, unknown>, error?: string): void {
-    const asked = String(body["from"] ?? "/");
-    const to = /^\/(?!\/)[^\s]*$/.test(asked) ? asked : "/";
+    const to = sameSitePath(body["from"]);
     const query = error
       ? `${to.includes("?") ? "&" : "?"}account_error=${encodeURIComponent(error)}`
       : "";

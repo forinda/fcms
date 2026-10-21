@@ -8,13 +8,9 @@
  */
 import { describe, expect, it } from "vitest";
 
-/**
- * The rule the controller applies, isolated.
- *
- * Kept identical to the source deliberately — the guard is three characters of
- * regex, and the value of the test is that the *cases* are written down.
- */
-const safe = (asked: string): string => (/^\/(?!\/)[^\s]*$/.test(asked) ? asked : "/");
+// The rule both forms apply — imported, not copied. The copy that used to
+// live here passed every case below while the source let `/\evil` through.
+import { sameSitePath as safe } from "../same-site-path";
 
 describe("returning to where they were", () => {
   it("keeps a path on this site", () => {
@@ -35,6 +31,26 @@ describe("returning to where they were", () => {
   it("refuses a scheme that runs something", () => {
     expect(safe("javascript:alert(1)")).toBe("/");
     expect(safe("data:text/html,<script>")).toBe("/");
+  });
+
+  it("refuses a backslash, which browsers read as a slash", () => {
+    // `/\evil.example` is `//evil.example` to a browser: another origin.
+    expect(safe("/\\evil.example")).toBe("/");
+    expect(safe("/\\/evil.example")).toBe("/");
+    expect(safe("/\\\\evil.example")).toBe("/");
+  });
+
+  it("refuses a path that only becomes another origin once it is resolved", () => {
+    // Dot-segments collapse to `//evil.example`: the same origin while being
+    // parsed, another host once a browser reads it as a Location.
+    expect(safe("/.//evil.example")).toBe("/");
+    expect(safe("/a/..//evil.example")).toBe("/");
+    expect(safe("/./\\evil.example")).toBe("/");
+  });
+
+  it("returns the parsed path, not the text it was asked for", () => {
+    expect(safe("/a/../find?x=1#top")).toBe("/find?x=1#top");
+    expect(safe(undefined)).toBe("/");
   });
 
   it("refuses whitespace, which some parsers strip before following", () => {

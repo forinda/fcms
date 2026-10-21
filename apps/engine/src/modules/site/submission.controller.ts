@@ -23,6 +23,7 @@ import { FLOW_COOKIE, FlowUseCase } from "@/shared/flows/flow.usecase";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 import { readCookie } from "@/contributors/actor.contributor";
 import { VISITOR_COOKIE } from "./account.controller";
+import { sameSitePath } from "./same-site-path";
 
 @Controller()
 @PublicSite
@@ -171,8 +172,7 @@ export class SubmissionController {
 
   /** Same-site paths only — see the note on the account controller's redirect. */
   private back(ctx: Ctx, body: Record<string, unknown>, error?: string, done?: string): void {
-    const asked = String(body["from"] ?? "/");
-    const to = /^\/(?!\/)[^\s]*$/.test(asked) ? asked : "/";
+    const to = sameSitePath(body["from"]);
     const sep = to.includes("?") ? "&" : "?";
     const query = error
       ? `${sep}form_error=${encodeURIComponent(error)}`
