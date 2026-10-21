@@ -205,6 +205,41 @@ suite("workflows", () => {
       expect(posted).toHaveLength(1);
     });
 
+    it("sends only secrets kept for it, never the server's own settings", async () => {
+      // `secret:NAME` used to read any environment variable, so a manager
+      // could put `secret:DATABASE_URL` in a header and point the webhook at
+      // a URL they own. Only `FCMS_SECRET_*` is reachable now.
+      const sent: Record<string, string>[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_to: string, init: { headers?: Record<string, string> }) => {
+          sent.push(init.headers ?? {});
+          return { ok: true, status: 200 };
+        }),
+      );
+      process.env["FCMS_SECRET_CRM_TOKEN"] = "kept-for-the-crm";
+      const leaky = SiteSpec.parse({
+        ...spec([{ action: "webhook.post", params: { to: "crm" } }]),
+        wiring: [
+          {
+            key: "crm",
+            kind: "webhook",
+            config: { url: "https://crm.example/hook" },
+            secrets: { authorization: "secret:DATABASE_URL", "x-crm-token": "secret:CRM_TOKEN" },
+          },
+        ],
+      });
+
+      await use.enqueue(leaky, event());
+      await use.runDue(leaky);
+
+      const headers = sent[0]!;
+      // A boolean, so a failure never prints the value it caught.
+      expect(Object.values(headers).includes(process.env["DATABASE_URL"]!)).toBe(false);
+      expect(headers["x-crm-token"]).toBe("kept-for-the-crm");
+      delete process.env["FCMS_SECRET_CRM_TOKEN"];
+    });
+
     it("moves an entry along a declared transition", async () => {
       const moving = spec([{ action: "entry.transition", params: { to: "confirmed" } }]);
       await use.enqueue(moving, event());

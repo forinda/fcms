@@ -19,6 +19,7 @@ import {
 import { html, noSiteYet, notFound, redirect } from "./utils/http";
 import { integrationEdit, integrationList } from "./utils/integrations.view";
 import { page } from "./utils/view";
+import { secretVariable } from "@/shared/integrations/secrets";
 
 @Controller()
 export class IntegrationsController {
@@ -80,8 +81,11 @@ export class IntegrationsController {
     // so does not put it on the page.
     const present: Record<string, boolean> = {};
     for (const ref of Object.values(integration.secrets ?? {})) {
-      const name = ref.replace(/^secret:/, "");
-      present[name] = typeof process.env[name] === "string" && process.env[name] !== "";
+      // Keyed by the name the spec uses; checked against the variable
+      // `secret:NAME` actually reads.
+      const variable = secretVariable(ref);
+      present[ref.replace(/^secret:/, "")] =
+        typeof process.env[variable] === "string" && process.env[variable] !== "";
     }
 
     html(
