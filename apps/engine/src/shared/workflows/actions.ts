@@ -16,6 +16,7 @@ import type { EntryRow } from "@forinda-cms/db";
 import { providerFor } from "@/shared/messaging";
 import { runScript, timeoutOf } from "./sandbox";
 import { secretsOf } from "@/shared/integrations/secrets";
+import { reachable, send } from "@/shared/integrations/outbound";
 
 export interface ActionContext {
   /**
@@ -102,54 +103,6 @@ export interface ActionOutput {
   readonly value?: unknown;
 }
 
-/**
- * Where a workflow may post.
- *
- * A `webhook` integration is an owner's declared destination, and "declared"
- * does not make an address safe: loopback, the link-local metadata endpoint and
- * the private ranges are the standard server-side request forgery targets, and
- * on a self-hosted box the admin, the metadata service and the database all sit
- * on the other side of that line.
- *
- * **What this does not cover**: a public name that resolves to a private
- * address. Closing that needs resolution at request time and a check on the
- * socket, which Node's fetch does not expose. What limits it meanwhile is that
- * a destination is declared in `wiring`, appears in the diff, and cannot be
- * added by a step — so it is a change an owner approves rather than one an
- * automation makes.
- */
-export function reachable(url: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return false;
-  }
-
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-
-  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return false;
-  // IPv6: loopback, unique-local (fc00::/7) and link-local (fe80::/10).
-  if (host === "::1" || /^f[cd]/.test(host) || host.startsWith("fe80:")) return false;
-
-  const octets = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
-  if (octets) {
-    const a = Number(octets[1]);
-    const b = Number(octets[2]);
-    // 0/8 this network, 10/8 private, 127/8 loopback, 169.254/16 link-local
-    // (the cloud metadata endpoint), 172.16/12 private, 192.168/16 private,
-    // 100.64/10 carrier-grade NAT.
-    if (a === 0 || a === 10 || a === 127) return false;
-    if (a === 169 && b === 254) return false;
-    if (a === 172 && b >= 16 && b <= 31) return false;
-    if (a === 192 && b === 168) return false;
-    if (a === 100 && b >= 64 && b <= 127) return false;
-  }
-
-  return true;
-}
-
 const transition: Action = {
   summary: "Move an entry along a status it already declares.",
   params: [
@@ -212,7 +165,7 @@ const webhookPost: Action = {
 
     if (dryRun) return { note: `would have posted to ${integration.key}` };
 
-    const response = await fetch(url, {
+    const response = await send(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -293,7 +246,7 @@ const httpRequest: Action = {
       return { note: `would have called ${method} ${url}` };
     }
 
-    const response = await fetch(url, {
+    const response = await send(url, {
       method,
       headers: {
         accept: "application/json",

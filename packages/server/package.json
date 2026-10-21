@@ -49,6 +49,7 @@
     "multer": "catalog:",
     "pg": "catalog:",
     "reflect-metadata": "catalog:",
+    "undici": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },

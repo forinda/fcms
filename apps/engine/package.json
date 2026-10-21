@@ -33,6 +33,7 @@
     "express": "catalog:",
     "multer": "catalog:",
     "reflect-metadata": "catalog:",
+    "undici": "catalog:",
     "yaml": "catalog:",
     "zod": "catalog:"
   },
