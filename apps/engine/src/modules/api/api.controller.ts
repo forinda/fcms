@@ -195,8 +195,8 @@ export class ApiController {
    * applied (doc 03), which is what makes this cheap enough to offer a model.
    */
   @Post("/undo")
-  async undo(): Promise<unknown> {
-    const result = await this.undoLast.execute();
+  async undo(ctx: Ctx): Promise<unknown> {
+    const result = await this.undoLast.execute(roleOf(ctx.require("actor").role));
     if (!result) throw new HttpException(404, "There is nothing to undo.");
     return result;
   }
@@ -234,12 +234,16 @@ export class ApiController {
       status?: string;
     };
 
-    const result = await this.writer.create(spec, {
-      typeKey: type.key,
-      slug: body.slug,
-      ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
-      data: body.data ?? {},
-    });
+    const result = await this.writer.create(
+      spec,
+      {
+        typeKey: type.key,
+        slug: body.slug,
+        ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
+        data: body.data ?? {},
+      },
+      roleOf(ctx.require("actor").role),
+    );
 
     if (!result.ok) return invalidEntry(result.errors);
     return { entry: result.entry };
@@ -256,12 +260,17 @@ export class ApiController {
       status?: string;
     };
 
-    const result = await this.writer.update(spec, String(params["id"]), {
-      typeKey: type.key,
-      slug: body.slug,
-      ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
-      data: body.data ?? {},
-    });
+    const result = await this.writer.update(
+      spec,
+      String(params["id"]),
+      {
+        typeKey: type.key,
+        slug: body.slug,
+        ...(body.status === "published" || body.status === "draft" ? { status: body.status } : {}),
+        data: body.data ?? {},
+      },
+      roleOf(ctx.require("actor").role),
+    );
 
     if (!result.ok) return invalidEntry(result.errors);
     return { entry: result.entry };
@@ -270,7 +279,7 @@ export class ApiController {
   @Delete("/entries/:type/:id")
   async deleteEntry(ctx: Ctx): Promise<unknown> {
     const id = String((ctx.params as Record<string, string>)["id"]);
-    if (!(await this.writer.delete(id)))
+    if (!(await this.writer.delete(id, roleOf(ctx.require("actor").role))))
       throw new HttpException(404, "That entry no longer exists.");
     return { deleted: id };
   }

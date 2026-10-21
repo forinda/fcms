@@ -93,12 +93,16 @@ suite("applying a starter", () => {
     const written = await standalone(
       db,
       scope,
-    )(EntryWriteUseCase).create(spec, {
-      typeKey: "service",
-      slug: "haircut",
-      status: "published",
-      data: { slug: "haircut", name: "Haircut", price: 1500, minutes: 45, active: true },
-    });
+    )(EntryWriteUseCase).create(
+      spec,
+      {
+        typeKey: "service",
+        slug: "haircut",
+        status: "published",
+        data: { slug: "haircut", name: "Haircut", price: 1500, minutes: 45, active: true },
+      },
+      "owner",
+    );
 
     expect(written.ok).toBe(true);
   });

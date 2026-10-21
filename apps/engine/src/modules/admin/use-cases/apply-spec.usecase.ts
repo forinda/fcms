@@ -7,7 +7,7 @@
  * whether it is allowed, what the schema has to do about it, and what gets
  * recorded so it can be undone.
  */
-import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
+import { HttpException, Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { checkReferences, classify, diffSpecs, SiteSpec, type SpecChange } from "@forinda-cms/spec";
 
 import { planMigration, reconcileIndexes, runMigration, type MigrationStep } from "@forinda-cms/db";
@@ -59,9 +59,11 @@ export interface ApplySpecResult {
  * one is "are you sure", the other is "not you". A screen that conflated them
  * would offer a confirm button to somebody who cannot press it.
  */
-export class NotAllowedError extends Error {
+export class NotAllowedError extends HttpException {
+  // A 403 wherever it surfaces, so a door that forgets to translate it still
+  // answers "not you" rather than a 500.
   constructor(message: string) {
-    super(message);
+    super(403, message);
     this.name = "NotAllowedError";
   }
 }
@@ -213,7 +215,11 @@ export class ApplySpecUseCase {
  * entries and media rather than the spec, and tier-3 CSS is the developer's
  * (ADR 0004: it is the one explicit escape hatch, and it is gated).
  */
-function notAllowed(claimed: Role, next: SiteSpec, current: SiteSpec | null): string | null {
+export function notAllowed(
+  claimed: Role,
+  next: SiteSpec | null,
+  current: SiteSpec | null,
+): string | null {
   // Normalised first: a caller inventing a role gets the bottom of the ladder,
   // never the benefit of an unrecognised name.
   const role = roleOf(claimed);
@@ -228,7 +234,7 @@ function notAllowed(claimed: Role, next: SiteSpec, current: SiteSpec | null): st
 }
 
 /** Site-level or block-level tier 3, added, removed or edited. */
-function customCssChanged(next: SiteSpec, current: SiteSpec | null): boolean {
+function customCssChanged(next: SiteSpec | null, current: SiteSpec | null): boolean {
   // Sorted: moving a block does not change its CSS, and refusing a reorder
   // because tier 3 came out in a different order would be nonsense.
   return JSON.stringify(cssOf(next).sort()) !== JSON.stringify(cssOf(current).sort());

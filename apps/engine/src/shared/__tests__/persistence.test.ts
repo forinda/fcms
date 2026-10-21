@@ -167,7 +167,7 @@ suite("the persistence layer", () => {
       );
       expect((await repo().specs.find())!.name).toBe("Renamed");
 
-      const undone = await repo().undo.execute();
+      const undone = await repo().undo.execute("owner");
       expect(undone!.seq).toBe(2);
       expect((await repo().specs.find())!.name).toBe("Riverside Salon");
 
@@ -179,7 +179,7 @@ suite("the persistence layer", () => {
 
     it("undoes back to nothing when the first patch is reverted", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      await repo().undo.execute();
+      await repo().undo.execute("owner");
       expect(await repo().specs.find()).toBeNull();
     });
   });
@@ -327,8 +327,8 @@ suite("the persistence layer", () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const writer = repo().writer;
 
-      expect((await writer.create(spec, entry("cut"))).ok).toBe(true);
-      const second = await writer.create(spec, entry("cut"));
+      expect((await writer.create(spec, entry("cut"), "owner")).ok).toBe(true);
+      const second = await writer.create(spec, entry("cut"), "owner");
 
       // A taken slug is a field the caller can fix. Left to propagate, the
       // unique violation answered 500 with a SQL statement in the log: a form
@@ -341,11 +341,13 @@ suite("the persistence layer", () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
       const writer = repo().writer;
 
-      await writer.create(spec, entry("cut"));
-      const other = await writer.create(spec, entry("colour"));
+      await writer.create(spec, entry("cut"), "owner");
+      const other = await writer.create(spec, entry("colour"), "owner");
       expect(other.ok).toBe(true);
 
-      const clash = other.ok ? await writer.update(spec, other.entry.id, entry("cut")) : null;
+      const clash = other.ok
+        ? await writer.update(spec, other.entry.id, entry("cut"), "owner")
+        : null;
 
       expect(clash?.ok).toBe(false);
       expect(clash && clash.ok === false && clash.errors["slug"]).toMatch(/already uses/);
@@ -368,8 +370,8 @@ suite("the persistence layer", () => {
       await repo().apply.execute(unique, { actor: "a", role: "owner" as const, source: "cli" });
       const writer = repo().writer;
 
-      expect((await writer.create(unique, entry("cut"))).ok).toBe(true);
-      const second = await writer.create(unique, entry("trim"));
+      expect((await writer.create(unique, entry("cut"), "owner")).ok).toBe(true);
+      const second = await writer.create(unique, entry("trim"), "owner");
 
       expect(second.ok).toBe(false);
       expect(second.ok === false && second.errors["name"]).toMatch(/already uses "Cut" for Name/);
@@ -385,7 +387,7 @@ suite("the persistence layer", () => {
 
     it("keeps a draft off the public site", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      const created = await repo().writer.create(spec, entry("cut"));
+      const created = await repo().writer.create(spec, entry("cut"), "owner");
       expect(created.ok).toBe(true);
 
       // `status` was stored, indexed, and read by nothing: every draft was
@@ -396,19 +398,19 @@ suite("the persistence layer", () => {
 
     it("shows it once published, and hides it again when unpublished", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      const created = await repo().writer.create(spec, entry("cut"));
+      const created = await repo().writer.create(spec, entry("cut"), "owner");
       const id = created.ok ? created.entry.id : "";
 
-      expect(await repo().writer.setStatus(id, "published")).toBe(true);
+      expect(await repo().writer.setStatus(id, "published", "owner")).toBe(true);
       expect((await repo().read.source(["service"])).all("service")).toHaveLength(1);
 
-      expect(await repo().writer.setStatus(id, "draft")).toBe(true);
+      expect(await repo().writer.setStatus(id, "draft", "owner")).toBe(true);
       expect((await repo().read.source(["service"])).all("service")).toEqual([]);
     });
 
     it("still lists drafts for the admin, and counts them", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      await repo().writer.create(spec, entry("cut"));
+      await repo().writer.create(spec, entry("cut"), "owner");
 
       // The admin has to see what the public cannot, or nobody could publish it.
       expect(await repo().read.rows("service")).toHaveLength(1);
@@ -417,11 +419,11 @@ suite("the persistence layer", () => {
 
     it("refuses to publish an entry from another site", async () => {
       await repo().apply.execute(spec, { actor: "a", role: "owner" as const, source: "cli" });
-      const created = await repo().writer.create(spec, entry("cut"));
+      const created = await repo().writer.create(spec, entry("cut"), "owner");
       const id = created.ok ? created.entry.id : "";
 
       // A valid uuid from a request must not reach another site's row.
-      expect(await of(OTHER_SITE).writer.setStatus(id, "published")).toBe(false);
+      expect(await of(OTHER_SITE).writer.setStatus(id, "published", "owner")).toBe(false);
     });
   });
 
@@ -446,18 +448,27 @@ suite("the persistence layer", () => {
       const { apply, writer, entries } = of();
       await apply.execute(spec, { actor: "test", role: "owner", source: "cli" });
 
-      const made = await writer.create(spec, {
-        typeKey: "service",
-        slug: "cut",
-        data: { name: "Cut", slug: "cut" },
-      });
+      const made = await writer.create(
+        spec,
+        {
+          typeKey: "service",
+          slug: "cut",
+          data: { name: "Cut", slug: "cut" },
+        },
+        "owner",
+      );
       expect(made.ok).toBe(true);
       const id = made.ok ? made.entry!.id : "";
 
-      await writer.update(spec, id, {
-        typeKey: "service",
-        data: { name: "Cut and finish", slug: "cut" },
-      });
+      await writer.update(
+        spec,
+        id,
+        {
+          typeKey: "service",
+          data: { name: "Cut and finish", slug: "cut" },
+        },
+        "owner",
+      );
 
       expect((await entries.byId(id))?.slug).toBe("cut");
     });
@@ -466,21 +477,30 @@ suite("the persistence layer", () => {
       const { apply, writer, entries } = of();
       await apply.execute(spec, { actor: "test", role: "owner", source: "cli" });
 
-      const made = await writer.create(spec, {
-        typeKey: "service",
-        slug: "trim",
-        data: { name: "Trim", slug: "trim" },
-      });
+      const made = await writer.create(
+        spec,
+        {
+          typeKey: "service",
+          slug: "trim",
+          data: { name: "Trim", slug: "trim" },
+        },
+        "owner",
+      );
       const id = made.ok ? made.entry!.id : "";
 
       // The declared `slug` field stays — it is a field like any other. What
       // is being cleared is the address column, which is what an empty `slug`
       // on the input means.
-      await writer.update(spec, id, {
-        typeKey: "service",
-        slug: "",
-        data: { name: "Trim", slug: "trim" },
-      });
+      await writer.update(
+        spec,
+        id,
+        {
+          typeKey: "service",
+          slug: "",
+          data: { name: "Trim", slug: "trim" },
+        },
+        "owner",
+      );
       expect((await entries.byId(id))?.slug).toBeNull();
     });
   });
