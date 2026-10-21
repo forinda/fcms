@@ -95,6 +95,26 @@ describe("what a script cannot reach", () => {
     expect(result.error).toMatch(/process is not defined/);
   });
 
+  it("cannot climb out through whatever settles what it returns", async () => {
+    // Returning a thenable makes whoever awaits it call `then` with *its*
+    // resolve and reject — functions from the awaiting realm. If the runner
+    // awaits it, those are the runner's, and their constructor sees
+    // `process`: the reply then carries a real pid.
+    const result = await run(
+      `return { then(resolve) {
+         try { resolve(typeof resolve.constructor("return process")().pid); }
+         catch (error) { resolve("refused: " + error.message); }
+       } }`,
+    );
+    expect(result.value).not.toBe("number");
+    expect(String(result.value)).toMatch(/process is not defined/);
+  });
+
+  it("cannot change what it hands back by replacing its own JSON", async () => {
+    const result = await run("JSON.stringify = () => ({ length: 1 }); return 1");
+    expect(result).toMatchObject({ value: 1 });
+  });
+
   it("cannot read a file, even when it asks the runtime nicely", async () => {
     // Belt and braces: the `vm` has no `require`, and the process itself is
     // started with the filesystem denied.

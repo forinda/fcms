@@ -67,8 +67,22 @@ try {
     timeout: timeoutMs,
   });
 
-  const value = await fn(inside);
-  reply({ value: value === undefined ? null : value, logs });
+  // Settled and serialised *inside*: the runner only ever receives text. A
+  // returned thenable is called by code in the context, not by the runner
+  // (the spec runs a thenable's job in its own 'then''s realm anyway, and
+  // the escape test holds that), and nothing here walks an object the
+  // script made — getters, proxies and 'toJSON' all run in their own realm.
+  // 'stringify' is taken before the script runs, so a script that replaces its
+  // own 'JSON.stringify' changes nothing about what comes back: always a
+  // string.
+  const settle = vm.runInContext(
+    "(stringify => async (fn, input, logs) => stringify({ value: (v => v === undefined ? null : v)(await fn(input)), logs }))(JSON.stringify)",
+    context,
+  );
+  const text = await settle(fn, inside, logs);
+  process.stdout.write(
+    text.length > MAX_OUTPUT ? JSON.stringify({ error: "returned too much" }) : text,
+  );
 } catch (error) {
   // Not 'instanceof Error': an error thrown inside the 'vm' comes from that
   // context's realm, so it is an Error with a different constructor and the
