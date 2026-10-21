@@ -3,7 +3,7 @@
  */
 import { sql, type ExpressionBuilder } from "@forinda/kickjs-db";
 
-import type { Kdb, KdbSchema, OwnerRow, OwnerSessionRow } from "@forinda-cms/db";
+import type { Db, DbSchema, OwnerRow, OwnerSessionRow } from "@forinda-cms/db";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 
 /** An id out of a URL must not reach a uuid column raw. */
@@ -12,13 +12,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** Failures for this email, or from this address when there is one. */
 const byEmailOrAddress =
   (email: string, ipAddress: string | null) =>
-  (eb: ExpressionBuilder<KdbSchema, "login_attempts">) =>
+  (eb: ExpressionBuilder<DbSchema, "login_attempts">) =>
     ipAddress
       ? eb.or([eb("email", "=", email.toLowerCase()), eb("ipAddress", "=", ipAddress)])
       : eb("email", "=", email.toLowerCase());
 
 export class OwnerRepository {
-  constructor(private readonly db: Kdb) {}
+  constructor(private readonly db: Db) {}
 
   async findByEmail(email: string): Promise<OwnerRow | null> {
     const row = await this.db

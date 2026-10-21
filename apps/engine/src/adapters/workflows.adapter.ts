@@ -12,10 +12,10 @@
  * database.
  */
 import { defineAdapter, getEnv } from "@forinda/kickjs";
-import { tables } from "@forinda-cms/db";
+import { sites } from "@forinda-cms/db";
 import { eq } from "@forinda/kickjs-db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { SpecRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
@@ -63,7 +63,7 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
     };
 
     return {
-      // It resolves the database adapter's `KDB`, and ticks against tables
+      // It resolves the database adapter's `DB`, and ticks against tables
       // that adapter's migrations create.
       dependsOn: ["DatabaseAdapter"],
 
@@ -76,7 +76,7 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
 
         // The database adapter's client, so its pool's lifetime is the one
         // that matters.
-        const kdb = container.resolve(KDB);
+        const db = container.resolve(DB);
         const orgId = getEnv("ORG_ID");
 
         const tick = async () => {
@@ -90,17 +90,17 @@ export const WorkflowsAdapter = defineAdapter<WorkflowsConfig>({
           try {
             // Every site on this install, because a schedule belongs to a site
             // and nothing has made a request to tell us which one.
-            const all = await kdb
+            const all = await db
               .selectFrom("sites")
               .select("id")
-              .where(eq(tables.sites.orgId, orgId))
+              .where(eq(sites.orgId, orgId))
               .execute();
             for (const site of all) {
               const scope = { orgId, siteId: site.id };
-              const spec = await new SpecRepository(kdb, scope).find();
+              const spec = await new SpecRepository(db, scope).find();
               if (!spec) continue;
 
-              const workflows = new WorkflowUseCase(kdb, scope);
+              const workflows = new WorkflowUseCase(db, scope);
               await workflows.enqueueDue(spec);
               await workflows.runDue(spec);
             }

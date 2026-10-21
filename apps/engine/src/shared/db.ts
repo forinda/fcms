@@ -14,9 +14,6 @@
  * therefore live in modules that import nothing.
  */
 import { ctn } from "@forinda/kickjs";
-import type { Db, Kdb } from "@forinda-cms/db";
+import type { Db } from "@forinda-cms/db";
 
 export const DB = ctn<Db>("app/Db/connection");
-
-/** The kickjs-db client (ADR 0052), while repositories move to it one at a time. */
-export const KDB = ctn<Kdb>("app/Db/kickdb");

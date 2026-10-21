@@ -11,19 +11,17 @@
  * package, because applying a spec is an application decision.
  */
 import { describe, expect, it } from "vitest";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "@forinda/kickjs-db";
 import { SiteSpec } from "@forinda-cms/spec";
 
 import {
   closeAllPools,
   createDb,
-  createKdb,
   entries,
   indexName,
   organizations,
   planMigration,
   reconcileIndexes,
-  rowsOf,
   runMigration,
   uniqueIndexName,
   siteSpecs,
@@ -129,29 +127,31 @@ describe("planning (no database needed)", () => {
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 suite("executing a plan (needs a database)", () => {
   const repo = () => ({
     applySpec: (spec: unknown, input: ApplySpecInput) =>
-      new ApplySpecUseCase(kdb, { orgId: ORG, siteId: SITE }).execute(spec as SiteSpec, input),
+      new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE }).execute(spec as SiteSpec, input),
   });
 
   const reset = async () => {
-    await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
-    await db.delete(entries).where(eq(entries.orgId, ORG));
-    await db.delete(siteSpecs).where(eq(siteSpecs.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.execute(sql.raw(`DROP INDEX IF EXISTS ${indexName(SITE, "service", "price")}`));
-    await db.insert(organizations).values({ id: ORG, name: "Planner org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "planner", name: "Planner" });
+    await db.deleteFrom("spec_patches").where(eq(specPatches.orgId, ORG)).execute();
+    await db.deleteFrom("entries").where(eq(entries.orgId, ORG)).execute();
+    await db.deleteFrom("site_specs").where(eq(siteSpecs.orgId, ORG)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await sql.raw(`DROP INDEX IF EXISTS ${indexName(SITE, "service", "price")}`).execute(db.qb);
+    await db.insertInto("organizations").values({ id: ORG, name: "Planner org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "planner", name: "Planner" })
+      .execute();
   };
 
   const indexExists = async (name: string) => {
-    const rows = rowsOf(
-      await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${name}'`)),
-    );
+    const rows = (
+      await sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${name}'`).execute(db.qb)
+    ).rows;
     return rows.length > 0;
   };
 
@@ -170,42 +170,49 @@ suite("executing a plan (needs a database)", () => {
     // Re-running the same plan must be safe — the property that lets the
     // install artifact migrate on boot without reasoning about prior state.
     const again = planMigration(plain, indexed, { siteId: SITE });
-    await runMigration(kdb, again);
+    await runMigration(db, again);
     expect(await indexExists(indexName(SITE, "service", "price"))).toBe(true);
   });
 
   it("does not purge values when the destructive half was not allowed", async () => {
     await reset();
     await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
-    await db.insert(entries).values({
-      siteId: SITE,
-      orgId: ORG,
-      typeKey: "service",
-      slug: "cut",
-      data: { name: "Cut", price: 1500 },
-    });
+    await db
+      .insertInto("entries")
+      .values({
+        siteId: SITE,
+        orgId: ORG,
+        typeKey: "service",
+        slug: "cut",
+        data: { name: "Cut", price: 1500 },
+      })
+      .execute();
 
     // The spec change itself is refused first, so nothing runs at all.
     await expect(
       repo().applySpec(dropped, { actor: "a", role: "owner" as const, source: "cli" }),
     ).rejects.toThrow();
     const [row] = await db
-      .select()
-      .from(entries)
-      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
+      .selectFrom("entries")
+      .selectAll()
+      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")))
+      .execute();
     expect((row!.data as Record<string, unknown>)["price"]).toBe(1500);
   });
 
   it("purges values and drops the index when the change is confirmed", async () => {
     await reset();
     await repo().applySpec(indexed, { actor: "a", role: "owner" as const, source: "cli" });
-    await db.insert(entries).values({
-      siteId: SITE,
-      orgId: ORG,
-      typeKey: "service",
-      slug: "cut",
-      data: { name: "Cut", price: 1500 },
-    });
+    await db
+      .insertInto("entries")
+      .values({
+        siteId: SITE,
+        orgId: ORG,
+        typeKey: "service",
+        slug: "cut",
+        data: { name: "Cut", price: 1500 },
+      })
+      .execute();
 
     const { migration } = await repo().applySpec(dropped, {
       actor: "a",
@@ -216,9 +223,10 @@ suite("executing a plan (needs a database)", () => {
     expect(migration.map((s) => s.kind).sort()).toEqual(["drop-index", "purge-field"]);
 
     const [row] = await db
-      .select()
-      .from(entries)
-      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")));
+      .selectFrom("entries")
+      .selectAll()
+      .where(and(eq(entries.siteId, SITE), eq(entries.slug, "cut")))
+      .execute();
     expect((row!.data as Record<string, unknown>)["price"]).toBeUndefined();
     // The name survives: only the removed field's values are deleted.
     expect((row!.data as Record<string, unknown>)["name"]).toBe("Cut");
@@ -274,7 +282,7 @@ suite("reconciling indexes (needs a database)", () => {
   const price = { name: "price", label: "Price", type: "number" };
 
   const exists = async (index: string) =>
-    rowsOf(await db.execute(sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${index}'`)))
+    (await sql.raw(`SELECT 1 FROM pg_indexes WHERE indexname = '${index}'`).execute(db.qb)).rows
       .length > 0;
 
   const clean = async () => {
@@ -283,7 +291,7 @@ suite("reconciling indexes (needs a database)", () => {
       uniqueIndexName(SITE, "service", "price"),
       uniqueIndexName(SITE, "service", "name"),
     ]) {
-      await db.execute(sql.raw(`DROP INDEX IF EXISTS ${index}`));
+      await sql.raw(`DROP INDEX IF EXISTS ${index}`).execute(db.qb);
     }
   };
 
@@ -293,22 +301,22 @@ suite("reconciling indexes (needs a database)", () => {
     // diff sees nothing to do, and the index never exists.
     const declared = spec([name, { ...price, filterable: true, unique: true }]);
 
-    const first = await reconcileIndexes(kdb, declared, scope);
+    const first = await reconcileIndexes(db, declared, scope);
     expect(first.created).toContain(indexName(SITE, "service", "price"));
     expect(first.created).toContain(uniqueIndexName(SITE, "service", "price"));
     expect(await exists(uniqueIndexName(SITE, "service", "price"))).toBe(true);
 
     // And again changes nothing, because it is a reconciliation rather than a
     // change — it runs on every apply, so it has to be silent when it agrees.
-    const second = await reconcileIndexes(kdb, declared, scope);
+    const second = await reconcileIndexes(db, declared, scope);
     expect(second).toEqual({ created: [], dropped: [] });
   });
 
   it("drops what the spec no longer asks for", async () => {
     await clean();
-    await reconcileIndexes(kdb, spec([name, { ...price, filterable: true, unique: true }]), scope);
+    await reconcileIndexes(db, spec([name, { ...price, filterable: true, unique: true }]), scope);
 
-    const { dropped } = await reconcileIndexes(kdb, spec([name, price]), scope);
+    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
     expect(dropped).toContain(indexName(SITE, "service", "price"));
     expect(dropped).toContain(uniqueIndexName(SITE, "service", "price"));
     expect(await exists(indexName(SITE, "service", "price"))).toBe(false);
@@ -317,17 +325,17 @@ suite("reconciling indexes (needs a database)", () => {
   it("leaves another site's indexes alone", async () => {
     await clean();
     const other = { siteId: "site_other_planner", orgId: ORG };
-    await reconcileIndexes(kdb, spec([name, { ...price, filterable: true }]), other);
+    await reconcileIndexes(db, spec([name, { ...price, filterable: true }]), other);
 
     // This site's spec asks for nothing, and the other site's index is not this
     // site's to drop — ownership is the partial predicate, not the name.
-    const { dropped } = await reconcileIndexes(kdb, spec([name, price]), scope);
+    const { dropped } = await reconcileIndexes(db, spec([name, price]), scope);
     expect(dropped).not.toContain(indexName("site_other_planner", "service", "price"));
     expect(await exists(indexName("site_other_planner", "service", "price"))).toBe(true);
 
-    await db.execute(
-      sql.raw(`DROP INDEX IF EXISTS ${indexName("site_other_planner", "service", "price")}`),
-    );
+    await sql
+      .raw(`DROP INDEX IF EXISTS ${indexName("site_other_planner", "service", "price")}`)
+      .execute(db.qb);
   });
 });
 

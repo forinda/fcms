@@ -12,11 +12,11 @@ import { validateEntry, type ContentType, type SiteSpec } from "@forinda-cms/spe
 
 import { UniqueViolationError, type ExpressionBuilder } from "@forinda/kickjs-db";
 import { uniqueIndexName, type EntryRow } from "@forinda-cms/db";
-import type { Kdb, KdbSchema, Scope } from "@forinda-cms/db";
+import type { Db, DbSchema, Scope } from "@forinda-cms/db";
 import { EntryRepository } from "@/shared/repositories";
 import { WorkflowUseCase } from "@/shared/workflows/workflow.usecase";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface EntryInput {
@@ -43,18 +43,18 @@ export class EntryWriteUseCase {
   private readonly workflows: WorkflowUseCase;
 
   constructor(
-    @Inject(KDB) private readonly kdb: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {
-    this.repo = new EntryRepository(kdb, scope);
-    this.workflows = new WorkflowUseCase(kdb, scope);
+    this.repo = new EntryRepository(db, scope);
+    this.workflows = new WorkflowUseCase(db, scope);
   }
 
   private typeOf(spec: SiteSpec, key: string): ContentType | undefined {
     return spec.content.find((t) => t.key === key);
   }
 
-  private readonly scoped = (eb: ExpressionBuilder<KdbSchema, "entries">) =>
+  private readonly scoped = (eb: ExpressionBuilder<DbSchema, "entries">) =>
     eb.and([eb("orgId", "=", this.scope.orgId), eb("siteId", "=", this.scope.siteId)]);
 
   async create(spec: SiteSpec, input: EntryInput): Promise<EntryWriteResult> {
@@ -70,7 +70,7 @@ export class EntryWriteUseCase {
     if (!validation.ok) return { ok: false, errors: validation.errors ?? {} };
 
     try {
-      const row = await this.kdb
+      const row = await this.db
         .insertInto("entries")
         .values({
           siteId: this.scope.siteId,
@@ -119,7 +119,7 @@ export class EntryWriteUseCase {
 
     let row: EntryRow | undefined;
     try {
-      row = await this.kdb
+      row = await this.db
         .updateTable("entries")
         .set({
           // Only when the caller said something about it. `slug: undefined`
@@ -180,7 +180,7 @@ export class EntryWriteUseCase {
   }
 
   async delete(id: string): Promise<boolean> {
-    const rows = await this.kdb
+    const rows = await this.db
       .deleteFrom("entries")
       .where(this.scoped)
       .where("id", "=", id)

@@ -8,9 +8,9 @@
 import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { sql, type ExpressionBuilder } from "@forinda/kickjs-db";
 
-import type { AssetRow, Kdb, KdbSchema, Scope } from "@forinda-cms/db";
+import type { AssetRow, Db, DbSchema, Scope } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 /** What a uuid looks like, so a URL cannot ask Postgres to parse one. */
@@ -19,12 +19,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 @Repository({ scope: Lifetime.REQUEST })
 export class AssetRepository {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   /** This site's assets and the org's shared ones (ADR 0010). */
-  private readonly visible = (eb: ExpressionBuilder<KdbSchema, "assets">) =>
+  private readonly visible = (eb: ExpressionBuilder<DbSchema, "assets">) =>
     eb.and([
       eb("orgId", "=", this.scope.orgId),
       eb.or([eb("siteId", "=", this.scope.siteId), eb("siteId", "is", null)]),

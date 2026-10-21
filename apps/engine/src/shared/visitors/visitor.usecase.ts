@@ -7,10 +7,10 @@
  * its cookie.
  */
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
-import type { Kdb, Scope, VisitorRow } from "@forinda-cms/db";
+import type { Db, Scope, VisitorRow } from "@forinda-cms/db";
 
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { hashPassword, verifyPassword } from "@/shared/auth/passwords";
 import { hashToken, newSessionToken } from "@/shared/auth/tokens";
 
@@ -36,7 +36,7 @@ export interface VisitorSession {
 @Service({ scope: Lifetime.REQUEST })
 export class VisitorUseCase {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 

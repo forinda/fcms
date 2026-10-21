@@ -8,10 +8,10 @@
 import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import type { Classification } from "@forinda-cms/spec";
 
-import type { Kdb, Scope } from "@forinda-cms/db";
+import type { Db, Scope } from "@forinda-cms/db";
 import { PatchRepository } from "@/shared/repositories";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 export interface HistoryEntry {
@@ -29,7 +29,7 @@ export interface HistoryEntry {
 export class SiteHistoryUseCase {
   private readonly patches: PatchRepository;
 
-  constructor(@Inject(KDB) db: Kdb, @Inject(CURRENT_SCOPE) scope: Scope) {
+  constructor(@Inject(DB) db: Db, @Inject(CURRENT_SCOPE) scope: Scope) {
     this.patches = new PatchRepository(db, scope);
   }
 

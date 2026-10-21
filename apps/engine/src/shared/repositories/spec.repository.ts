@@ -10,23 +10,20 @@ import { Inject, Repository, Scope as Lifetime } from "@forinda/kickjs";
 import { and, eq } from "@forinda/kickjs-db";
 import { SiteSpec, migrateSpec, SPEC_VERSION } from "@forinda-cms/spec";
 
-import { tables, type Kdb, type Scope } from "@forinda-cms/db";
+import { siteSpecs, type Db, type Scope } from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 
 @Repository({ scope: Lifetime.REQUEST })
 export class SpecRepository {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
   private get scoped() {
-    return and(
-      eq(tables.siteSpecs.orgId, this.scope.orgId),
-      eq(tables.siteSpecs.siteId, this.scope.siteId),
-    );
+    return and(eq(siteSpecs.orgId, this.scope.orgId), eq(siteSpecs.siteId, this.scope.siteId));
   }
 
   async findRow() {
@@ -54,7 +51,7 @@ export class SpecRepository {
     return row ? SiteSpec.parse(migrateSpec(row.document, SPEC_VERSION)) : null;
   }
 
-  async save(document: SiteSpec, tx: Kdb = this.db): Promise<void> {
+  async save(document: SiteSpec, tx: Db = this.db): Promise<void> {
     await tx
       .insertInto("site_specs")
       .values({
@@ -67,7 +64,7 @@ export class SpecRepository {
       .execute();
   }
 
-  async clear(tx: Kdb = this.db): Promise<void> {
+  async clear(tx: Db = this.db): Promise<void> {
     await tx.deleteFrom("site_specs").where(this.scoped).execute();
   }
 }

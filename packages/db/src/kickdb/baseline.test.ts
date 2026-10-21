@@ -15,9 +15,8 @@ import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle as drizzlePglite } from "drizzle-orm/pglite";
 import { migrate as migratePglite } from "drizzle-orm/pglite/migrator";
-import { drizzle as drizzlePostgres } from "drizzle-orm/postgres-js";
-import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
-import postgres from "postgres";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import { migrate as migratePg } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { introspectPg, migrateRollback } from "@forinda/kickjs-db";
 import { pgAdapter, type PgPoolLike } from "@forinda/kickjs-db/pg";
@@ -68,12 +67,10 @@ const onServer = async (): Promise<Opened> => {
   const url = new URL(server!.href);
   url.pathname = `/${name}`;
   const pool = new pg.Pool({ connectionString: url.href });
-  const sql = postgres(url.href, { onnotice: () => undefined });
   return {
     pool,
-    drizzleMigrate: (folder) => migratePostgres(drizzlePostgres(sql), { migrationsFolder: folder }),
+    drizzleMigrate: (folder) => migratePg(drizzlePg(pool), { migrationsFolder: folder }),
     close: async () => {
-      await sql.end();
       await pool.end();
       await admin.query(`drop database ${name}`);
       await admin.end();

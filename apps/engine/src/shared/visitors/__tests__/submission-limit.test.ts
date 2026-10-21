@@ -6,15 +6,8 @@
  * service against the person who has to clean it up.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  closeAllPools,
-  createDb,
-  createKdb,
-  loginAttempts,
-  organizations,
-  owners,
-} from "@forinda-cms/db";
-import { eq } from "drizzle-orm";
+import { closeAllPools, createDb, loginAttempts, organizations, owners } from "@forinda-cms/db";
+import { eq } from "@forinda/kickjs-db";
 
 import { LoginUseCase, ProvisionOwnerUseCase } from "@/shared/auth/auth.usecase";
 import { SUBMISSIONS_ALLOWED, SubmissionLimitUseCase } from "../submission-limit.usecase";
@@ -22,7 +15,6 @@ import { SUBMISSIONS_ALLOWED, SubmissionLimitUseCase } from "../submission-limit
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_submit";
 const IP = "203.0.113.9";
@@ -31,12 +23,12 @@ suite("submission limits", () => {
   let limit: SubmissionLimitUseCase;
 
   beforeEach(async () => {
-    await db.delete(loginAttempts);
-    await db.delete(owners);
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "Submit org" });
+    await db.deleteFrom("login_attempts").execute();
+    await db.deleteFrom("owners").execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "Submit org" }).execute();
 
-    limit = new SubmissionLimitUseCase(kdb);
+    limit = new SubmissionLimitUseCase(db);
   });
 
   it("allows a person and stops a script", async () => {
@@ -52,7 +44,7 @@ suite("submission limits", () => {
     // The reason the key is namespaced. Without it, filling a contact form
     // enough times would rate-limit sign-in — turning spam into a denial of
     // service against the one person who can clear it.
-    await new ProvisionOwnerUseCase(kdb).execute({
+    await new ProvisionOwnerUseCase(db).execute({
       orgId: ORG,
       email: "owner@example.test",
       password: "a-long-enough-password",
@@ -60,7 +52,7 @@ suite("submission limits", () => {
 
     for (let i = 0; i < SUBMISSIONS_ALLOWED * 2; i++) await limit.record("enquiry", null, IP);
 
-    const session = await new LoginUseCase(kdb).execute({
+    const session = await new LoginUseCase(db).execute({
       email: "owner@example.test",
       password: "a-long-enough-password",
       ipAddress: IP,

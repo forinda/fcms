@@ -11,7 +11,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse as parseYaml } from "yaml";
 import { joinFiles } from "@forinda-cms/lang";
-import { createDb, createKdb, closeAllPools, entries, organizations, sites } from "@forinda-cms/db";
+import { createDb, closeAllPools } from "@forinda-cms/db";
 import { ApplySpecUseCase } from "../src/modules/admin/use-cases/apply-spec.usecase";
 
 const url = process.env["DATABASE_URL"];
@@ -57,11 +57,14 @@ if (!joined.ok) {
 }
 
 const db = createDb(url);
-const kdb = createKdb(url);
 
-await db.insert(organizations).values({ id: ORG, name: "Default" }).onConflictDoNothing();
 await db
-  .insert(sites)
+  .insertInto("organizations")
+  .values({ id: ORG, name: "Default" })
+  .onConflict((oc) => oc.doNothing())
+  .execute();
+await db
+  .insertInto("sites")
   .values({
     id: SITE,
     orgId: ORG,
@@ -69,11 +72,12 @@ await db
     name: joined.spec.name,
     timezone: "Africa/Nairobi",
   })
-  .onConflictDoNothing();
+  .onConflict((oc) => oc.doNothing())
+  .execute();
 
 // Constructed directly rather than resolved: a script has no request, and the
 // use-case's constructor is the same one the container calls.
-const applySpec = new ApplySpecUseCase(kdb, { orgId: ORG, siteId: SITE });
+const applySpec = new ApplySpecUseCase(db, { orgId: ORG, siteId: SITE });
 const { seq, migration } = await applySpec.execute(joined.spec, {
   actor: "seed",
   role: "owner",
@@ -92,7 +96,7 @@ for (const name of readdirSync(join(root, "data")).filter((f) => f.endsWith(".ya
   for (const row of rows) {
     const slug = String(row["slug"] ?? row["reference"] ?? "");
     await db
-      .insert(entries)
+      .insertInto("entries")
       .values({
         siteId: SITE,
         orgId: ORG,
@@ -103,9 +107,10 @@ for (const name of readdirSync(join(root, "data")).filter((f) => f.endsWith(".ya
       })
       // Targeted at the real unique constraint. A bare `onConflictDoNothing()`
       // worked only while the id was derived from the slug; with a generated
-      // ULID every re-seed would insert a duplicate row that no constraint on
+      // UUIDv7 every re-seed would insert a duplicate row that no constraint on
       // `id` could catch.
-      .onConflictDoNothing({ target: [entries.siteId, entries.typeKey, entries.slug] });
+      .onConflict((oc) => oc.columns(["siteId", "typeKey", "slug"]).doNothing())
+      .execute();
   }
   console.log(`  ${typeKey}: ${rows.length} entries`);
 }

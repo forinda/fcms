@@ -6,11 +6,10 @@
  * on another served by the same install.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import {
   closeAllPools,
   createDb,
-  createKdb,
   organizations,
   sites,
   visitorSaves,
@@ -24,7 +23,6 @@ import { VisitorCredentialsError, VisitorUseCase } from "../visitor.usecase";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_visitors";
 const SITE = "site_visitors";
@@ -38,20 +36,23 @@ suite("visitors", () => {
   let elsewhere: VisitorUseCase;
 
   beforeEach(async () => {
-    await db.delete(visitorSaves);
-    await db.delete(visitorSessions);
-    await db.delete(visitors);
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
+    await db.deleteFrom("visitor_saves").execute();
+    await db.deleteFrom("visitor_sessions").execute();
+    await db.deleteFrom("visitors").execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
 
-    await db.insert(organizations).values({ id: ORG, name: "Visitors org" });
-    await db.insert(sites).values([
-      { id: SITE, orgId: ORG, slug: "one", name: "One" },
-      { id: OTHER, orgId: ORG, slug: "two", name: "Two" },
-    ]);
+    await db.insertInto("organizations").values({ id: ORG, name: "Visitors org" }).execute();
+    await db
+      .insertInto("sites")
+      .values([
+        { id: SITE, orgId: ORG, slug: "one", name: "One" },
+        { id: OTHER, orgId: ORG, slug: "two", name: "Two" },
+      ])
+      .execute();
 
-    here = new VisitorUseCase(kdb, { orgId: ORG, siteId: SITE });
-    elsewhere = new VisitorUseCase(kdb, { orgId: ORG, siteId: OTHER });
+    here = new VisitorUseCase(db, { orgId: ORG, siteId: SITE });
+    elsewhere = new VisitorUseCase(db, { orgId: ORG, siteId: OTHER });
   });
 
   const register = (use = here) => use.register({ email: EMAIL, password: PASSWORD });
@@ -81,7 +82,11 @@ suite("visitors", () => {
 
     it("stores a hash, never the password", async () => {
       await register();
-      const [row] = await db.select().from(visitors).where(eq(visitors.email, EMAIL));
+      const [row] = await db
+        .selectFrom("visitors")
+        .selectAll()
+        .where(eq(visitors.email, EMAIL))
+        .execute();
 
       expect(row!.passwordHash).not.toContain(PASSWORD);
       expect(row!.passwordHash.startsWith("$argon2id$")).toBe(true);
@@ -110,7 +115,7 @@ suite("visitors", () => {
       // resolve to an actor, or "saved a hotel" and "edited the site" are one
       // permissions bug apart.
       const session = await register();
-      expect(await new AuthenticateUseCase(kdb).execute(session.token)).toBeNull();
+      expect(await new AuthenticateUseCase(db).execute(session.token)).toBeNull();
     });
 
     it("stops working when signed out", async () => {
@@ -122,13 +127,14 @@ suite("visitors", () => {
     it("stops working once expired, and is purged", async () => {
       const session = await register();
       await db
-        .update(visitorSessions)
+        .updateTable("visitor_sessions")
         .set({ expiresAt: new Date(Date.now() - 1000) })
-        .where(eq(visitorSessions.visitorId, session.visitor.id));
+        .where(eq(visitorSessions.visitorId, session.visitor.id))
+        .execute();
 
       expect(await here.fromToken(session.token)).toBeNull();
       await here.purgeExpired();
-      expect(await db.select().from(visitorSessions)).toEqual([]);
+      expect(await db.selectFrom("visitor_sessions").selectAll().execute()).toEqual([]);
     });
   });
 

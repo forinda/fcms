@@ -6,11 +6,10 @@
  * screens; this tests the rule.
  */
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { eq } from "drizzle-orm";
+import { eq } from "@forinda/kickjs-db";
 import {
   closeAllPools,
   createDb,
-  createKdb,
   organizations,
   siteSpecs,
   sites,
@@ -24,7 +23,6 @@ import { atLeast, refusal, roleOf, ROLES } from "@/shared/roles";
 const url = process.env["DATABASE_URL"];
 const suite = url ? describe : describe.skip;
 const db = url ? createDb(url) : (undefined as never);
-const kdb = url ? createKdb(url) : (undefined as never);
 
 const ORG = "org_roles";
 const SITE = "site_roles";
@@ -68,16 +66,19 @@ describe("the ladder", () => {
 
 suite("applying a spec", () => {
   beforeEach(async () => {
-    await db.delete(specPatches).where(eq(specPatches.orgId, ORG));
-    await db.delete(siteSpecs).where(eq(siteSpecs.orgId, ORG));
-    await db.delete(sites).where(eq(sites.orgId, ORG));
-    await db.delete(organizations).where(eq(organizations.id, ORG));
-    await db.insert(organizations).values({ id: ORG, name: "Roles org" });
-    await db.insert(sites).values({ id: SITE, orgId: ORG, slug: "roles", name: "Roles" });
+    await db.deleteFrom("spec_patches").where(eq(specPatches.orgId, ORG)).execute();
+    await db.deleteFrom("site_specs").where(eq(siteSpecs.orgId, ORG)).execute();
+    await db.deleteFrom("sites").where(eq(sites.orgId, ORG)).execute();
+    await db.deleteFrom("organizations").where(eq(organizations.id, ORG)).execute();
+    await db.insertInto("organizations").values({ id: ORG, name: "Roles org" }).execute();
+    await db
+      .insertInto("sites")
+      .values({ id: SITE, orgId: ORG, slug: "roles", name: "Roles" })
+      .execute();
   });
 
   const apply = (role: string, next = spec) =>
-    new ApplySpecUseCase(kdb, scope).execute(next, {
+    new ApplySpecUseCase(db, scope).execute(next, {
       actor: "someone@example.test",
       role: role as never,
       source: "admin",
@@ -90,7 +91,9 @@ suite("applying a spec", () => {
   it("refuses an editor, who edits entries rather than the site", async () => {
     await expect(apply("editor")).rejects.toBeInstanceOf(NotAllowedError);
     // And nothing was written: a refused apply is not a half-applied one.
-    expect(await db.select().from(siteSpecs).where(eq(siteSpecs.orgId, ORG))).toHaveLength(0);
+    expect(
+      await db.selectFrom("site_specs").selectAll().where(eq(siteSpecs.orgId, ORG)).execute(),
+    ).toHaveLength(0);
   });
 
   it("refuses a viewer", async () => {

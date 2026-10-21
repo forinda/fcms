@@ -10,9 +10,16 @@ import { Inject, Scope as Lifetime, Service } from "@forinda/kickjs";
 import { and, eq, inArray, lte, sql } from "@forinda/kickjs-db";
 import { matches, resolve } from "@forinda-cms/render";
 import type { SiteSpec, Workflow } from "@forinda-cms/spec";
-import { tables, type EntryRow, type Kdb, type Scope, type WorkflowRunRow } from "@forinda-cms/db";
+import {
+  entries,
+  workflowRuns as runs,
+  type EntryRow,
+  type Db,
+  type Scope,
+  type WorkflowRunRow,
+} from "@forinda-cms/db";
 
-import { KDB } from "@/shared/db";
+import { DB } from "@/shared/db";
 import { CURRENT_SCOPE } from "@/contributors/site.contributor";
 import { ACTION_REGISTRY } from "./actions";
 import { parseCron } from "./cron";
@@ -38,12 +45,11 @@ const MAX_ATTEMPTS = 5;
  */
 const MAX_DEPTH = 3;
 const BACKOFF_SECONDS = [10, 30, 120, 600];
-const runs = tables.workflowRuns;
 
 @Service({ scope: Lifetime.REQUEST })
 export class WorkflowUseCase {
   constructor(
-    @Inject(KDB) private readonly db: Kdb,
+    @Inject(DB) private readonly db: Db,
     @Inject(CURRENT_SCOPE) private readonly scope: Scope,
   ) {}
 
@@ -383,7 +389,7 @@ export class WorkflowUseCase {
     return this.db
       .selectFrom("entries")
       .selectAll()
-      .where(and(eq(tables.entries.siteId, this.scope.siteId), eq(tables.entries.id, id)))
+      .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, id)))
       .executeTakeFirst();
   }
 
@@ -404,7 +410,7 @@ export class WorkflowUseCase {
         data: sql`jsonb_set(data, ${`{${field}}`}::text[], ${JSON.stringify(to)}::jsonb, true)`,
         updatedAt: new Date(),
       })
-      .where(and(eq(tables.entries.siteId, this.scope.siteId), eq(tables.entries.id, entryId)))
+      .where(and(eq(entries.siteId, this.scope.siteId), eq(entries.id, entryId)))
       .execute();
 
     // Chaining stops somewhere. Two automations that transition each other are
